@@ -39,7 +39,7 @@ export function Navigation({ currentView, onViewChange, userProfile }: Navigatio
   ];
 
   return (
-    <div className="w-64 h-screen bg-gradient-to-b from-purple-600 to-pink-600 text-white p-6 flex flex-col">
+    <div className="w-64 h-screen bg-gradient-to-b from-blue-600 to-cyan-600 text-white p-6 flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-2 mb-8">
         <Sparkles className="w-8 h-8" />
@@ -62,7 +62,7 @@ export function Navigation({ currentView, onViewChange, userProfile }: Navigatio
           </div>
           <div className="h-2 bg-white/20 rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-yellow-400 to-orange-400"
+              className="h-full bg-gradient-to-r from-blue-300 to-cyan-300"
               style={{ width: `${(userProfile.xp / ((userProfile.level + 1) * 500)) * 100}%` }}
             />
           </div>

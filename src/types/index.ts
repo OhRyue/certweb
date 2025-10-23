@@ -8,6 +8,38 @@ export interface Topic {
   tags: string[];
 }
 
+// New Subject Structure for Main Learning
+export interface Detail {
+  id: number;
+  name: string;
+  conceptId?: string; // Link to Concept for content
+  questionIds?: string[]; // Link to Questions
+}
+
+export interface SubTopic {
+  id: number;
+  name: string;
+  details: Detail[];
+}
+
+export interface MainTopic {
+  id: number;
+  name: string;
+  subTopics: SubTopic[];
+  icon?: string;
+  color?: string;
+  // Review는 MainTopic 단위로!
+}
+
+export interface Subject {
+  id: number;
+  name: string;
+  category: string; // "정보처리기사", "토익", etc.
+  mainTopics: MainTopic[];
+  icon: string;
+  color: string;
+}
+
 export interface Question {
   id: string;
   topicId: string;

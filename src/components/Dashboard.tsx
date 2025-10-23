@@ -26,7 +26,7 @@ export function Dashboard({ onStartQuiz, onStartGame, categories }: DashboardPro
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -42,7 +42,7 @@ export function Dashboard({ onStartQuiz, onStartGame, categories }: DashboardPro
         <Card className="p-6 mb-8 bg-white/80 backdrop-blur border-2 border-purple-200 shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full">
+              <div className="p-3 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full">
                 <Trophy className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -97,7 +97,7 @@ export function Dashboard({ onStartQuiz, onStartGame, categories }: DashboardPro
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   onClick={() => onStartQuiz(category.id)}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                 >
                   <BookOpen className="w-4 h-4 mr-2" />
                   퀴즈 풀기
@@ -105,7 +105,7 @@ export function Dashboard({ onStartQuiz, onStartGame, categories }: DashboardPro
                 <Button
                   onClick={() => onStartGame(category.id)}
                   variant="outline"
-                  className="border-2 hover:bg-purple-50"
+                  className="border-2 hover:bg-blue-50"
                   style={{ borderColor: category.color }}
                 >
                   <Gamepad2 className="w-4 h-4 mr-2" />

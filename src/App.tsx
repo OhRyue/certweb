@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Toaster } from "./components/ui/sonner";
+import { LoginScreen } from "./components/LoginScreen";
 import { Navigation } from "./components/Navigation";
 import { HomeDashboard } from "./components/HomeDashboard";
 import { MainLearningDashboard } from "./components/MainLearning/MainLearningDashboard";
@@ -24,7 +25,7 @@ import { GoldenBell } from "./components/Battle/GoldenBell";
 import { GoldenBellGame } from "./components/Battle/GoldenBellGame";
 import { CommunityDashboard } from "./components/Community/CommunityDashboard";
 import { SettingsDashboard } from "./components/Settings/SettingsDashboard";
-import { topics, concepts, questions, userProfile as initialProfile, userSettings as initialSettings } from "./data/mockData";
+import { topics, concepts, questions, userProfile as initialProfile, userSettings as initialSettings, subjects } from "./data/mockData";
 
 type View = "home" | "main" | "solo" | "report" | "certinfo" | "battle" | "community" | "settings";
 type MainLearningStep = "dashboard" | "concept" | "miniCheck" | "problemSolving" | "microResult" | "review" | "reviewResult";
@@ -32,6 +33,7 @@ type SoloStep = "dashboard" | "categoryQuiz" | "difficultyQuiz" | "weaknessQuiz"
 type BattleStep = "dashboard" | "oneVsOne" | "battleGame" | "battleResult" | "tournament" | "tournamentBracket" | "goldenBell" | "goldenBellGame";
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentView, setCurrentView] = useState<View>("home");
   const [userProfile, setUserProfile] = useState(initialProfile);
   const [userSettings, setUserSettings] = useState(initialSettings);
@@ -39,6 +41,10 @@ export default function App() {
   // Main Learning State
   const [mainLearningStep, setMainLearningStep] = useState<MainLearningStep>("dashboard");
   const [selectedTopicId, setSelectedTopicId] = useState<string>("");
+  const [selectedDetailId, setSelectedDetailId] = useState<number>(0);
+  const [selectedDetailName, setSelectedDetailName] = useState<string>("");
+  const [selectedMainTopicId, setSelectedMainTopicId] = useState<number>(0);
+  const [selectedMainTopicName, setSelectedMainTopicName] = useState<string>("");
   const [miniCheckScore, setMiniCheckScore] = useState(0);
   const [problemSolvingScore, setProblemSolvingScore] = useState(0);
 
@@ -60,8 +66,11 @@ export default function App() {
   const getAllQuestions = (topicId: string) => questions.filter(q => q.topicId === topicId);
 
   // Main Learning Handlers
-  const handleStartMicro = (topicId: string) => {
-    setSelectedTopicId(topicId);
+  const handleStartMicro = (detailId: number, detailName: string) => {
+    setSelectedDetailId(detailId);
+    setSelectedDetailName(detailName);
+    // For now, use first topic for concept and questions
+    setSelectedTopicId(topics[0].id);
     setMainLearningStep("concept");
   };
 
@@ -79,8 +88,11 @@ export default function App() {
     setMainLearningStep("microResult");
   };
 
-  const handleStartReview = (topicId: string) => {
-    setSelectedTopicId(topicId);
+  const handleStartReview = (mainTopicId: number, mainTopicName: string) => {
+    setSelectedMainTopicId(mainTopicId);
+    setSelectedMainTopicName(mainTopicName);
+    // For now, use first topic for questions
+    setSelectedTopicId(topics[0].id);
     setMainLearningStep("review");
   };
 
@@ -92,6 +104,10 @@ export default function App() {
   const handleBackToMainDashboard = () => {
     setMainLearningStep("dashboard");
     setSelectedTopicId("");
+    setSelectedDetailId(0);
+    setSelectedDetailName("");
+    setSelectedMainTopicId(0);
+    setSelectedMainTopicName("");
     setMiniCheckScore(0);
     setProblemSolvingScore(0);
   };
@@ -231,7 +247,7 @@ export default function App() {
           return concept && selectedTopic ? (
             <ConceptView
               concept={concept}
-              topicName={selectedTopic.name}
+              topicName={selectedDetailName || selectedTopic.name}
               onNext={handleConceptNext}
             />
           ) : null;
@@ -240,7 +256,7 @@ export default function App() {
           return selectedTopic && oxQuestions.length > 0 ? (
             <MiniCheck
               questions={oxQuestions}
-              topicName={selectedTopic.name}
+              topicName={selectedDetailName || selectedTopic.name}
               onComplete={handleMiniCheckComplete}
             />
           ) : null;
@@ -249,7 +265,7 @@ export default function App() {
           return selectedTopic && multipleQuestions.length > 0 ? (
             <ProblemSolving
               questions={multipleQuestions.slice(0, 5)}
-              topicName={selectedTopic.name}
+              topicName={selectedDetailName || selectedTopic.name}
               onComplete={handleProblemSolvingComplete}
             />
           ) : null;
@@ -257,7 +273,7 @@ export default function App() {
         case "microResult":
           return selectedTopic ? (
             <MicroResult
-              topicName={selectedTopic.name}
+              topicName={selectedDetailName || selectedTopic.name}
               miniCheckScore={miniCheckScore}
               problemScore={problemSolvingScore}
               totalProblems={9}
@@ -270,7 +286,7 @@ export default function App() {
           return selectedTopic && allQuestions.length > 0 ? (
             <ReviewMode
               questions={allQuestions.slice(0, 20)}
-              topicName={selectedTopic.name}
+              topicName={selectedMainTopicName || selectedTopic.name}
               onComplete={handleReviewComplete}
             />
           ) : null;
@@ -278,7 +294,7 @@ export default function App() {
         case "reviewResult":
           return selectedTopic ? (
             <MicroResult
-              topicName={selectedTopic.name}
+              topicName={selectedMainTopicName || selectedTopic.name}
               miniCheckScore={0}
               problemScore={problemSolvingScore}
               totalProblems={20}
@@ -290,7 +306,8 @@ export default function App() {
         default:
           return (
             <MainLearningDashboard
-              topics={topics}
+              subjects={subjects}
+              targetCertification={userProfile.targetCertification}
               onStartMicro={handleStartMicro}
               onStartReview={handleStartReview}
             />
@@ -445,8 +462,18 @@ export default function App() {
     return null;
   };
 
+  // Show login screen if not logged in
+  if (!isLoggedIn) {
+    return (
+      <>
+        <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+        <Toaster />
+      </>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
+    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50">
       <Navigation
         currentView={currentView}
         onViewChange={(view) => {

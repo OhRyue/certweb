@@ -48,9 +48,8 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-white mb-2 flex items-center justify-center gap-2">
-            <Sparkles className="w-8 h-8 text-purple-500" />
-            환영합니다, {userProfile.name}님! ✨
+          <h1 className="text-blue-900 mb-2 flex items-center justify-center gap-2">
+            ✨ 환영합니다, {userProfile.name}님! ✨
           </h1>
           <div className="flex items-center justify-center gap-2 mt-3">
             <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-1">
@@ -149,7 +148,7 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                         animate={{ scale: [1, 1.05, 1] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
                       >
-                        <div className="text-5xl text-blue-600 mb-1">D-{dDay}</div>
+                        <div className="text-5xl text-blue-600 mb-1">D-{Math.abs(dDay)}</div>
                       </motion.div>
                       <p className="text-blue-700 text-sm">
                         {dDay && dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}

@@ -6,7 +6,7 @@ export const topics: Topic[] = [
     name: "데이터베이스 기초",
     category: "정보처리기사",
     icon: "🗄️",
-    color: "#8B5CF6",
+    color: "#3B82F6",
     tags: ["데이터베이스", "SQL", "정규화"],
   },
   {
@@ -14,7 +14,7 @@ export const topics: Topic[] = [
     name: "네트워크",
     category: "정보처리기사",
     icon: "🌐",
-    color: "#EC4899",
+    color: "#60A5FA",
     tags: ["네트워크", "OSI", "TCP/IP"],
   },
   {
@@ -22,7 +22,7 @@ export const topics: Topic[] = [
     name: "객체지향",
     category: "정보처리기사",
     icon: "💻",
-    color: "#F59E0B",
+    color: "#38BDF8",
     tags: ["OOP", "디자인패턴", "Java"],
   },
 ];
@@ -378,8 +378,262 @@ export const mockRankingData = [
 ];
 
 export const categoryProgress = [
-  { category: "정보처리기사", icon: "💻", progress: 65, topics: 12, completed: 8, color: "#8B5CF6" },
-  { category: "토익", icon: "🇺🇸", progress: 30, topics: 10, completed: 3, color: "#EC4899" },
-  { category: "재무회계", icon: "💰", progress: 45, topics: 8, completed: 4, color: "#F59E0B" },
-  { category: "법률", icon: "⚖️", progress: 20, topics: 15, completed: 3, color: "#10B981" },
+  { category: "정보처리기사", icon: "💻", progress: 65, topics: 12, completed: 8, color: "#3B82F6" },
+  { category: "토익", icon: "🇺🇸", progress: 30, topics: 10, completed: 3, color: "#60A5FA" },
+  { category: "재무회계", icon: "💰", progress: 45, topics: 8, completed: 4, color: "#38BDF8" },
+  { category: "법률", icon: "⚖️", progress: 20, topics: 15, completed: 3, color: "#06B6D4" },
+];
+
+// Subject Structure for Main Learning
+import { Subject } from "../types";
+
+export const subjects: Subject[] = [
+  // 정보처리기사 - 응용 SW 엔지니어링
+  {
+    id: 1,
+    name: "응용 SW 엔지니어링",
+    category: "정보처리기사",
+    icon: "🔧",
+    color: "#3B82F6",
+    mainTopics: [
+      {
+        id: 1,
+        name: "요구사항 분석",
+        icon: "📋",
+        color: "#3B82F6",
+        subTopics: [
+          {
+            id: 1,
+            name: "요구사항 정의",
+            details: [
+              { id: 1, name: "요구사항 명세서 작성", conceptId: "c1" },
+              { id: 2, name: "요구사항 변경 관리", conceptId: "c1" },
+              { id: 3, name: "요구사항 검토 및 승인", conceptId: "c1" }
+            ]
+          },
+          {
+            id: 2,
+            name: "분석 모델링",
+            details: [
+              { id: 4, name: "데이터 흐름도(DFD)", conceptId: "c1" },
+              { id: 5, name: "ER 다이어그램(ERD)", conceptId: "c1" },
+              { id: 6, name: "UML 모델링", conceptId: "c1" }
+            ]
+          }
+        ]
+      },
+      {
+        id: 2,
+        name: "화면 구현",
+        icon: "🎨",
+        color: "#60A5FA",
+        subTopics: [
+          {
+            id: 3,
+            name: "UI 설계",
+            details: [
+              { id: 7, name: "UI 흐름 설계", conceptId: "c2" },
+              { id: 8, name: "UI 표준 및 가이드 정의", conceptId: "c2" },
+              { id: 9, name: "화면 레이아웃 설계", conceptId: "c2" }
+            ]
+          },
+          {
+            id: 4,
+            name: "UI 구현",
+            details: [
+              { id: 10, name: "HTML/CSS 구현", conceptId: "c2" },
+              { id: 11, name: "JavaScript 이벤트 처리", conceptId: "c2" },
+              { id: 12, name: "React 기반 SPA 구현", conceptId: "c2" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  // 정보처리기사 - 데이터베이스
+  {
+    id: 2,
+    name: "데이터베이스",
+    category: "정보처리기사",
+    icon: "🗄️",
+    color: "#38BDF8",
+    mainTopics: [
+      {
+        id: 3,
+        name: "데이터베이스 설계",
+        icon: "🏗️",
+        color: "#38BDF8",
+        subTopics: [
+          {
+            id: 5,
+            name: "논리적 설계",
+            details: [
+              { id: 13, name: "개념적 데이터 모델링", conceptId: "c1" },
+              { id: 14, name: "논리적 데이터 모델링", conceptId: "c1" },
+              { id: 15, name: "정규화 1NF-3NF", conceptId: "c1" }
+            ]
+          },
+          {
+            id: 6,
+            name: "물리적 설계",
+            details: [
+              { id: 16, name: "테이블 생성 및 제약조건", conceptId: "c1" },
+              { id: 17, name: "인덱스 설계", conceptId: "c1" },
+              { id: 18, name: "파티셔닝 전략", conceptId: "c1" }
+            ]
+          }
+        ]
+      },
+      {
+        id: 4,
+        name: "SQL 활용",
+        icon: "💾",
+        color: "#7DD3FC",
+        subTopics: [
+          {
+            id: 7,
+            name: "기본 SQL",
+            details: [
+              { id: 19, name: "DDL 작성", conceptId: "c1" },
+              { id: 20, name: "DML 작성", conceptId: "c1" },
+              { id: 21, name: "DCL 및 TCL", conceptId: "c1" }
+            ]
+          },
+          {
+            id: 8,
+            name: "고급 SQL",
+            details: [
+              { id: 22, name: "조인 및 서브쿼리", conceptId: "c1" },
+              { id: 23, name: "집합 연산 및 그룹화", conceptId: "c1" },
+              { id: 24, name: "윈도우 함수", conceptId: "c1" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  // 정보처리기사 - 네트워크
+  {
+    id: 3,
+    name: "네트워크",
+    category: "정보처리기사",
+    icon: "🌐",
+    color: "#06B6D4",
+    mainTopics: [
+      {
+        id: 5,
+        name: "OSI 7계층",
+        icon: "📡",
+        color: "#06B6D4",
+        subTopics: [
+          {
+            id: 9,
+            name: "하위 계층",
+            details: [
+              { id: 25, name: "물리 계층", conceptId: "c2" },
+              { id: 26, name: "데이터링크 계층", conceptId: "c2" },
+              { id: 27, name: "네트워크 계층", conceptId: "c2" }
+            ]
+          },
+          {
+            id: 10,
+            name: "상위 계층",
+            details: [
+              { id: 28, name: "전송 계층", conceptId: "c2" },
+              { id: 29, name: "세션/표현 계층", conceptId: "c2" },
+              { id: 30, name: "응용 계층", conceptId: "c2" }
+            ]
+          }
+        ]
+      },
+      {
+        id: 6,
+        name: "프로토콜",
+        icon: "🔌",
+        color: "#22D3EE",
+        subTopics: [
+          {
+            id: 11,
+            name: "전송 프로토콜",
+            details: [
+              { id: 31, name: "TCP 프로토콜", conceptId: "c2" },
+              { id: 32, name: "UDP 프로토콜", conceptId: "c2" },
+              { id: 33, name: "IP 프로토콜", conceptId: "c2" }
+            ]
+          },
+          {
+            id: 12,
+            name: "응용 프로토콜",
+            details: [
+              { id: 34, name: "HTTP/HTTPS", conceptId: "c2" },
+              { id: 35, name: "웹 소켓", conceptId: "c2" },
+              { id: 36, name: "DNS/FTP", conceptId: "c2" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  // 토익
+  {
+    id: 4,
+    name: "토익 문법",
+    category: "토익",
+    icon: "🇺🇸",
+    color: "#6366F1",
+    mainTopics: [
+      {
+        id: 7,
+        name: "동사",
+        icon: "📝",
+        color: "#6366F1",
+        subTopics: [
+          {
+            id: 13,
+            name: "시제",
+            details: [
+              { id: 37, name: "현재/과거/미래 시제", conceptId: "c3" },
+              { id: 38, name: "완료 시제", conceptId: "c3" },
+              { id: 39, name: "진행 시제", conceptId: "c3" }
+            ]
+          },
+          {
+            id: 14,
+            name: "태",
+            details: [
+              { id: 40, name: "능동태와 수동태", conceptId: "c3" },
+              { id: 41, name: "시제별 수동태", conceptId: "c3" },
+              { id: 42, name: "주의해야 할 수동태", conceptId: "c3" }
+            ]
+          }
+        ]
+      },
+      {
+        id: 8,
+        name: "명사와 관사",
+        icon: "📚",
+        color: "#818CF8",
+        subTopics: [
+          {
+            id: 15,
+            name: "명사",
+            details: [
+              { id: 43, name: "가산명사와 불가산명사", conceptId: "c3" },
+              { id: 44, name: "단수와 복수", conceptId: "c3" },
+              { id: 45, name: "소유격", conceptId: "c3" }
+            ]
+          },
+          {
+            id: 16,
+            name: "관사",
+            details: [
+              { id: 46, name: "a/an 용법", conceptId: "c3" },
+              { id: 47, name: "the 용법", conceptId: "c3" },
+              { id: 48, name: "관사 생략", conceptId: "c3" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
 ];
