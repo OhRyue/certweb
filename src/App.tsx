@@ -11,6 +11,7 @@ import { MainLearningDashboard } from "./components/MainLearning/MainLearningDas
 import { MicroFlowPage } from "./components/MainLearning/MicroFlowPage"
 import { ReviewMode } from "./components/MainLearning/ReviewMode"
 import { ReviewFlowPage } from "./components/MainLearning/ReviewFlowPage"
+import { ReviewFlowPracticalPage } from "./components/MainLearning/ReviewFlowPracticalPage"
 
 // Solo Practice
 import { SoloPracticeDashboard } from "./components/SoloPractice/SoloPracticeDashboard"
@@ -86,7 +87,7 @@ export default function App() {
             />
             <Route path="/learning/micro" element={<MicroFlowPage />} />
             <Route path="/learning/review-written" element={<ReviewFlowPage />} />
-            <Route path="/learning/review-practical" element={<ReviewFlowPage />} />
+            <Route path="/learning/review-practical" element={<ReviewFlowPracticalPage />} />
 
 
             {/* 혼자풀기 */}

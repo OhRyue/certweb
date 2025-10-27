@@ -23,7 +23,7 @@ export function ReviewFlowPage() {
   const oxQuestions = relatedQuestions.filter((q) => q.type === "ox")
   const multipleQuestions = relatedQuestions.filter((q) => q.type === "multiple")
 
-  // 1️⃣ OX 단계
+  // OX 단계
   if (step === "mini") {
     return (
       <ReviewMiniCheck
@@ -38,7 +38,7 @@ export function ReviewFlowPage() {
     )
   }
 
-  // 2️⃣ 객관식 단계 (새로 렌더되도록 key 다르게)
+  // 객관식 단계 (새로 렌더되도록 key 다르게)
   if (step === "problem") {
     return (
       <ReviewProblemSolving
@@ -53,7 +53,7 @@ export function ReviewFlowPage() {
     )
   }
 
-  // 3️⃣ 결과 화면
+  // 결과 화면
   if (step === "result") {
     return (
       <ReviewResult
