@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react";
 import { Subject, MainTopic, SubTopic, Detail } from "../../types";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface MainLearningDashboardProps {
   subjects: Subject[];
@@ -15,6 +16,7 @@ interface MainLearningDashboardProps {
 }
 
 export function MainLearningDashboard({ subjects, targetCertification, onStartMicro, onStartReview }: MainLearningDashboardProps) {
+  const navigate = useNavigate()
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null);
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null);
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written");
@@ -70,7 +72,7 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
               </div>
               <p className="text-gray-600">체계적으로 개념을 학습하고 문제를 풀어보세요!</p>
             </div>
-            
+
             {/* Exam Type Toggle */}
             <Tabs value={selectedExamType} onValueChange={(value) => {
               setSelectedExamType(value as "written" | "practical");
@@ -78,14 +80,14 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
               setExpandedSubTopic(null);
             }}>
               <TabsList className="bg-gradient-to-r from-purple-100 to-pink-100 p-1">
-                <TabsTrigger 
-                  value="written" 
+                <TabsTrigger
+                  value="written"
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-sky-500 data-[state=active]:text-white"
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   필기
                 </TabsTrigger>
-                <TabsTrigger 
+                <TabsTrigger
                   value="practical"
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
                 >
@@ -154,8 +156,8 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
               </h3>
             </div>
             <div className="flex items-center gap-2">
-              <Badge 
-                variant="secondary" 
+              <Badge
+                variant="secondary"
                 className={selectedExamType === "written" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}
               >
                 {completedDetails} / {totalDetails} 완료
@@ -163,10 +165,20 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
               <span className="text-purple-900">{progress}%</span>
             </div>
           </div>
-          <Progress 
-            value={progress} 
-            className="h-3 bg-white/60"
+          <Progress
+            value={progress}
+            className={`h-3 bg-white/60`}
+            style={{
+              "--tw-bg-opacity": "1",
+              backgroundColor: "rgba(255,255,255,0.6)",
+            }}
           />
+          <style>
+            {`.bg-white\\/60 > div {background-color: ${selectedExamType === "written" ? "#3B82F6" : "#FACC15"} !important;}`}
+          </style>
+
+
+
         </Card>
 
         {/* Subjects List */}
@@ -176,7 +188,7 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
               {/* Subject Header */}
               <div className="mb-6">
                 <div className="flex items-center gap-3">
-                  <div 
+                  <div
                     className="p-3 rounded-lg text-3xl"
                     style={{ backgroundColor: subject.color + "20" }}
                   >
@@ -185,8 +197,8 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                   <div>
                     <div className="flex items-center gap-3">
                       <h2 className="text-purple-900">{subject.name}</h2>
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className={selectedExamType === "written" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}
                       >
                         {selectedExamType === "written" ? "📝 필기" : "⌨️ 실기"}
@@ -207,13 +219,13 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                     className="overflow-hidden border-2 hover:border-purple-300 transition-all"
                   >
                     {/* Main Topic Header with Review Button */}
-                    <div 
+                    <div
                       className="p-5 cursor-pointer bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all"
                       onClick={() => setExpandedMainTopic(expandedMainTopic === mainTopic.id ? null : mainTopic.id)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
-                          <div 
+                          <div
                             className="p-3 rounded-lg text-2xl"
                             style={{ backgroundColor: mainTopic.color + "30" }}
                           >
@@ -234,20 +246,26 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                         <div className="flex items-center gap-3">
                           <Button
                             onClick={(e) => {
-                              e.stopPropagation();
-                              onStartReview(mainTopic.id, mainTopic.name, selectedExamType);
+                              e.stopPropagation()
+                              if (selectedExamType === "written") {
+                                navigate(`/learning/review-written?mainTopicId=${mainTopic.id}`)
+                              } else {
+                                navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
+                              }
                             }}
                             className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
                             Review 총정리
                           </Button>
+
                           {expandedMainTopic === mainTopic.id ? (
                             <ChevronDown className="w-5 h-5 text-purple-600" />
                           ) : (
                             <ChevronRight className="w-5 h-5 text-purple-600" />
                           )}
                         </div>
+
                       </div>
                     </div>
 
@@ -256,7 +274,7 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                       <div className="p-5 bg-white space-y-4">
                         {mainTopic.subTopics.map((subTopic) => (
                           <div key={subTopic.id} className="border-l-4 border-purple-300 pl-4">
-                            <div 
+                            <div
                               className="cursor-pointer mb-2 flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
                               onClick={() => setExpandedSubTopic(expandedSubTopic === subTopic.id ? null : subTopic.id)}
                             >
@@ -278,13 +296,12 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                               <div className="ml-4 space-y-2 mt-2">
                                 {subTopic.details.map((detail) => {
                                   return (
-                                    <div 
+                                    <div
                                       key={detail.id}
-                                      className={`flex items-center justify-between p-3 rounded-lg transition-all border ${
-                                        detail.completed 
-                                          ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" 
-                                          : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
-                                      }`}
+                                      className={`flex items-center justify-between p-3 rounded-lg transition-all border ${detail.completed
+                                        ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+                                        : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
+                                        }`}
                                     >
                                       <div className="flex items-center gap-3">
                                         {detail.completed ? (
@@ -307,7 +324,9 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                                       </div>
                                       <Button
                                         size="sm"
-                                        onClick={() => onStartMicro(detail.id, detail.name, selectedExamType)}
+                                        onClick={() =>
+                                          navigate(`/learning/micro?detailId=${detail.id}&type=${selectedExamType}`)
+                                        }
                                         className={
                                           detail.completed
                                             ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"

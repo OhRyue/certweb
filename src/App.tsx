@@ -8,10 +8,11 @@ import { HomeDashboard } from "./components/HomeDashboard"
 
 // Main Learning
 import { MainLearningDashboard } from "./components/MainLearning/MainLearningDashboard"
-import { ConceptView } from "./components/MainLearning/ConceptView"
-import { MiniCheck } from "./components/MainLearning/MiniCheck"
-import { ProblemSolving } from "./components/MainLearning/ProblemSolving"
-import { MicroResult } from "./components/MainLearning/MicroResult"
+// import { ConceptView } from "./components/MainLearning/ConceptView"
+// import { MiniCheck } from "./components/MainLearning/MiniCheck"
+// import { ProblemSolving } from "./components/MainLearning/ProblemSolving"
+// import { MicroResult } from "./components/MainLearning/MicroResult"
+import { MicroFlowPage } from "./components/MainLearning/MicroFlowPage"
 import { ReviewMode } from "./components/MainLearning/ReviewMode"
 
 // Solo Practice
@@ -36,6 +37,7 @@ import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
 import { CommunityDashboard } from "./components/Community/CommunityDashboard"
 import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
 import { ShopDashboard } from "./components/Shop/ShopDashboard"
+import { subjects, userProfile, userSettings, shopItems } from "./data/mockData"
 
 import { useState } from "react"
 import {
@@ -67,16 +69,31 @@ export default function App() {
         <main className="ml-64 flex-1">
           <Routes>
             {/* 기본 홈 */}
-            <Route path="/" element={<HomeDashboard userProfile={userProfile}/>} />
+            <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
 
             {/* 메인 학습 */}
-            <Route path="/learning" element={<MainLearningDashboard />} />
-            <Route path="/learning/concept" element={<ConceptView />} />
+            <Route
+              path="/learning"
+              element={
+                <MainLearningDashboard
+                  subjects={subjects} // mockData에서 불러온 실제 데이터
+                  targetCertification={userProfile.targetCertification || "정보처리기사"} // userProfile 안에 자격증 정보 있으면 그대로 사용
+                  onStartMicro={(id, name, type) => {
+                    console.log("Micro 학습 시작:", id, name, type)
+                  }}
+                  onStartReview={(id, name, type) => {
+                    console.log("Review 총정리:", id, name, type)
+                  }}
+                />
+              }
+            />
+            <Route path="/learning/micro" element={<MicroFlowPage/>} />
+            <Route path="/learning/review" element={<ReviewMode/>} />
+            {/* <Route path="/learning/concept" element={<ConceptView />} />
             <Route path="/learning/minicheck" element={<MiniCheck />} />
             <Route path="/learning/problemsolving" element={<ProblemSolving />} />
-            <Route path="/learning/microresult" element={<MicroResult />} />
-            <Route path="/learning/review" element={<ReviewMode />} />
-
+            <Route path="/learning/microresult" element={<MicroResult />} /> */}
+          
             {/* 혼자풀기 */}
             <Route path="/solo" element={<SoloPracticeDashboard />} />
             <Route path="/solo/category" element={<CategoryQuiz />} />
