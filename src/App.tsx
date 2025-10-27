@@ -8,10 +8,6 @@ import { HomeDashboard } from "./components/HomeDashboard"
 
 // Main Learning
 import { MainLearningDashboard } from "./components/MainLearning/MainLearningDashboard"
-// import { ConceptView } from "./components/MainLearning/ConceptView"
-// import { MiniCheck } from "./components/MainLearning/MiniCheck"
-// import { ProblemSolving } from "./components/MainLearning/ProblemSolving"
-// import { MicroResult } from "./components/MainLearning/MicroResult"
 import { MicroFlowPage } from "./components/MainLearning/MicroFlowPage"
 import { ReviewMode } from "./components/MainLearning/ReviewMode"
 
@@ -37,7 +33,7 @@ import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
 import { CommunityDashboard } from "./components/Community/CommunityDashboard"
 import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
 import { ShopDashboard } from "./components/Shop/ShopDashboard"
-import { subjects, userProfile, userSettings, shopItems } from "./data/mockData"
+import { subjects, userProfile, userSettings, shopItems, questions } from "./data/mockData"
 
 import { useState } from "react"
 import {
@@ -87,13 +83,29 @@ export default function App() {
                 />
               }
             />
-            <Route path="/learning/micro" element={<MicroFlowPage/>} />
-            <Route path="/learning/review" element={<ReviewMode/>} />
-            {/* <Route path="/learning/concept" element={<ConceptView />} />
-            <Route path="/learning/minicheck" element={<MiniCheck />} />
-            <Route path="/learning/problemsolving" element={<ProblemSolving />} />
-            <Route path="/learning/microresult" element={<MicroResult />} /> */}
-          
+            <Route path="/learning/micro" element={<MicroFlowPage />} />
+            <Route
+              path="/learning/review-written"
+              element={
+                <ReviewMode
+                  questions={questions.slice(0, 5)}
+                  topicName="필기 총정리"
+                  onComplete={(score) => console.log("필기 완료:", score)}
+                />
+              }
+            />
+            <Route
+              path="/learning/review-practical"
+              element={
+                <ReviewMode
+                  questions={questions.slice(5, 10)}
+                  topicName="실기 총정리"
+                  onComplete={(score) => console.log("실기 완료:", score)}
+                />
+              }
+            />
+
+
             {/* 혼자풀기 */}
             <Route path="/solo" element={<SoloPracticeDashboard />} />
             <Route path="/solo/category" element={<CategoryQuiz />} />
