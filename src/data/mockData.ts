@@ -1,4 +1,4 @@
-import { Topic, Question, Concept, UserProfile, UserSettings, UserStats, ExamSchedule } from "../types";
+import { Topic, Question, Concept, UserProfile, UserSettings, UserStats, ExamSchedule, ShopItem } from "../types";
 
 export const topics: Topic[] = [
   {
@@ -369,6 +369,140 @@ export const examSchedules: ExamSchedule[] = [
   },
 ];
 
+export const shopItems: ShopItem[] = [
+  // Hats
+  {
+    id: "hat1",
+    name: "졸업 모자 🎓",
+    category: "hat",
+    price: 500,
+    description: "학식이 넘치는 졸업 모자",
+    rarity: "common",
+    isPurchased: false,
+  },
+  {
+    id: "hat2",
+    name: "왕관 👑",
+    category: "hat",
+    price: 2000,
+    description: "1등의 상징, 황금 왕관",
+    rarity: "epic",
+    isPurchased: false,
+  },
+  {
+    id: "hat3",
+    name: "마법사 모자 🧙",
+    category: "hat",
+    price: 1500,
+    description: "마법처럼 점수가 오르는 모자",
+    rarity: "rare",
+    isPurchased: false,
+  },
+  // Clothes
+  {
+    id: "clothes1",
+    name: "정장 👔",
+    category: "clothes",
+    price: 800,
+    description: "면접도 자격증도 완벽!",
+    rarity: "common",
+    isPurchased: false,
+  },
+  {
+    id: "clothes2",
+    name: "슈퍼히어로 망토 🦸",
+    category: "clothes",
+    price: 2500,
+    description: "학습의 히어로!",
+    rarity: "legendary",
+    isPurchased: false,
+  },
+  {
+    id: "clothes3",
+    name: "캐주얼 티셔츠 👕",
+    category: "clothes",
+    price: 300,
+    description: "편안한 학습 스타일",
+    rarity: "common",
+    isPurchased: false,
+  },
+  // Accessories
+  {
+    id: "acc1",
+    name: "안경 👓",
+    category: "accessory",
+    price: 600,
+    description: "지식인의 필수품",
+    rarity: "common",
+    isPurchased: false,
+  },
+  {
+    id: "acc2",
+    name: "목걸이 📿",
+    category: "accessory",
+    price: 1200,
+    description: "행운을 부르는 목걸이",
+    rarity: "rare",
+    isPurchased: false,
+  },
+  {
+    id: "acc3",
+    name: "트로피 🏆",
+    category: "accessory",
+    price: 3000,
+    description: "최고의 영광!",
+    rarity: "legendary",
+    isPurchased: false,
+  },
+  // Backgrounds
+  {
+    id: "bg1",
+    name: "도서관 배경 📚",
+    category: "background",
+    price: 1000,
+    description: "집중력이 높아지는 도서관",
+    rarity: "rare",
+    isPurchased: false,
+  },
+  {
+    id: "bg2",
+    name: "우주 배경 🌌",
+    category: "background",
+    price: 1800,
+    description: "무한한 가능성의 우주",
+    rarity: "epic",
+    isPurchased: false,
+  },
+  {
+    id: "bg3",
+    name: "해변 배경 🏖️",
+    category: "background",
+    price: 1500,
+    description: "여유로운 학습 분위기",
+    rarity: "rare",
+    isPurchased: false,
+  },
+  // Special
+  {
+    id: "special1",
+    name: "경험치 부스터 ⚡",
+    category: "special",
+    price: 5000,
+    description: "7일간 경험치 2배!",
+    rarity: "legendary",
+    isPurchased: false,
+  },
+  {
+    id: "special2",
+    name: "럭키 참 🍀",
+    category: "special",
+    price: 3500,
+    description: "정답률 증가 효과",
+    rarity: "epic",
+    isPurchased: false,
+  },
+];
+
 export const mockRankingData = [
   { rank: 1, name: "코딩마스터", avatar: "👑", score: 9850, level: 15 },
   { rank: 2, name: "알고킹", avatar: "🦄", score: 9200, level: 14 },
@@ -388,11 +522,12 @@ export const categoryProgress = [
 import { Subject } from "../types";
 
 export const subjects: Subject[] = [
-  // 정보처리기사 - 응용 SW 엔지니어링
+  // 정보처리기사 필기 - 응용 SW 엔지니어링
   {
     id: 1,
     name: "응용 SW 엔지니어링",
     category: "정보처리기사",
+    examType: "written",
     icon: "🔧",
     color: "#3B82F6",
     mainTopics: [
@@ -406,18 +541,18 @@ export const subjects: Subject[] = [
             id: 1,
             name: "요구사항 정의",
             details: [
-              { id: 1, name: "요구사항 명세서 작성", conceptId: "c1" },
-              { id: 2, name: "요구사항 변경 관리", conceptId: "c1" },
-              { id: 3, name: "요구사항 검토 및 승인", conceptId: "c1" }
+              { id: 1, name: "요구사항 명세서 작성", conceptId: "c1", completed: true },
+              { id: 2, name: "요구사항 변경 관리", conceptId: "c1", completed: true },
+              { id: 3, name: "요구사항 검토 및 승인", conceptId: "c1", completed: false }
             ]
           },
           {
             id: 2,
             name: "분석 모델링",
             details: [
-              { id: 4, name: "데이터 흐름도(DFD)", conceptId: "c1" },
-              { id: 5, name: "ER 다이어그램(ERD)", conceptId: "c1" },
-              { id: 6, name: "UML 모델링", conceptId: "c1" }
+              { id: 4, name: "데이터 흐름도(DFD)", conceptId: "c1", completed: true },
+              { id: 5, name: "ER 다이어그램(ERD)", conceptId: "c1", completed: false },
+              { id: 6, name: "UML 모델링", conceptId: "c1", completed: false }
             ]
           }
         ]
@@ -432,29 +567,30 @@ export const subjects: Subject[] = [
             id: 3,
             name: "UI 설계",
             details: [
-              { id: 7, name: "UI 흐름 설계", conceptId: "c2" },
-              { id: 8, name: "UI 표준 및 가이드 정의", conceptId: "c2" },
-              { id: 9, name: "화면 레이아웃 설계", conceptId: "c2" }
+              { id: 7, name: "UI 흐름 설계", conceptId: "c2", completed: true },
+              { id: 8, name: "UI 표준 및 가이드 정의", conceptId: "c2", completed: false },
+              { id: 9, name: "화면 레이아웃 설계", conceptId: "c2", completed: false }
             ]
           },
           {
             id: 4,
             name: "UI 구현",
             details: [
-              { id: 10, name: "HTML/CSS 구현", conceptId: "c2" },
-              { id: 11, name: "JavaScript 이벤트 처리", conceptId: "c2" },
-              { id: 12, name: "React 기반 SPA 구현", conceptId: "c2" }
+              { id: 10, name: "HTML/CSS 구현", conceptId: "c2", completed: false },
+              { id: 11, name: "JavaScript 이벤트 처리", conceptId: "c2", completed: false },
+              { id: 12, name: "React 기반 SPA 구현", conceptId: "c2", completed: false }
             ]
           }
         ]
       }
     ]
   },
-  // 정보처리기사 - 데이터베이스
+  // 정보처리기사 필기 - 데이터베이스
   {
     id: 2,
     name: "데이터베이스",
     category: "정보처리기사",
+    examType: "written",
     icon: "🗄️",
     color: "#38BDF8",
     mainTopics: [
@@ -468,18 +604,18 @@ export const subjects: Subject[] = [
             id: 5,
             name: "논리적 설계",
             details: [
-              { id: 13, name: "개념적 데이터 모델링", conceptId: "c1" },
-              { id: 14, name: "논리적 데이터 모델링", conceptId: "c1" },
-              { id: 15, name: "정규화 1NF-3NF", conceptId: "c1" }
+              { id: 13, name: "개념적 데이터 모델링", conceptId: "c1", completed: true },
+              { id: 14, name: "논리적 데이터 모델링", conceptId: "c1", completed: false },
+              { id: 15, name: "정규화 1NF-3NF", conceptId: "c1", completed: false }
             ]
           },
           {
             id: 6,
             name: "물리적 설계",
             details: [
-              { id: 16, name: "테이블 생성 및 제약조건", conceptId: "c1" },
-              { id: 17, name: "인덱스 설계", conceptId: "c1" },
-              { id: 18, name: "파티셔닝 전략", conceptId: "c1" }
+              { id: 16, name: "테이블 생성 및 제약조건", conceptId: "c1", completed: false },
+              { id: 17, name: "인덱스 설계", conceptId: "c1", completed: false },
+              { id: 18, name: "파티셔닝 전략", conceptId: "c1", completed: false }
             ]
           }
         ]
@@ -494,29 +630,30 @@ export const subjects: Subject[] = [
             id: 7,
             name: "기본 SQL",
             details: [
-              { id: 19, name: "DDL 작성", conceptId: "c1" },
-              { id: 20, name: "DML 작성", conceptId: "c1" },
-              { id: 21, name: "DCL 및 TCL", conceptId: "c1" }
+              { id: 19, name: "DDL 작성", conceptId: "c1", completed: false },
+              { id: 20, name: "DML 작성", conceptId: "c1", completed: false },
+              { id: 21, name: "DCL 및 TCL", conceptId: "c1", completed: false }
             ]
           },
           {
             id: 8,
             name: "고급 SQL",
             details: [
-              { id: 22, name: "조인 및 서브쿼리", conceptId: "c1" },
-              { id: 23, name: "집합 연산 및 그룹화", conceptId: "c1" },
-              { id: 24, name: "윈도우 함수", conceptId: "c1" }
+              { id: 22, name: "조인 및 서브쿼리", conceptId: "c1", completed: false },
+              { id: 23, name: "집합 연산 및 그룹화", conceptId: "c1", completed: false },
+              { id: 24, name: "윈도우 함수", conceptId: "c1", completed: false }
             ]
           }
         ]
       }
     ]
   },
-  // 정보처리기사 - 네트워크
+  // 정보처리기사 필기 - 네트워크
   {
     id: 3,
     name: "네트워크",
     category: "정보처리기사",
+    examType: "written",
     icon: "🌐",
     color: "#06B6D4",
     mainTopics: [
@@ -530,18 +667,18 @@ export const subjects: Subject[] = [
             id: 9,
             name: "하위 계층",
             details: [
-              { id: 25, name: "물리 계층", conceptId: "c2" },
-              { id: 26, name: "데이터링크 계층", conceptId: "c2" },
-              { id: 27, name: "네트워크 계층", conceptId: "c2" }
+              { id: 25, name: "물리 계층", conceptId: "c2", completed: false },
+              { id: 26, name: "데이터링크 계층", conceptId: "c2", completed: false },
+              { id: 27, name: "네트워크 계층", conceptId: "c2", completed: false }
             ]
           },
           {
             id: 10,
             name: "상위 계층",
             details: [
-              { id: 28, name: "전송 계층", conceptId: "c2" },
-              { id: 29, name: "세션/표현 계층", conceptId: "c2" },
-              { id: 30, name: "응용 계층", conceptId: "c2" }
+              { id: 28, name: "전송 계층", conceptId: "c2", completed: false },
+              { id: 29, name: "세션/표현 계층", conceptId: "c2", completed: false },
+              { id: 30, name: "응용 계층", conceptId: "c2", completed: false }
             ]
           }
         ]
@@ -556,29 +693,30 @@ export const subjects: Subject[] = [
             id: 11,
             name: "전송 프로토콜",
             details: [
-              { id: 31, name: "TCP 프로토콜", conceptId: "c2" },
-              { id: 32, name: "UDP 프로토콜", conceptId: "c2" },
-              { id: 33, name: "IP 프로토콜", conceptId: "c2" }
+              { id: 31, name: "TCP 프로토콜", conceptId: "c2", completed: false },
+              { id: 32, name: "UDP 프로토콜", conceptId: "c2", completed: false },
+              { id: 33, name: "IP 프로토콜", conceptId: "c2", completed: false }
             ]
           },
           {
             id: 12,
             name: "응용 프로토콜",
             details: [
-              { id: 34, name: "HTTP/HTTPS", conceptId: "c2" },
-              { id: 35, name: "웹 소켓", conceptId: "c2" },
-              { id: 36, name: "DNS/FTP", conceptId: "c2" }
+              { id: 34, name: "HTTP/HTTPS", conceptId: "c2", completed: false },
+              { id: 35, name: "웹 소켓", conceptId: "c2", completed: false },
+              { id: 36, name: "DNS/FTP", conceptId: "c2", completed: false }
             ]
           }
         ]
       }
     ]
   },
-  // 토익
+  // 토익 필기
   {
     id: 4,
     name: "토익 문법",
     category: "토익",
+    examType: "written",
     icon: "🇺🇸",
     color: "#6366F1",
     mainTopics: [
@@ -592,18 +730,18 @@ export const subjects: Subject[] = [
             id: 13,
             name: "시제",
             details: [
-              { id: 37, name: "현재/과거/미래 시제", conceptId: "c3" },
-              { id: 38, name: "완료 시제", conceptId: "c3" },
-              { id: 39, name: "진행 시제", conceptId: "c3" }
+              { id: 37, name: "현재/과거/미래 시제", conceptId: "c3", completed: false },
+              { id: 38, name: "완료 시제", conceptId: "c3", completed: false },
+              { id: 39, name: "진행 시제", conceptId: "c3", completed: false }
             ]
           },
           {
             id: 14,
             name: "태",
             details: [
-              { id: 40, name: "능동태와 수동태", conceptId: "c3" },
-              { id: 41, name: "시제별 수동태", conceptId: "c3" },
-              { id: 42, name: "주의해야 할 수동태", conceptId: "c3" }
+              { id: 40, name: "능동태와 수동태", conceptId: "c3", completed: false },
+              { id: 41, name: "시제별 수동태", conceptId: "c3", completed: false },
+              { id: 42, name: "주의해야 할 수동태", conceptId: "c3", completed: false }
             ]
           }
         ]
@@ -618,18 +756,207 @@ export const subjects: Subject[] = [
             id: 15,
             name: "명사",
             details: [
-              { id: 43, name: "가산명사와 불가산명사", conceptId: "c3" },
-              { id: 44, name: "단수와 복수", conceptId: "c3" },
-              { id: 45, name: "소유격", conceptId: "c3" }
+              { id: 43, name: "가산명사와 불가산명사", conceptId: "c3", completed: false },
+              { id: 44, name: "단수와 복수", conceptId: "c3", completed: false },
+              { id: 45, name: "소유격", conceptId: "c3", completed: false }
             ]
           },
           {
             id: 16,
             name: "관사",
             details: [
-              { id: 46, name: "a/an 용법", conceptId: "c3" },
-              { id: 47, name: "the 용법", conceptId: "c3" },
-              { id: 48, name: "관사 생략", conceptId: "c3" }
+              { id: 46, name: "a/an 용법", conceptId: "c3", completed: false },
+              { id: 47, name: "the 용법", conceptId: "c3", completed: false },
+              { id: 48, name: "관사 생략", conceptId: "c3", completed: false }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  // 정보처리기사 실기 - 프로그래밍 실습
+  {
+    id: 101,
+    name: "프로그래밍 실습",
+    category: "정보처리기사",
+    examType: "practical",
+    icon: "⌨️",
+    color: "#F59E0B",
+    mainTopics: [
+      {
+        id: 101,
+        name: "알고리즘 구현",
+        icon: "🔢",
+        color: "#F59E0B",
+        subTopics: [
+          {
+            id: 101,
+            name: "정렬 알고리즘",
+            details: [
+              { id: 1001, name: "버블 정렬 구현", conceptId: "c1", completed: true },
+              { id: 1002, name: "퀵 정렬 구현", conceptId: "c1", completed: true },
+              { id: 1003, name: "병합 정렬 구현", conceptId: "c1", completed: true }
+            ]
+          },
+          {
+            id: 102,
+            name: "검색 알고리즘",
+            details: [
+              { id: 1004, name: "이진 탐색 구현", conceptId: "c1", completed: true },
+              { id: 1005, name: "DFS 구현", conceptId: "c1", completed: false },
+              { id: 1006, name: "BFS 구현", conceptId: "c1", completed: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 102,
+        name: "데이터 구조 구현",
+        icon: "📦",
+        color: "#FB923C",
+        subTopics: [
+          {
+            id: 103,
+            name: "선형 구조",
+            details: [
+              { id: 1007, name: "스택 구현", conceptId: "c1", completed: true },
+              { id: 1008, name: "큐 구현", conceptId: "c1", completed: false },
+              { id: 1009, name: "링크드 리스트 구현", conceptId: "c1", completed: false }
+            ]
+          },
+          {
+            id: 104,
+            name: "비선형 구조",
+            details: [
+              { id: 1010, name: "이진 트리 구현", conceptId: "c1", completed: false },
+              { id: 1011, name: "그래프 구현", conceptId: "c1", completed: false },
+              { id: 1012, name: "해시 테이블 구현", conceptId: "c1", completed: false }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  // 정보처리기사 실기 - SQL 작성
+  {
+    id: 102,
+    name: "SQL 작성",
+    category: "정보처리기사",
+    examType: "practical",
+    icon: "💾",
+    color: "#EA580C",
+    mainTopics: [
+      {
+        id: 103,
+        name: "DDL 실습",
+        icon: "🛠️",
+        color: "#EA580C",
+        subTopics: [
+          {
+            id: 105,
+            name: "테이블 관리",
+            details: [
+              { id: 1013, name: "CREATE TABLE 작성", conceptId: "c1", completed: false },
+              { id: 1014, name: "ALTER TABLE 작성", conceptId: "c1", completed: false },
+              { id: 1015, name: "DROP TABLE 작성", conceptId: "c1", completed: false }
+            ]
+          },
+          {
+            id: 106,
+            name: "제약조건",
+            details: [
+              { id: 1016, name: "PRIMARY KEY 설정", conceptId: "c1", completed: false },
+              { id: 1017, name: "FOREIGN KEY 설정", conceptId: "c1", completed: false },
+              { id: 1018, name: "CHECK 제약조건", conceptId: "c1", completed: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 104,
+        name: "DML 실습",
+        icon: "✏️",
+        color: "#F97316",
+        subTopics: [
+          {
+            id: 107,
+            name: "데이터 조작",
+            details: [
+              { id: 1019, name: "복잡한 SELECT 쿼리", conceptId: "c1", completed: false },
+              { id: 1020, name: "JOIN 활용", conceptId: "c1", completed: false },
+              { id: 1021, name: "서브쿼리 작성", conceptId: "c1", completed: false }
+            ]
+          },
+          {
+            id: 108,
+            name: "집계 함수",
+            details: [
+              { id: 1022, name: "GROUP BY 활용", conceptId: "c1", completed: false },
+              { id: 1023, name: "HAVING 조건", conceptId: "c1", completed: false },
+              { id: 1024, name: "윈도우 함수", conceptId: "c1", completed: false }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  // 정보처리기사 실기 - 프로그램 설계
+  {
+    id: 103,
+    name: "프로그램 설계",
+    category: "정보처리기사",
+    examType: "practical",
+    icon: "🎨",
+    color: "#C2410C",
+    mainTopics: [
+      {
+        id: 105,
+        name: "객체지향 설계",
+        icon: "🧩",
+        color: "#C2410C",
+        subTopics: [
+          {
+            id: 109,
+            name: "클래스 설계",
+            details: [
+              { id: 1025, name: "클래스 다이어그램 작성", conceptId: "c3", completed: false },
+              { id: 1026, name: "상속 구조 설계", conceptId: "c3", completed: false },
+              { id: 1027, name: "인터페이스 설계", conceptId: "c3", completed: false }
+            ]
+          },
+          {
+            id: 110,
+            name: "디자인 패턴",
+            details: [
+              { id: 1028, name: "싱글톤 패턴 구현", conceptId: "c3", completed: false },
+              { id: 1029, name: "팩토리 패턴 구현", conceptId: "c3", completed: false },
+              { id: 1030, name: "옵저버 패턴 구현", conceptId: "c3", completed: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 106,
+        name: "시스템 설계",
+        icon: "🏗️",
+        color: "#9A3412",
+        subTopics: [
+          {
+            id: 111,
+            name: "아키텍처 설계",
+            details: [
+              { id: 1031, name: "MVC 패턴 설계", conceptId: "c3", completed: false },
+              { id: 1032, name: "계층형 아키텍처", conceptId: "c3", completed: false },
+              { id: 1033, name: "마이크로서비스 설계", conceptId: "c3", completed: false }
+            ]
+          },
+          {
+            id: 112,
+            name: "API 설계",
+            details: [
+              { id: 1034, name: "RESTful API 설계", conceptId: "c3", completed: false },
+              { id: 1035, name: "요청/응답 설계", conceptId: "c3", completed: false },
+              { id: 1036, name: "에러 핸들링 설계", conceptId: "c3", completed: false }
             ]
           }
         ]

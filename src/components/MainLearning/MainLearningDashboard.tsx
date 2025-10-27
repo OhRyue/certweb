@@ -2,23 +2,51 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
-import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react";
 import { Subject, MainTopic, SubTopic, Detail } from "../../types";
 import { useState } from "react";
 
 interface MainLearningDashboardProps {
   subjects: Subject[];
   targetCertification: string;
-  onStartMicro: (detailId: number, detailName: string) => void;
-  onStartReview: (mainTopicId: number, mainTopicName: string) => void;
+  onStartMicro: (detailId: number, detailName: string, examType: "written" | "practical") => void;
+  onStartReview: (mainTopicId: number, mainTopicName: string, examType: "written" | "practical") => void;
 }
 
 export function MainLearningDashboard({ subjects, targetCertification, onStartMicro, onStartReview }: MainLearningDashboardProps) {
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null);
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null);
+  const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written");
 
-  // Filter subjects by target certification
-  const currentSubjects = subjects.filter(s => s.category === targetCertification);
+  // Filter subjects by target certification and exam type
+  const currentSubjects = subjects.filter(
+    s => s.category === targetCertification && s.examType === selectedExamType
+  );
+
+  // Calculate overall progress
+  const calculateProgress = () => {
+    let totalDetails = 0;
+    let completedDetails = 0;
+
+    currentSubjects.forEach(subject => {
+      subject.mainTopics.forEach(mainTopic => {
+        mainTopic.subTopics.forEach(subTopic => {
+          subTopic.details.forEach(detail => {
+            totalDetails++;
+            if (detail.completed) {
+              completedDetails++;
+            }
+          });
+        });
+      });
+    });
+
+    const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
+    return { progress, completedDetails, totalDetails };
+  };
+
+  const { progress, completedDetails, totalDetails } = calculateProgress();
 
   if (currentSubjects.length === 0) {
     return (
@@ -34,11 +62,39 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <BookOpen className="w-8 h-8 text-purple-600" />
-            <h1 className="text-purple-900">메인 학습</h1>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <BookOpen className="w-8 h-8 text-purple-600" />
+                <h1 className="text-purple-900">메인 학습</h1>
+              </div>
+              <p className="text-gray-600">체계적으로 개념을 학습하고 문제를 풀어보세요!</p>
+            </div>
+            
+            {/* Exam Type Toggle */}
+            <Tabs value={selectedExamType} onValueChange={(value) => {
+              setSelectedExamType(value as "written" | "practical");
+              setExpandedMainTopic(null);
+              setExpandedSubTopic(null);
+            }}>
+              <TabsList className="bg-gradient-to-r from-purple-100 to-pink-100 p-1">
+                <TabsTrigger 
+                  value="written" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-sky-500 data-[state=active]:text-white"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  필기
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="practical"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
+                >
+                  <Keyboard className="w-4 h-4 mr-2" />
+                  실기
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          <p className="text-gray-600">체계적으로 개념을 학습하고 문제를 풀어보세요!</p>
         </div>
 
         {/* Learning Modes Info */}
@@ -57,7 +113,12 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                   <Badge variant="secondary" className="bg-white/60">개념 보기</Badge>
                   <Badge variant="secondary" className="bg-white/60">O/X 4문항</Badge>
                   <Badge variant="secondary" className="bg-white/60">문제 5문항</Badge>
-                  <Badge variant="secondary" className="bg-white/60">AI 해설</Badge>
+                  {selectedExamType === "practical" && (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-700">AI 채점</Badge>
+                  )}
+                  {selectedExamType === "written" && (
+                    <Badge variant="secondary" className="bg-white/60">AI 해설</Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -83,6 +144,31 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
           </Card>
         </div>
 
+        {/* Overall Progress */}
+        <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-6 h-6 text-purple-600" />
+              <h3 className="text-purple-900">
+                {selectedExamType === "written" ? "📝 필기" : "⌨️ 실기"} 총 진행률
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant="secondary" 
+                className={selectedExamType === "written" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}
+              >
+                {completedDetails} / {totalDetails} 완료
+              </Badge>
+              <span className="text-purple-900">{progress}%</span>
+            </div>
+          </div>
+          <Progress 
+            value={progress} 
+            className="h-3 bg-white/60"
+          />
+        </Card>
+
         {/* Subjects List */}
         <div className="space-y-8">
           {currentSubjects.map((subject) => (
@@ -97,7 +183,15 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                     {subject.icon}
                   </div>
                   <div>
-                    <h2 className="text-purple-900">{subject.name}</h2>
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-purple-900">{subject.name}</h2>
+                      <Badge 
+                        variant="secondary" 
+                        className={selectedExamType === "written" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}
+                      >
+                        {selectedExamType === "written" ? "📝 필기" : "⌨️ 실기"}
+                      </Badge>
+                    </div>
                     <p className="text-gray-600 text-sm">
                       {subject.mainTopics.length}개 학습 주제
                     </p>
@@ -141,7 +235,7 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                           <Button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onStartReview(mainTopic.id, mainTopic.name);
+                              onStartReview(mainTopic.id, mainTopic.name, selectedExamType);
                             }}
                             className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                           >
@@ -182,27 +276,50 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                             {/* Details (Expandable) */}
                             {expandedSubTopic === subTopic.id && (
                               <div className="ml-4 space-y-2 mt-2">
-                                {subTopic.details.map((detail) => (
-                                  <div 
-                                    key={detail.id}
-                                    className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-white rounded-lg hover:from-purple-100 hover:to-purple-50 transition-all border border-purple-100"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center text-purple-700 text-sm">
-                                        {detail.id}
-                                      </div>
-                                      <span className="text-gray-800">{detail.name}</span>
-                                    </div>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => onStartMicro(detail.id, detail.name)}
-                                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                                {subTopic.details.map((detail) => {
+                                  return (
+                                    <div 
+                                      key={detail.id}
+                                      className={`flex items-center justify-between p-3 rounded-lg transition-all border ${
+                                        detail.completed 
+                                          ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" 
+                                          : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
+                                      }`}
                                     >
-                                      <Sparkles className="w-3 h-3 mr-1" />
-                                      Micro 학습
-                                    </Button>
-                                  </div>
-                                ))}
+                                      <div className="flex items-center gap-3">
+                                        {detail.completed ? (
+                                          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                                            <CheckCircle2 className="w-5 h-5 text-white" />
+                                          </div>
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center text-purple-700 text-sm">
+                                            {detail.id}
+                                          </div>
+                                        )}
+                                        <div>
+                                          <span className="text-gray-800">{detail.name}</span>
+                                          {detail.completed && (
+                                            <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">
+                                              완료
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => onStartMicro(detail.id, detail.name, selectedExamType)}
+                                        className={
+                                          detail.completed
+                                            ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                                            : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                                        }
+                                      >
+                                        <Sparkles className="w-3 h-3 mr-1" />
+                                        {detail.completed ? "다시 학습" : "Micro 학습"}
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>

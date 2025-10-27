@@ -3,19 +3,22 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Label } from "../ui/label";
-import { Heart, TrendingDown, Sparkles, Play, AlertCircle } from "lucide-react";
+import { Heart, TrendingDown, Sparkles, Play, AlertCircle, FileText, Code } from "lucide-react";
 import { useState } from "react";
 
 interface WeaknessQuizProps {
-  onStart: (weakTags: string[], count: number) => void;
+  onStart: (weakTags: string[], count: number, examType: "written" | "practical") => void;
   onBack: () => void;
 }
 
 export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
   const [questionCount, setQuestionCount] = useState("20");
+  const [examType, setExamType] = useState<"written" | "practical">("written");
 
-  const weaknessTags = [
+  // 필기 약점 태그
+  const weaknessTagsWritten = [
     { tag: "정규화", total: 28, correct: 18, proficiency: 64, weaknessLevel: 85 },
     { tag: "OOP", total: 35, correct: 24, proficiency: 69, weaknessLevel: 78 },
     { tag: "디자인패턴", total: 18, correct: 11, proficiency: 61, weaknessLevel: 72 },
@@ -23,11 +26,22 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
     { tag: "TCP/IP", total: 22, correct: 15, proficiency: 68, weaknessLevel: 55 },
   ];
 
+  // 실기 약점 태그
+  const weaknessTagsPractical = [
+    { tag: "알고리즘 구현", total: 30, correct: 19, proficiency: 63, weaknessLevel: 82 },
+    { tag: "데이터 처리", total: 22, correct: 14, proficiency: 64, weaknessLevel: 76 },
+    { tag: "SQL 구현", total: 25, correct: 18, proficiency: 72, weaknessLevel: 65 },
+    { tag: "프로그래밍", total: 28, correct: 22, proficiency: 79, weaknessLevel: 40 },
+    { tag: "시스템 구축", total: 20, correct: 16, proficiency: 80, weaknessLevel: 35 },
+  ];
+
+  const weaknessTags = examType === "written" ? weaknessTagsWritten : weaknessTagsPractical;
+
   const handleStart = () => {
     const weakTags = weaknessTags
       .filter(t => t.weaknessLevel >= 70)
       .map(t => t.tag);
-    onStart(weakTags, parseInt(questionCount));
+    onStart(weakTags, parseInt(questionCount), examType);
   };
 
   return (
@@ -57,8 +71,16 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
                     </Badge>
                   </div>
                   <p className="text-gray-700 mb-3">
-                    최근 학습 기록을 분석한 결과, <strong>정규화</strong>와 <strong>OOP</strong> 태그의 
-                    정답률이 낮습니다. 이 영역을 집중적으로 학습하면 전체 점수를 크게 향상시킬 수 있습니다.
+                    최근 학습 기록을 분석한 결과, {examType === "written" ? (
+                      <>
+                        <strong>정규화</strong>와 <strong>OOP</strong> 태그의 정답률이 낮습니다.
+                      </>
+                    ) : (
+                      <>
+                        <strong>알고리즘 구현</strong>과 <strong>데이터 처리</strong> 태그의 정답률이 낮습니다.
+                      </>
+                    )}
+                    {" "}이 영역을 집중적으로 학습하면 전체 점수를 크게 향상시킬 수 있습니다.
                   </p>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <AlertCircle className="w-4 h-4" />
@@ -70,10 +92,28 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
 
             {/* Weakness Tags */}
             <Card className="p-6 border-2 border-red-200">
-              <h2 className="text-red-900 mb-4">약점 태그 목록</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                약점 레벨이 높을수록 집중 학습이 필요합니다
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-red-900">약점 태그 목록</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    약점 레벨이 높을수록 집중 학습이 필요합니다
+                  </p>
+                </div>
+                
+                {/* Exam Type Toggle */}
+                <Tabs value={examType} onValueChange={(v) => setExamType(v as "written" | "practical")} className="w-auto">
+                  <TabsList className="bg-red-100">
+                    <TabsTrigger value="written" className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      필기
+                    </TabsTrigger>
+                    <TabsTrigger value="practical" className="flex items-center gap-2">
+                      <Code className="w-4 h-4" />
+                      실기
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
 
               <div className="space-y-4">
                 {weaknessTags.map((item) => (

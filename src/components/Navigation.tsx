@@ -11,7 +11,8 @@ import {
   Trophy,
   Sparkles,
   Flame,
-  Award
+  Award,
+  ShoppingBag
 } from "lucide-react";
 
 interface NavigationProps {
@@ -24,9 +25,10 @@ interface NavigationProps {
     xp: number;
     studyStreak: number;
   };
+  userPoints?: number;
 }
 
-export function Navigation({ currentView, onViewChange, userProfile }: NavigationProps) {
+export function Navigation({ currentView, onViewChange, userProfile, userPoints = 0 }: NavigationProps) {
   const menuItems = [
     { id: "home", label: "홈", icon: Home, status: "active" },
     { id: "main", label: "메인학습", icon: BookOpen, status: "active" },
@@ -39,7 +41,7 @@ export function Navigation({ currentView, onViewChange, userProfile }: Navigatio
   ];
 
   return (
-    <div className="w-64 h-screen bg-gradient-to-b from-blue-600 to-cyan-600 text-white p-6 flex flex-col">
+    <div className="fixed left-0 top-0 w-64 h-screen bg-gradient-to-b from-blue-600 to-cyan-600 text-white p-6 flex flex-col overflow-y-auto">
       {/* Logo */}
       <div className="flex items-center gap-2 mb-8">
         <Sparkles className="w-8 h-8" />
@@ -71,6 +73,20 @@ export function Navigation({ currentView, onViewChange, userProfile }: Navigatio
             <span className="text-sm">{userProfile.studyStreak}일 연속 학습 🔥</span>
           </div>
         </div>
+
+        {/* Shop Button */}
+        <Button
+          onClick={() => onViewChange("shop")}
+          className={`w-full mt-3 justify-start bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0 ${
+            currentView === "shop" ? "ring-2 ring-white" : ""
+          }`}
+        >
+          <ShoppingBag className="w-4 h-4 mr-2" />
+          <span className="flex-1 text-left">상점</span>
+          <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
+            {userPoints}P
+          </Badge>
+        </Button>
       </div>
 
       {/* Navigation Menu */}

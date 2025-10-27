@@ -14,6 +14,8 @@ export interface Detail {
   name: string;
   conceptId?: string; // Link to Concept for content
   questionIds?: string[]; // Link to Questions
+  examType?: "written" | "practical"; // 필기 or 실기
+  completed?: boolean; // 학습 완료 여부
 }
 
 export interface SubTopic {
@@ -35,6 +37,7 @@ export interface Subject {
   id: number;
   name: string;
   category: string; // "정보처리기사", "토익", etc.
+  examType: "written" | "practical"; // 필기 or 실기
   mainTopics: MainTopic[];
   icon: string;
   color: string;
@@ -45,10 +48,11 @@ export interface Question {
   topicId: string;
   tags: string[];
   difficulty: "easy" | "medium" | "hard";
-  type: "multiple" | "ox";
+  type: "multiple" | "ox" | "typing"; // typing for 실기
+  examType?: "written" | "practical"; // 필기 or 실기
   question: string;
-  options: string[];
-  correctAnswer: number;
+  options: string[]; // for multiple/ox
+  correctAnswer: number | string; // number for multiple/ox, string for typing
   explanation: string;
 }
 
@@ -123,4 +127,15 @@ export interface ExamSchedule {
   date: Date;
   category: string;
   icon: string;
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  category: "hat" | "clothes" | "accessory" | "background" | "special";
+  price: number;
+  imageUrl?: string; // User will add images later
+  description: string;
+  rarity: "common" | "rare" | "epic" | "legendary";
+  isPurchased: boolean;
 }
