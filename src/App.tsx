@@ -10,6 +10,7 @@ import { HomeDashboard } from "./components/HomeDashboard"
 import { MainLearningDashboard } from "./components/MainLearning/MainLearningDashboard"
 import { MicroFlowPage } from "./components/MainLearning/MicroFlowPage"
 import { ReviewMode } from "./components/MainLearning/ReviewMode"
+import { ReviewFlowPage } from "./components/MainLearning/ReviewFlowPage"
 
 // Solo Practice
 import { SoloPracticeDashboard } from "./components/SoloPractice/SoloPracticeDashboard"
@@ -84,26 +85,8 @@ export default function App() {
               }
             />
             <Route path="/learning/micro" element={<MicroFlowPage />} />
-            <Route
-              path="/learning/review-written"
-              element={
-                <ReviewMode
-                  questions={questions.slice(0, 5)}
-                  topicName="필기 총정리"
-                  onComplete={(score) => console.log("필기 완료:", score)}
-                />
-              }
-            />
-            <Route
-              path="/learning/review-practical"
-              element={
-                <ReviewMode
-                  questions={questions.slice(5, 10)}
-                  topicName="실기 총정리"
-                  onComplete={(score) => console.log("실기 완료:", score)}
-                />
-              }
-            />
+            <Route path="/learning/review-written" element={<ReviewFlowPage />} />
+            <Route path="/learning/review-practical" element={<ReviewFlowPage />} />
 
 
             {/* 혼자풀기 */}
