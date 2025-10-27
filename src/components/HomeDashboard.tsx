@@ -1,12 +1,13 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom"
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { 
-  Trophy, 
-  Target, 
-  TrendingUp, 
+import {
+  Trophy,
+  Target,
+  TrendingUp,
   Calendar,
   Flame,
   Star,
@@ -19,16 +20,15 @@ import { UserProfile } from "../types";
 
 interface HomeDashboardProps {
   userProfile: UserProfile;
-  onNavigate: (view: string) => void;
 }
 
-export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
+export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   // Get the target certification exam
   const targetExam = examSchedules.find(
     exam => exam.category === userProfile.targetCertification
   );
-  
-  const dDay = targetExam 
+
+  const dDay = targetExam
     ? Math.ceil((targetExam.date.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
@@ -43,7 +43,7 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
@@ -78,14 +78,14 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                       <Star className="w-5 h-5 text-yellow-500" />
                     </div>
                   </div>
-                  
+
                   {/* Character Display */}
-                  <motion.div 
+                  <motion.div
                     className="relative"
-                    animate={{ 
+                    animate={{
                       y: [0, -10, 0],
                     }}
-                    transition={{ 
+                    transition={{
                       duration: 2,
                       repeat: Infinity,
                       ease: "easeInOut"
@@ -104,8 +104,8 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                       <span className="text-purple-700">경험치</span>
                       <span className="text-purple-700">{userProfile.xp} / {(userProfile.level + 1) * 500} XP</span>
                     </div>
-                    <Progress 
-                      value={(userProfile.xp / ((userProfile.level + 1) * 500)) * 100} 
+                    <Progress
+                      value={(userProfile.xp / ((userProfile.level + 1) * 500)) * 100}
                       className="h-3 bg-purple-200"
                     />
                   </div>
@@ -132,7 +132,7 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                       <Calendar className="w-5 h-5 text-blue-600" />
                       <h3 className="text-blue-800">목표 시험 📅</h3>
                     </div>
-                    
+
                     <div className="bg-white/50 backdrop-blur rounded-xl p-4 mb-3">
                       <div className="text-center">
                         <div className="text-4xl mb-2">{targetExam.icon}</div>
@@ -155,12 +155,14 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                       </p>
                     </div>
 
-                    <Button 
-                      onClick={() => onNavigate("certinfo")}
+                    <Button
+                      asChild
                       className="w-full mt-4 bg-blue-500 hover:bg-blue-600 text-white"
                     >
-                      시험 정보 보기
-                      <ChevronRight className="w-4 h-4 ml-1" />
+                      <Link to="/certinfo" className="flex items-center justify-center">
+                        시험 정보 보기
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Link>
                     </Button>
                   </div>
                 </Card>
@@ -199,8 +201,8 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                               <span className="text-purple-800">{targetProgress.category}</span>
                               <span className="text-purple-600">{targetProgress.progress}%</span>
                             </div>
-                            <Progress 
-                              value={targetProgress.progress} 
+                            <Progress
+                              value={targetProgress.progress}
                               className="h-3"
                               style={{
                                 background: `${targetProgress.color}20`,
@@ -264,12 +266,13 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                     </div>
                   )}
 
-                  <Button 
-                    onClick={() => onNavigate("report")}
+                  <Button
+                    asChild
                     className="w-full mt-4 bg-purple-500 hover:bg-purple-600 text-white"
                   >
-                    상세 리포트 보기
-                    <ChevronRight className="w-4 h-4 ml-1" />
+                    <Link to="/report" className="flex items-center justify-center">
+                      상세 리포트 보기
+                    </Link>
                   </Button>
                 </div>
               </Card>
@@ -284,42 +287,53 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
               <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-0 shadow-lg">
                 <div className="p-6">
                   <h3 className="text-orange-800 mb-4">빠른 시작 🚀</h3>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
-                    <Button 
-                      onClick={() => onNavigate("main")}
+                    <Button
+                      asChild
                       className="bg-white hover:bg-purple-50 text-purple-700 border-2 border-purple-200 h-auto py-4 flex flex-col items-center gap-2"
                       variant="outline"
                     >
-                      <div className="text-2xl">📖</div>
-                      <span className="text-sm">메인학습</span>
+                      <Link to="/learning" className="flex flex-col items-center gap-2">
+                        <div className="text-2xl">📖</div>
+                        <span className="text-sm">메인학습</span>
+                      </Link>
                     </Button>
-                    
-                    <Button 
-                      onClick={() => onNavigate("solo")}
+
+
+                    <Button
+                      asChild
                       className="bg-white hover:bg-pink-50 text-pink-700 border-2 border-pink-200 h-auto py-4 flex flex-col items-center gap-2"
                       variant="outline"
                     >
-                      <div className="text-2xl">💪</div>
-                      <span className="text-sm">보조학습</span>
+                      <Link to="/solo" className="flex flex-col items-center gap-2">
+                        <div className="text-2xl">💪</div>
+                        <span className="text-sm">보조학습</span>
+                      </Link>
                     </Button>
-                    
-                    <Button 
-                      onClick={() => onNavigate("battle")}
+
+
+                    <Button
+                      asChild
                       className="bg-white hover:bg-red-50 text-red-700 border-2 border-red-200 h-auto py-4 flex flex-col items-center gap-2"
                       variant="outline"
                     >
-                      <div className="text-2xl">⚔️</div>
-                      <span className="text-sm">대전</span>
+                      <Link to="/battle" className="flex flex-col items-center gap-2">
+                        <div className="text-2xl">⚔️</div>
+                        <span className="text-sm">대전</span>
+                      </Link>
                     </Button>
-                    
-                    <Button 
-                      onClick={() => onNavigate("community")}
+
+
+                    <Button
+                      asChild
                       className="bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-200 h-auto py-4 flex flex-col items-center gap-2"
                       variant="outline"
                     >
-                      <div className="text-2xl">🏆</div>
-                      <span className="text-sm">커뮤니티</span>
+                      <Link to="/community" className="flex flex-col items-center gap-2">
+                        <div className="text-2xl">🏆</div>
+                        <span className="text-sm">커뮤니티</span>
+                      </Link>
                     </Button>
                   </div>
                 </div>
@@ -348,11 +362,10 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.5 + idx * 0.1 }}
-                        className={`rounded-lg p-3 ${
-                          user.isCurrentUser 
-                            ? "bg-gradient-to-r from-purple-200 to-pink-200 border-2 border-purple-400" 
-                            : "bg-white/50 backdrop-blur"
-                        }`}
+                        className={`rounded-lg p-3 ${user.isCurrentUser
+                          ? "bg-gradient-to-r from-purple-200 to-pink-200 border-2 border-purple-400"
+                          : "bg-white/50 backdrop-blur"
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2 min-w-[60px]">
@@ -365,9 +378,9 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="text-2xl">{user.avatar}</div>
-                          
+
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-purple-900 text-sm truncate">
@@ -384,12 +397,14 @@ export function HomeDashboard({ userProfile, onNavigate }: HomeDashboardProps) {
                     ))}
                   </div>
 
-                  <Button 
-                    onClick={() => onNavigate("community")}
+                  <Button
+                    asChild
                     className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white"
                   >
-                    전체 랭킹 보기
-                    <ChevronRight className="w-4 h-4 ml-1" />
+                    <Link to="/community" className="flex items-center justify-center">
+                      전체 랭킹 보기
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
                   </Button>
                 </div>
               </Card>

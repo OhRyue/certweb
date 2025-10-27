@@ -27,3 +27,4 @@ git push origin main
 # git branch
 develop: main 올리기 전 다른 브랜치들을 합친 결과물
 feat/redesign: 새로운 디자인 적용하기
+feat/routing: 라우팅 적용
