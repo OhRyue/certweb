@@ -66,32 +66,6 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
               원하는 학습 주제를 선택하고 퀴즈를 시작하세요!
             </p>
           </div>
-
-          {/* 필기/실기 토글 */}
-          <div className="mt-4 sm:mt-0 flex gap-2 bg-purple-100 p-1 rounded-xl">
-            <Button
-              variant={selectedExamType === "written" ? "default" : "ghost"}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                selectedExamType === "written"
-                  ? "bg-purple-500 text-white"
-                  : "text-purple-700 hover:bg-purple-200"
-              }`}
-              onClick={() => toggleExamType("written")}
-            >
-              📝 필기
-            </Button>
-            <Button
-              variant={selectedExamType === "practical" ? "default" : "ghost"}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                selectedExamType === "practical"
-                  ? "bg-orange-500 text-white"
-                  : "text-orange-700 hover:bg-orange-100"
-              }`}
-              onClick={() => toggleExamType("practical")}
-            >
-              💻 실기
-            </Button>
-          </div>
         </div>
 
         {/* 기존 코드 아래 그대로 유지 */}
@@ -99,13 +73,40 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
           {/* Topic Selection */}
           <div className="lg:col-span-2">
             <Card className="p-6 border-2 border-purple-200">
-              <h2 className="text-purple-900 mb-4">학습 주제 선택</h2>
+              {/* 제목 + 토글 같은 줄 */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-purple-900">학습 주제 선택</h2>
+
+                {/* 필기/실기 토글 */}
+                <div className="flex gap-2 bg-blue-100 p-1 rounded-xl">
+                  <Button
+                    variant={selectedExamType === "written" ? "default" : "ghost"}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "written"
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "text-blue-700 hover:bg-blue-100 hover:text-blue-700"
+                      }`}
+                    onClick={() => toggleExamType("written")}
+                  >
+                    📝 필기
+                  </Button>
+                  <Button
+                    variant={selectedExamType === "practical" ? "default" : "ghost"}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "practical"
+                        ? "bg-orange-500 text-white hover:bg-orange-600"
+                        : "text-orange-700 hover:bg-orange-100 hover:text-orange-700"
+                      }`}
+                    onClick={() => toggleExamType("practical")}
+                  >
+                    💻 실기
+                  </Button>
+                </div>
+              </div>
+
               <p className="text-sm text-gray-600 mb-4">
                 {selectedExamType === "written"
                   ? "필기 과목의 세부 주제를 선택하세요"
                   : "실기 과목의 세부 주제를 선택하세요"}
               </p>
-
               {/* Subject List */}
               <div className="space-y-4">
                 {currentSubjects.map(subject => (
@@ -208,11 +209,10 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                                           <div
                                             key={detail.id}
                                             onClick={() => toggleDetail(detail.id)}
-                                            className={`p-2 rounded-lg cursor-pointer transition-all border ${
-                                              selectedDetails.includes(detail.id)
-                                                ? "border-purple-500 bg-purple-50"
-                                                : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
-                                            }`}
+                                            className={`p-2 rounded-lg cursor-pointer transition-all border ${selectedDetails.includes(detail.id)
+                                              ? "border-purple-500 bg-purple-50"
+                                              : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                                              }`}
                                           >
                                             <div className="flex items-center gap-2">
                                               <Checkbox
