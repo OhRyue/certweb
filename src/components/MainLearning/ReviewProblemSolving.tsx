@@ -9,7 +9,7 @@ import { Question } from "../../types"
 
 interface ReviewProblemSolvingProps {
   questions: Question[]
-  onComplete: (score: number) => void
+  onComplete: (score: number, answers: { questionId: number; selectedAnswer: number; isCorrect: boolean }[]) => void
 }
 
 export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSolvingProps) {
@@ -17,7 +17,9 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [showResult, setShowResult] = useState(false)
   const [score, setScore] = useState(0)
-  const [answers, setAnswers] = useState<{ isCorrect: boolean }[]>([]) // ✅ 추가
+  const [answers, setAnswers] = useState<
+    { questionId: string | number; selectedAnswer: number; isCorrect: boolean }[]
+  >([])
 
   const currentQuestion = questions[currentIndex]
   const progress = ((currentIndex + 1) / questions.length) * 100
@@ -32,8 +34,15 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
       setScore(prev => prev + 1)
     }
 
-    // ✅ 푼 문제 수 추적용 배열 업데이트
-    setAnswers(prev => [...prev, { isCorrect }])
+    // 오답노트용 데이터 저장
+    setAnswers(prev => [
+      ...prev,
+      {
+        questionId: currentQuestion.id,
+        selectedAnswer: index,
+        isCorrect,
+      },
+    ])
   }
 
   const handleNext = () => {
@@ -42,7 +51,8 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
       setSelectedAnswer(null)
       setShowResult(false)
     } else {
-      onComplete(score)
+      // 문제 다 풀면 score + answers 함께 전달
+      onComplete(score, answers)
     }
   }
 
@@ -73,7 +83,7 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
               문제 {currentIndex + 1} / {questions.length}
             </span>
             <span className="text-blue-600">
-              정답: {score} / {answers.length} {/* ✅ 수정됨 */}
+              정답: {score} / {answers.length}
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -94,15 +104,15 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
                   currentQuestion.difficulty === "easy"
                     ? "bg-green-100 text-green-700"
                     : currentQuestion.difficulty === "medium"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-red-100 text-red-700"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : "bg-red-100 text-red-700"
                 }
               >
                 {currentQuestion.difficulty === "easy"
                   ? "쉬움"
                   : currentQuestion.difficulty === "medium"
-                  ? "보통"
-                  : "어려움"}
+                    ? "보통"
+                    : "어려움"}
               </Badge>
               {currentQuestion.tags.map(tag => (
                 <Badge key={tag} variant="outline">
@@ -159,9 +169,8 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
           {showResult && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Card
-                className={`p-6 mb-6 border-2 ${
-                  isCorrect ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300"
-                }`}
+                className={`p-6 mb-6 border-2 ${isCorrect ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300"
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0">

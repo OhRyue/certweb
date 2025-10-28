@@ -1,13 +1,15 @@
 import { useState, useMemo, useEffect } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { ReviewProblemSolving } from "./ReviewProblemSolving"
+import { MicroWrongAnswers } from "./MicroWrongAnswers"
 import { ReviewResult } from "./ReviewResult"
 import { LevelUpScreen } from "../LevelUpScreen"
 import { questions, topics } from "../../data/mockData"
 
 export function ReviewFlowPage() {
-  const [step, setStep] = useState<"problem" | "result">("problem")
+  const [step, setStep] = useState<"problem" | "wrong" | "result">("problem")
   const [problemScore, setProblemScore] = useState(0)
+  const [wrongAnswers, setWrongAnswers] = useState<any[]>([])
   const [showLevelUp, setShowLevelUp] = useState(false)
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -36,10 +38,30 @@ export function ReviewFlowPage() {
       <ReviewProblemSolving
         key="problem-step"
         questions={relatedQuestions}
-        onComplete={score => {
+        onComplete={(score, answers) => {
           setProblemScore(score)
-          setStep("result")
+          const wrongs = answers
+            .filter(a => !a.isCorrect)
+            .map(a => ({
+              question: relatedQuestions.find(q => q.id === a.questionId),
+              userAnswer: a.selectedAnswer,
+              correctAnswer: relatedQuestions.find(q => q.id === a.questionId)?.correctAnswer,
+            }))
+          setWrongAnswers(wrongs)
+          setStep("wrong")
         }}
+      />
+    )
+  }
+
+  // 오답노트 단계
+  if (step === "wrong") {
+    return (
+      <MicroWrongAnswers
+        wrongAnswers={wrongAnswers}
+        topicName={topicName}
+        examType="written"
+        onContinue={() => setStep("result")}
       />
     )
   }
