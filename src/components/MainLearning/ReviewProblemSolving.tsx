@@ -184,7 +184,7 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
                 <Button
                   onClick={handleNext}
                   size="lg"
-                  className="bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 text-white"
+                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                 >
                   {currentIndex < questions.length - 1 ? "다음 문제" : "결과 보기"}
                   <ArrowRight className="w-5 h-5 ml-2" />
