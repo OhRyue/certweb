@@ -7,6 +7,7 @@ import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Tag, Play, ChevronRight, ChevronDown } from "lucide-react";
 import { subjects } from "../../data/mockData";
+import { useNavigate } from "react-router-dom";
 
 interface CategoryQuizProps {
   onStart: (detailIds: number[], count: number) => void;
@@ -14,13 +15,13 @@ interface CategoryQuizProps {
   targetCertification: string;
 }
 
-export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps) {
+export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps){
   const [selectedDetails, setSelectedDetails] = useState<number[]>([])
   const [questionCount, setQuestionCount] = useState("10")
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
-
+  
   // 추가: 필기 / 실기 토글 상태
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
 
@@ -69,6 +70,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
     return subTopic.details.map(d => d.id)
   }
 
+  const navigate = useNavigate()
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
@@ -342,7 +344,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                 퀴즈 시작
               </Button>
               <Button
-                onClick={onBack}
+                onClick={() => navigate("/solo")}
                 variant="outline"
                 className="w-full border-2"
               >
