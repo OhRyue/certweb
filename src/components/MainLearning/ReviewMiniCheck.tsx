@@ -39,7 +39,7 @@ export function ReviewMiniCheck({ questions, topicName, onComplete }: ReviewMini
       setSelectedAnswer(null);
       setShowResult(false);
     } else {
-      onComplete(score + (selectedAnswer === currentQuestion.correctAnswer ? 1 : 0));
+      onComplete(score);
     }
   };
 
