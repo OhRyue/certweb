@@ -114,7 +114,7 @@ function InnerApp({
           <Route path="/learning/review-written" element={<ReviewFlowPage />} />
           <Route path="/learning/review-practical" element={<ReviewFlowPracticalPage />} />
 
-          {/* ✅ 혼자풀기 (navigate 제대로 작동) */}
+          {/* 혼자풀기 */}
           <Route
             path="/solo"
             element={
@@ -125,7 +125,16 @@ function InnerApp({
               />
             }
           />
-          <Route path="/solo/category" element={<CategoryQuiz />} />
+          <Route
+            path="/solo/category"
+            element={
+              <CategoryQuiz
+                targetCertification="정보처리기사"
+                onStart={(detailIds, count) => console.log(detailIds, count)}
+                onBack={() => navigate("/solo")}
+              />
+            }
+          />
           <Route path="/solo/difficulty" element={<DifficultyQuiz />} />
           <Route path="/solo/weakness" element={<WeaknessQuiz />} />
 

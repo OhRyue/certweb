@@ -5,88 +5,245 @@ import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Tag, Play } from "lucide-react";
+import { Tag, Play, ChevronRight, ChevronDown } from "lucide-react";
+import { subjects } from "../../data/mockData";
 
 interface CategoryQuizProps {
-  onStart: (tags: string[], count: number) => void;
+  onStart: (detailIds: number[], count: number) => void;
   onBack: () => void;
+  targetCertification: string;
 }
 
-const availableTags = [
-  { id: "db", name: "데이터베이스", color: "#8B5CF6", count: 45 },
-  { id: "sql", name: "SQL", color: "#EC4899", count: 32 },
-  { id: "normalization", name: "정규화", color: "#F59E0B", count: 28 },
-  { id: "network", name: "네트워크", color: "#10B981", count: 38 },
-  { id: "osi", name: "OSI", color: "#3B82F6", count: 25 },
-  { id: "tcp", name: "TCP/IP", color: "#EF4444", count: 22 },
-  { id: "oop", name: "OOP", color: "#8B5CF6", count: 35 },
-  { id: "design", name: "디자인패턴", color: "#EC4899", count: 18 },
-  { id: "java", name: "Java", color: "#F59E0B", count: 30 },
-];
+export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps) {
+  const [selectedDetails, setSelectedDetails] = useState<number[]>([])
+  const [questionCount, setQuestionCount] = useState("10")
+  const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
+  const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
+  const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
 
-export function CategoryQuiz({ onStart, onBack }: CategoryQuizProps) {
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [questionCount, setQuestionCount] = useState("10");
+  // 추가: 필기 / 실기 토글 상태
+  const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
 
-  const toggleTag = (tagId: string) => {
-    if (selectedTags.includes(tagId)) {
-      setSelectedTags(selectedTags.filter(t => t !== tagId));
+  // 필기/실기 토글 버튼 핸들러
+  const toggleExamType = (type: "written" | "practical") => {
+    setSelectedExamType(type)
+    setExpandedSubject(null)
+    setExpandedMainTopic(null)
+    setExpandedSubTopic(null)
+    setSelectedDetails([])
+  }
+
+  // 필터 조건: 자격증 + 필기/실기 둘 다
+  const currentSubjects = subjects.filter(
+    s => s.category === targetCertification && s.examType === selectedExamType
+  )
+
+  const toggleDetail = (detailId: number) => {
+    if (selectedDetails.includes(detailId)) {
+      setSelectedDetails(selectedDetails.filter(d => d !== detailId))
     } else {
-      setSelectedTags([...selectedTags, tagId]);
+      setSelectedDetails([...selectedDetails, detailId])
     }
-  };
+  }
 
   const handleStart = () => {
-    if (selectedTags.length > 0) {
-      onStart(selectedTags, parseInt(questionCount));
+    if (selectedDetails.length > 0) {
+      onStart(selectedDetails, parseInt(questionCount))
     }
-  };
+  }
 
   return (
     <div className="p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Tag className="w-8 h-8 text-purple-600" />
-            <h1 className="text-purple-900">카테고리 퀴즈</h1>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Tag className="w-8 h-8 text-purple-600" />
+              <h1 className="text-purple-900">카테고리 퀴즈</h1>
+            </div>
+            <p className="text-gray-600">
+              원하는 학습 주제를 선택하고 퀴즈를 시작하세요!
+            </p>
           </div>
-          <p className="text-gray-600">원하는 태그를 선택하고 학습을 시작하세요!</p>
+
+          {/* 필기/실기 토글 */}
+          <div className="mt-4 sm:mt-0 flex gap-2 bg-purple-100 p-1 rounded-xl">
+            <Button
+              variant={selectedExamType === "written" ? "default" : "ghost"}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                selectedExamType === "written"
+                  ? "bg-purple-500 text-white"
+                  : "text-purple-700 hover:bg-purple-200"
+              }`}
+              onClick={() => toggleExamType("written")}
+            >
+              📝 필기
+            </Button>
+            <Button
+              variant={selectedExamType === "practical" ? "default" : "ghost"}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                selectedExamType === "practical"
+                  ? "bg-orange-500 text-white"
+                  : "text-orange-700 hover:bg-orange-100"
+              }`}
+              onClick={() => toggleExamType("practical")}
+            >
+              💻 실기
+            </Button>
+          </div>
         </div>
 
+        {/* 기존 코드 아래 그대로 유지 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tag Selection */}
+          {/* Topic Selection */}
           <div className="lg:col-span-2">
             <Card className="p-6 border-2 border-purple-200">
-              <h2 className="text-purple-900 mb-4">태그 선택</h2>
+              <h2 className="text-purple-900 mb-4">학습 주제 선택</h2>
               <p className="text-sm text-gray-600 mb-4">
-                학습하고 싶은 태그를 선택하세요 (중복 선택 가능)
+                {selectedExamType === "written"
+                  ? "필기 과목의 세부 주제를 선택하세요"
+                  : "실기 과목의 세부 주제를 선택하세요"}
               </p>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {availableTags.map((tag) => (
-                  <div
-                    key={tag.id}
-                    onClick={() => toggleTag(tag.id)}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedTags.includes(tag.id)
-                        ? "border-purple-500 bg-purple-50"
-                        : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Checkbox 
-                        checked={selectedTags.includes(tag.id)}
-                        className="pointer-events-none"
-                      />
-                      <Label className="cursor-pointer pointer-events-none">
-                        {tag.name}
-                      </Label>
+
+              {/* Subject List */}
+              <div className="space-y-4">
+                {currentSubjects.map(subject => (
+                  <div key={subject.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                    {/* Subject Header */}
+                    <div
+                      onClick={() =>
+                        setExpandedSubject(expandedSubject === subject.id ? null : subject.id)
+                      }
+                      className="p-4 cursor-pointer bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="p-2 rounded-lg text-2xl"
+                            style={{ backgroundColor: subject.color + "20" }}
+                          >
+                            {subject.icon}
+                          </div>
+                          <div>
+                            <h3 className="text-purple-900">{subject.name}</h3>
+                            <Badge
+                              variant="secondary"
+                              className={
+                                subject.examType === "written"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-orange-100 text-orange-700"
+                              }
+                            >
+                              {subject.examType === "written" ? "📝 필기" : "⌨️ 실기"}
+                            </Badge>
+                          </div>
+                        </div>
+                        {expandedSubject === subject.id ? (
+                          <ChevronDown className="w-5 h-5 text-purple-600" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-purple-600" />
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500">{tag.count}개 문제</p>
+
+                    {/* 기존 topic 구조 그대로 */}
+                    {expandedSubject === subject.id && (
+                      <div className="p-4 bg-white space-y-3">
+                        {subject.mainTopics.map(mainTopic => (
+                          <div key={mainTopic.id} className="border-l-4 border-purple-300 pl-4">
+                            <div
+                              onClick={() =>
+                                setExpandedMainTopic(
+                                  expandedMainTopic === mainTopic.id ? null : mainTopic.id
+                                )
+                              }
+                              className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{mainTopic.icon}</span>
+                                <h4 className="text-purple-800">{mainTopic.name}</h4>
+                                <Badge variant="outline" className="border-purple-300 text-purple-700">
+                                  {mainTopic.subTopics.length}개
+                                </Badge>
+                              </div>
+                              {expandedMainTopic === mainTopic.id ? (
+                                <ChevronDown className="w-4 h-4 text-purple-600" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-purple-600" />
+                              )}
+                            </div>
+
+                            {expandedMainTopic === mainTopic.id && (
+                              <div className="ml-6 space-y-2 mt-2">
+                                {mainTopic.subTopics.map(subTopic => (
+                                  <div key={subTopic.id} className="border-l-2 border-purple-200 pl-3">
+                                    <div
+                                      onClick={() =>
+                                        setExpandedSubTopic(
+                                          expandedSubTopic === subTopic.id ? null : subTopic.id
+                                        )
+                                      }
+                                      className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm text-purple-700">{subTopic.name}</span>
+                                        <Badge
+                                          variant="outline"
+                                          className="border-purple-200 text-purple-600 text-xs"
+                                        >
+                                          {subTopic.details.length}개
+                                        </Badge>
+                                      </div>
+                                      {expandedSubTopic === subTopic.id ? (
+                                        <ChevronDown className="w-3 h-3 text-purple-600" />
+                                      ) : (
+                                        <ChevronRight className="w-3 h-3 text-purple-600" />
+                                      )}
+                                    </div>
+
+                                    {expandedSubTopic === subTopic.id && (
+                                      <div className="ml-4 space-y-1 mt-2">
+                                        {subTopic.details.map(detail => (
+                                          <div
+                                            key={detail.id}
+                                            onClick={() => toggleDetail(detail.id)}
+                                            className={`p-2 rounded-lg cursor-pointer transition-all border ${
+                                              selectedDetails.includes(detail.id)
+                                                ? "border-purple-500 bg-purple-50"
+                                                : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <Checkbox
+                                                checked={selectedDetails.includes(detail.id)}
+                                                className="pointer-events-none"
+                                              />
+                                              <Label className="cursor-pointer pointer-events-none text-sm">
+                                                {detail.name}
+                                              </Label>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
+
+              {currentSubjects.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  해당 유형({selectedExamType === "written" ? "필기" : "실기"})의 학습 자료가 없습니다.
+                </div>
+              )}
             </Card>
           </div>
 
@@ -124,9 +281,9 @@ export function CategoryQuiz({ onStart, onBack }: CategoryQuizProps) {
               <h3 className="text-purple-900 mb-4">선택 요약</h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-gray-600">선택한 태그</p>
+                  <p className="text-sm text-gray-600">선택한 주제</p>
                   <p className="text-purple-600">
-                    {selectedTags.length > 0 ? `${selectedTags.length}개` : "없음"}
+                    {selectedDetails.length > 0 ? `${selectedDetails.length}개` : "없음"}
                   </p>
                 </div>
                 <div>
@@ -140,7 +297,7 @@ export function CategoryQuiz({ onStart, onBack }: CategoryQuizProps) {
             <div className="space-y-3">
               <Button
                 onClick={handleStart}
-                disabled={selectedTags.length === 0}
+                disabled={selectedDetails.length === 0}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Play className="w-4 h-4 mr-2" />

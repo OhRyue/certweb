@@ -24,7 +24,12 @@ git checkout main
 git merge develop
 git push origin main
 
+## git branch 삭제하기
+git branch -d a           # 로컬에서 삭제
+git push origin --delete a   # 원격에서 삭제
+
+
 # git branch
 develop: main 올리기 전 다른 브랜치들을 합친 결과물
-feat/redesign: 새로운 디자인 적용하기
-feat/routing: 라우팅 적용
+feat/mainlearning: 메인 학습 페이지 
+feat/solo: 보조 학습 페이지
