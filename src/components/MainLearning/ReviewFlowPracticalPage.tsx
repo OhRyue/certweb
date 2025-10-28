@@ -1,24 +1,29 @@
 import { useState, useMemo, useEffect } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { ReviewProblemSolvingPractical } from "./ReviewProblemSolvingPractical"
+import { MicroWrongAnswers } from "./MicroWrongAnswers"
 import { ReviewResult } from "./ReviewResult"
 import { LevelUpScreen } from "../LevelUpScreen"
 import { questions, topics } from "../../data/mockData"
 
 export function ReviewFlowPracticalPage() {
-  const [step, setStep] = useState<"problem" | "result">("problem")
+  const [step, setStep] = useState<"problem" | "wrong" | "result">("problem")
   const [problemScore, setProblemScore] = useState(0)
+  const [wrongAnswers, setWrongAnswers] = useState<any[]>([])
   const [showLevelUp, setShowLevelUp] = useState(false)
 
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
   const topicParam = searchParams.get("topicId")
-  const topicId = topicParam && topicParam.trim() !== "" ? topicParam.trim() : "db-basic"
-  const topicName = topics.find(t => t.id === topicId)?.name || "실기 총정리"
+  const topicId =
+    topicParam && topicParam.trim() !== "" ? topicParam.trim() : "db-basic"
+  const topicName = topics.find((t) => t.id === topicId)?.name || "실기 총정리"
 
   const relatedQuestions = useMemo(() => {
-    return questions.filter(q => q.topicId === topicId && q.type === "multiple")
+    return questions.filter(
+      (q) => q.topicId === topicId && q.type === "multiple"
+    )
   }, [topicId])
 
   const totalProblems = relatedQuestions.length
@@ -31,20 +36,46 @@ export function ReviewFlowPracticalPage() {
     }
   }, [step, percentage])
 
+  // 문제 풀이 단계
   if (step === "problem") {
     return (
       <ReviewProblemSolvingPractical
         key="problem-step"
         questions={relatedQuestions}
         topicName={topicName}
-        onComplete={score => {
+        onComplete={(score, answers) => {
           setProblemScore(score)
-          setStep("result")
+          const wrongs = answers
+            .filter((a) => !a.isCorrect)
+            .map((a) => ({
+              question: relatedQuestions.find(
+                (q) => q.id === a.questionId
+              ),
+              userAnswer: a.selectedAnswer,
+              correctAnswer: relatedQuestions.find(
+                (q) => q.id === a.questionId
+              )?.correctAnswer,
+            }))
+          setWrongAnswers(wrongs)
+          setStep("wrong")
         }}
       />
     )
   }
 
+  // 오답노트 단계
+  if (step === "wrong") {
+    return (
+      <MicroWrongAnswers
+        wrongAnswers={wrongAnswers}
+        topicName={topicName}
+        examType="practical"
+        onContinue={() => setStep("result")}
+      />
+    )
+  }
+
+  // 결과 화면
   if (step === "result") {
     return (
       <>
