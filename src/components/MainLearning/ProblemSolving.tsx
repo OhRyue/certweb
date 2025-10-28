@@ -317,7 +317,7 @@ export function ProblemSolving({ questions, topicName, examType, onComplete }: P
                   size="lg"
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
-                  {currentIndex < questions.length - 1 ? "다음 문제" : "결과 보기"}
+                  {currentIndex < questions.length - 1 ? "다음 문제" : "오답 보기"}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
