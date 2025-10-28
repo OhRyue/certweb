@@ -48,6 +48,15 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
     return { progress, completedDetails, totalDetails };
   };
 
+  // SubTopic, MainTopic 완료 여부 계산용 함수 추가
+  const isSubTopicCompleted = (subTopic: SubTopic) => {
+    return subTopic.details.every(detail => detail.completed)
+  }
+
+  const isMainTopicCompleted = (mainTopic: MainTopic) => {
+    return mainTopic.subTopics.every(sub => isSubTopicCompleted(sub))
+  }
+
   const { progress, completedDetails, totalDetails } = calculateProgress();
 
   if (currentSubjects.length === 0) {
@@ -237,7 +246,14 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                               <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                                 {mainTopic.subTopics.length}개 세부 주제
                               </Badge>
+                              {/* 모든 subTopic 완료 시 완료 배지 */}
+                              {isMainTopicCompleted(mainTopic) && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                                  완료
+                                </Badge>
+                              )}
                             </div>
+
                             <p className="text-sm text-gray-600 mt-1">
                               클릭하여 학습 내용 보기
                             </p>
@@ -283,7 +299,14 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                                 <Badge variant="outline" className="border-purple-300 text-purple-700">
                                   {subTopic.details.length}개
                                 </Badge>
+                                {/* 하위 detail 전부 완료 시 완료 배지 */}
+                                {isSubTopicCompleted(subTopic) && (
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700">
+                                    완료
+                                  </Badge>
+                                )}
                               </div>
+
                               {expandedSubTopic === subTopic.id ? (
                                 <ChevronDown className="w-4 h-4 text-purple-600" />
                               ) : (

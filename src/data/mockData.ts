@@ -803,8 +803,8 @@ export const subjects: Subject[] = [
             name: "검색 알고리즘",
             details: [
               { id: 1004, name: "이진 탐색 구현", conceptId: "c1", completed: true },
-              { id: 1005, name: "DFS 구현", conceptId: "c1", completed: false },
-              { id: 1006, name: "BFS 구현", conceptId: "c1", completed: false }
+              { id: 1005, name: "DFS 구현", conceptId: "c1", completed: true },
+              { id: 1006, name: "BFS 구현", conceptId: "c1", completed: true }
             ]
           }
         ]
