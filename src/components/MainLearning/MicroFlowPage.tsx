@@ -43,7 +43,7 @@ export function MicroFlowPage() {
   const totalScore = miniScore + problemScore
   const percentage = Math.round((totalScore / totalProblems) * 100)
 
-  // ✅ Hook은 항상 컴포넌트 상단에서 호출
+  // Hook은 항상 컴포넌트 상단에서 호출
   useEffect(() => {
     if (!currentDetail || !concept) return
 
@@ -69,12 +69,12 @@ export function MicroFlowPage() {
     }
   }, [step, percentage, currentDetail, concept])
 
-  // ✅ 데이터 없을 때 예외 처리
+  // 데이터 없을 때 예외 처리
   if (!currentDetail || !concept) {
     return <div className="p-8 text-center text-red-500">데이터를 불러올 수 없습니다</div>
   }
 
-  // ✅ 단계별 흐름
+  // 단계별 흐름
   if (step === "concept") {
     return (
       <ConceptView

@@ -12,9 +12,6 @@ export function ReviewFlowPracticalPage() {
   const [problemScore, setProblemScore] = useState(0)
   const [showLevelUp, setShowLevelUp] = useState(false)
 
-  // topic별 완료 상태 기록
-  const [completedTopics, setCompletedTopics] = useState<Record<string, boolean>>({})
-
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -33,16 +30,13 @@ export function ReviewFlowPracticalPage() {
   const totalScore = miniScore + problemScore
   const percentage = Math.round((totalScore / totalProblems) * 100)
 
-  // ✅ 결과 들어왔을 때 경험치 조건 확인
+  // 결과 들어왔을 때 경험치 조건 확인
   useEffect(() => {
-    if (step === "result" && percentage === 100 && !completedTopics[topicId]) {
+    const reviewCompleted = true;   // 임시 조건(백엔드 연동시 교체 예정)
+    if (step === "result" && percentage === 100 && !reviewCompleted) {
       setShowLevelUp(true)
-      setCompletedTopics(prev => ({
-        ...prev,
-        [topicId]: true,
-      }))
     }
-  }, [step, percentage, topicId, completedTopics])
+  }, [step, percentage])
 
   if (step === "mini") {
     return (
