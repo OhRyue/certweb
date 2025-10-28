@@ -219,7 +219,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                                                 checked={selectedDetails.includes(detail.id)}
                                                 className="pointer-events-none"
                                               />
-                                              <Label className="cursor-pointer pointer-events-none text-sm">
+                                              <Label className="cursor-pointer pointer-events-none text-sm font-normal">
                                                 {detail.name}
                                               </Label>
                                             </div>
