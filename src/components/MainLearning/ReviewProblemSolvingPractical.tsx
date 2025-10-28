@@ -191,7 +191,7 @@ export function ReviewProblemSolvingPractical({
                                 <Button
                                     onClick={handleNext}
                                     size="lg"
-                                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white"
                                 >
                                     {currentIndex < questions.length - 1 ? "다음 문제" : "결과 보기"}
                                     <ArrowRight className="w-5 h-5 ml-2" />
