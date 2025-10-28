@@ -1,46 +1,52 @@
-import { useState } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
-import { motion } from "motion/react";
-import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react";
-import { Question } from "../../types";
+import { useState } from "react"
+import { Card } from "../ui/card"
+import { Button } from "../ui/button"
+import { Badge } from "../ui/badge"
+import { Progress } from "../ui/progress"
+import { motion } from "motion/react"
+import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react"
+import { Question } from "../../types"
 
 interface ReviewProblemSolvingProps {
-  questions: Question[];
-  onComplete: (score: number) => void;
+  questions: Question[]
+  onComplete: (score: number) => void
 }
 
 export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSolvingProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [showResult, setShowResult] = useState(false);
-  const [score, setScore] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [showResult, setShowResult] = useState(false)
+  const [score, setScore] = useState(0)
+  const [answers, setAnswers] = useState<{ isCorrect: boolean }[]>([]) // ✅ 추가
 
-  const currentQuestion = questions[currentIndex];
-  const progress = ((currentIndex + 1) / questions.length) * 100;
+  const currentQuestion = questions[currentIndex]
+  const progress = ((currentIndex + 1) / questions.length) * 100
 
   const handleAnswer = (index: number) => {
-    if (showResult) return;
-    setSelectedAnswer(index);
-    setShowResult(true);
-    if (index === currentQuestion.correctAnswer) {
-      setScore((prev) => prev + 1);
+    if (showResult) return
+    setSelectedAnswer(index)
+    setShowResult(true)
+
+    const isCorrect = index === currentQuestion.correctAnswer
+    if (isCorrect) {
+      setScore(prev => prev + 1)
     }
-  };
+
+    // ✅ 푼 문제 수 추적용 배열 업데이트
+    setAnswers(prev => [...prev, { isCorrect }])
+  }
 
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setSelectedAnswer(null);
-      setShowResult(false);
+      setCurrentIndex(prev => prev + 1)
+      setSelectedAnswer(null)
+      setShowResult(false)
     } else {
-      onComplete(score);
+      onComplete(score)
     }
-  };
+  }
 
-  const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+  const isCorrect = selectedAnswer === currentQuestion.correctAnswer
 
   return (
     <div className="p-8">
@@ -67,7 +73,7 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
               문제 {currentIndex + 1} / {questions.length}
             </span>
             <span className="text-blue-600">
-              정답: {score} / {currentIndex}
+              정답: {score} / {answers.length} {/* ✅ 수정됨 */}
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -98,7 +104,7 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
                   ? "보통"
                   : "어려움"}
               </Badge>
-              {currentQuestion.tags.map((tag) => (
+              {currentQuestion.tags.map(tag => (
                 <Badge key={tag} variant="outline">
                   #{tag}
                 </Badge>
@@ -109,19 +115,19 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
 
             <div className="space-y-3">
               {currentQuestion.options.map((option, index) => {
-                const isSelected = selectedAnswer === index;
-                const isCorrectAnswer = index === currentQuestion.correctAnswer;
+                const isSelected = selectedAnswer === index
+                const isCorrectAnswer = index === currentQuestion.correctAnswer
 
-                let buttonClass = "w-full p-4 text-left border-2 transition-all";
+                let buttonClass = "w-full p-4 text-left border-2 transition-all"
 
                 if (!showResult) {
-                  buttonClass += " hover:border-blue-400 hover:bg-white/60 cursor-pointer";
+                  buttonClass += " hover:border-blue-400 hover:bg-white/60 cursor-pointer"
                 } else if (isCorrectAnswer) {
-                  buttonClass += " border-green-400 bg-green-50";
+                  buttonClass += " border-green-400 bg-green-50"
                 } else if (isSelected && !isCorrect) {
-                  buttonClass += " border-red-400 bg-red-50";
+                  buttonClass += " border-red-400 bg-red-50"
                 } else {
-                  buttonClass += " opacity-50";
+                  buttonClass += " opacity-50"
                 }
 
                 return (
@@ -140,15 +146,11 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
                         </div>
                         <span>{option}</span>
                       </div>
-                      {showResult && isCorrectAnswer && (
-                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                      )}
-                      {showResult && isSelected && !isCorrect && (
-                        <XCircle className="w-5 h-5 text-red-600" />
-                      )}
+                      {showResult && isCorrectAnswer && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+                      {showResult && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-600" />}
                     </div>
                   </motion.button>
-                );
+                )
               })}
             </div>
           </Card>
@@ -193,5 +195,5 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
         </motion.div>
       </div>
     </div>
-  );
+  )
 }
