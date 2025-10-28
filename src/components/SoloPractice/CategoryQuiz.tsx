@@ -174,10 +174,19 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                     {expandedSubject === subject.id && (
                       <div className="p-4 bg-white space-y-3">
                         {subject.mainTopics.map(mainTopic => (
-                          <div key={mainTopic.id} className="border-l-4 border-purple-300 pl-4">
-                            <div className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all">
+                          <div
+                            key={mainTopic.id}
+                            className="border-l-4 border-purple-300 pl-4"
+                          >
+                            <div
+                              onClick={() =>
+                                setExpandedMainTopic(expandedMainTopic === mainTopic.id ? null : mainTopic.id)
+                              }
+                              className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
+                            >
                               <div className="flex items-center gap-2">
                                 <Checkbox
+                                  onClick={(e) => e.stopPropagation()}
                                   checked={getAllDetailIdsInMainTopic(mainTopic).every(id => selectedDetails.includes(id))}
                                   onCheckedChange={() => {
                                     const allIds = getAllDetailIdsInMainTopic(mainTopic)
@@ -189,6 +198,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                                     }
                                   }}
                                 />
+
                                 <span className="text-lg">{mainTopic.icon}</span>
                                 <h4 className="text-purple-800">{mainTopic.name}</h4>
                                 <Badge variant="outline" className="border-purple-300 text-purple-700">
@@ -203,7 +213,12 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                               <div className="ml-6 space-y-2 mt-2">
                                 {mainTopic.subTopics.map(subTopic => (
                                   <div key={subTopic.id} className="border-l-2 border-purple-200 pl-3">
-                                    <div className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all">
+                                    <div
+                                      onClick={() =>
+                                        setExpandedSubTopic(expandedSubTopic === subTopic.id ? null : subTopic.id)
+                                      }
+                                      className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
+                                    >
                                       <div className="flex items-center gap-2">
                                         <Checkbox
                                           checked={getAllDetailIdsInSubTopic(subTopic).every(id => selectedDetails.includes(id))}
