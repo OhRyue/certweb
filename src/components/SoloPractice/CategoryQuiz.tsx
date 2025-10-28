@@ -52,6 +52,23 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
     }
   }
 
+  // subject 기준으로 모든 detail id 모으기
+  const getAllDetailIdsInSubject = (subject: any) => {
+    return subject.mainTopics.flatMap(main =>
+      main.subTopics.flatMap(sub => sub.details.map(d => d.id))
+    )
+  }
+
+  // mainTopic 기준
+  const getAllDetailIdsInMainTopic = (mainTopic: any) => {
+    return mainTopic.subTopics.flatMap(sub => sub.details.map(d => d.id))
+  }
+
+  // subTopic 기준
+  const getAllDetailIdsInSubTopic = (subTopic: any) => {
+    return subTopic.details.map(d => d.id)
+  }
+
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
@@ -82,8 +99,8 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                   <Button
                     variant={selectedExamType === "written" ? "default" : "ghost"}
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "written"
-                        ? "bg-blue-500 text-white hover:bg-blue-600"
-                        : "text-blue-700 hover:bg-blue-100 hover:text-blue-700"
+                      ? "bg-blue-500 text-white hover:bg-blue-600"
+                      : "text-blue-700 hover:bg-blue-100 hover:text-blue-700"
                       }`}
                     onClick={() => toggleExamType("written")}
                   >
@@ -92,8 +109,8 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                   <Button
                     variant={selectedExamType === "practical" ? "default" : "ghost"}
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "practical"
-                        ? "bg-orange-500 text-white hover:bg-orange-600"
-                        : "text-orange-700 hover:bg-orange-100 hover:text-orange-700"
+                      ? "bg-orange-500 text-white hover:bg-orange-600"
+                      : "text-orange-700 hover:bg-orange-100 hover:text-orange-700"
                       }`}
                     onClick={() => toggleExamType("practical")}
                   >
@@ -120,89 +137,95 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div
-                            className="p-2 rounded-lg text-2xl"
-                            style={{ backgroundColor: subject.color + "20" }}
-                          >
+                          <Checkbox
+                            onClick={(e) => e.stopPropagation()}
+                            checked={getAllDetailIdsInSubject(subject).every(id => selectedDetails.includes(id))}
+                            onCheckedChange={() => {
+                              const allIds = getAllDetailIdsInSubject(subject)
+                              const isAllSelected = allIds.every(id => selectedDetails.includes(id))
+                              if (isAllSelected) {
+                                setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
+                              } else {
+                                setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
+                              }
+                            }}
+                          />
+                          <div className="p-2 rounded-lg text-2xl" style={{ backgroundColor: subject.color + "20" }}>
                             {subject.icon}
                           </div>
                           <div>
                             <h3 className="text-purple-900">{subject.name}</h3>
                             <Badge
                               variant="secondary"
-                              className={
-                                subject.examType === "written"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-orange-100 text-orange-700"
-                              }
+                              className={subject.examType === "written"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-orange-100 text-orange-700"}
                             >
                               {subject.examType === "written" ? "📝 필기" : "⌨️ 실기"}
                             </Badge>
                           </div>
                         </div>
-                        {expandedSubject === subject.id ? (
-                          <ChevronDown className="w-5 h-5 text-purple-600" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-purple-600" />
-                        )}
+                        {expandedSubject === subject.id
+                          ? <ChevronDown className="w-5 h-5 text-purple-600" />
+                          : <ChevronRight className="w-5 h-5 text-purple-600" />}
                       </div>
                     </div>
-
                     {/* 기존 topic 구조 그대로 */}
                     {expandedSubject === subject.id && (
                       <div className="p-4 bg-white space-y-3">
                         {subject.mainTopics.map(mainTopic => (
                           <div key={mainTopic.id} className="border-l-4 border-purple-300 pl-4">
-                            <div
-                              onClick={() =>
-                                setExpandedMainTopic(
-                                  expandedMainTopic === mainTopic.id ? null : mainTopic.id
-                                )
-                              }
-                              className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
-                            >
+                            <div className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all">
                               <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={getAllDetailIdsInMainTopic(mainTopic).every(id => selectedDetails.includes(id))}
+                                  onCheckedChange={() => {
+                                    const allIds = getAllDetailIdsInMainTopic(mainTopic)
+                                    const isAllSelected = allIds.every(id => selectedDetails.includes(id))
+                                    if (isAllSelected) {
+                                      setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
+                                    } else {
+                                      setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
+                                    }
+                                  }}
+                                />
                                 <span className="text-lg">{mainTopic.icon}</span>
                                 <h4 className="text-purple-800">{mainTopic.name}</h4>
                                 <Badge variant="outline" className="border-purple-300 text-purple-700">
                                   {mainTopic.subTopics.length}개
                                 </Badge>
                               </div>
-                              {expandedMainTopic === mainTopic.id ? (
-                                <ChevronDown className="w-4 h-4 text-purple-600" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-purple-600" />
-                              )}
+                              {expandedMainTopic === mainTopic.id
+                                ? <ChevronDown className="w-4 h-4 text-purple-600" />
+                                : <ChevronRight className="w-4 h-4 text-purple-600" />}
                             </div>
-
                             {expandedMainTopic === mainTopic.id && (
                               <div className="ml-6 space-y-2 mt-2">
                                 {mainTopic.subTopics.map(subTopic => (
                                   <div key={subTopic.id} className="border-l-2 border-purple-200 pl-3">
-                                    <div
-                                      onClick={() =>
-                                        setExpandedSubTopic(
-                                          expandedSubTopic === subTopic.id ? null : subTopic.id
-                                        )
-                                      }
-                                      className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
-                                    >
+                                    <div className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all">
                                       <div className="flex items-center gap-2">
+                                        <Checkbox
+                                          checked={getAllDetailIdsInSubTopic(subTopic).every(id => selectedDetails.includes(id))}
+                                          onCheckedChange={() => {
+                                            const allIds = getAllDetailIdsInSubTopic(subTopic)
+                                            const isAllSelected = allIds.every(id => selectedDetails.includes(id))
+                                            if (isAllSelected) {
+                                              setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
+                                            } else {
+                                              setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
+                                            }
+                                          }}
+                                        />
                                         <span className="text-sm text-purple-700">{subTopic.name}</span>
-                                        <Badge
-                                          variant="outline"
-                                          className="border-purple-200 text-purple-600 text-xs"
-                                        >
+                                        <Badge variant="outline" className="border-purple-200 text-purple-600 text-xs">
                                           {subTopic.details.length}개
                                         </Badge>
                                       </div>
-                                      {expandedSubTopic === subTopic.id ? (
-                                        <ChevronDown className="w-3 h-3 text-purple-600" />
-                                      ) : (
-                                        <ChevronRight className="w-3 h-3 text-purple-600" />
-                                      )}
+                                      {expandedSubTopic === subTopic.id
+                                        ? <ChevronDown className="w-3 h-3 text-purple-600" />
+                                        : <ChevronRight className="w-3 h-3 text-purple-600" />}
                                     </div>
-
                                     {expandedSubTopic === subTopic.id && (
                                       <div className="ml-4 space-y-1 mt-2">
                                         {subTopic.details.map(detail => (
