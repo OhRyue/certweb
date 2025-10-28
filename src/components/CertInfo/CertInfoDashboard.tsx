@@ -2,16 +2,17 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { 
-  BookOpen, 
-  Calendar, 
-  DollarSign, 
-  Clock, 
+import {
+  BookOpen,
+  Calendar,
+  DollarSign,
+  Clock,
   Award,
   FileText,
   CheckCircle2,
   AlertCircle
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function CertInfoDashboard() {
   const certificationInfo = {
@@ -244,7 +245,7 @@ export function CertInfoDashboard() {
                   <div>
                     <h3 className="text-yellow-900 mb-2">알림</h3>
                     <p className="text-gray-700">
-                      일정은 한국산업인력공단 사정에 따라 변경될 수 있습니다. 
+                      일정은 한국산업인력공단 사정에 따라 변경될 수 있습니다.
                       정확한 일정은 큐넷(Q-Net) 홈페이지에서 확인하세요.
                     </p>
                   </div>
@@ -258,7 +259,7 @@ export function CertInfoDashboard() {
             <Card className="p-6 border-2 border-purple-200">
               <h3 className="text-purple-900 mb-4">필기 시험 과목 (객관식 5지선다형)</h3>
               <p className="text-gray-600 mb-6">총 100문항 (과목당 20문항) · 150분</p>
-              
+
               <div className="space-y-3">
                 {certificationInfo.subjects.map((subject, index) => (
                   <div
@@ -290,7 +291,7 @@ export function CertInfoDashboard() {
           <TabsContent value="benefits">
             <Card className="p-6 border-2 border-purple-200">
               <h3 className="text-purple-900 mb-6">자격증 취득 혜택</h3>
-              
+
               <div className="space-y-3">
                 {benefits.map((benefit, index) => (
                   <div
@@ -362,11 +363,14 @@ export function CertInfoDashboard() {
               <h3 className="text-white mb-2">지금 바로 시작하세요!</h3>
               <p className="text-white/90">체계적인 학습으로 합격의 꿈을 이루세요 🚀</p>
             </div>
-            <Button 
+            <Button
+              asChild
               size="lg"
               className="bg-white text-purple-600 hover:bg-white/90"
             >
-              학습 시작하기
+              <Link to="/learning" className="flex items-center justify-center">
+                학습 시작하기
+              </Link>
             </Button>
           </div>
         </Card>
