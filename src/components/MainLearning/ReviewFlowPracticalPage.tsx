@@ -11,6 +11,10 @@ export function ReviewFlowPracticalPage() {
   const [miniScore, setMiniScore] = useState(0)
   const [problemScore, setProblemScore] = useState(0)
   const [showLevelUp, setShowLevelUp] = useState(false)
+
+  // topic별 완료 상태 기록
+  const [completedTopics, setCompletedTopics] = useState<Record<string, boolean>>({})
+
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -29,12 +33,16 @@ export function ReviewFlowPracticalPage() {
   const totalScore = miniScore + problemScore
   const percentage = Math.round((totalScore / totalProblems) * 100)
 
-  // ✅ 결과 진입 시 자동으로 LevelUp 표시
+  // ✅ 결과 들어왔을 때 경험치 조건 확인
   useEffect(() => {
-    if (step === "result" && percentage === 100) {
+    if (step === "result" && percentage === 100 && !completedTopics[topicId]) {
       setShowLevelUp(true)
+      setCompletedTopics(prev => ({
+        ...prev,
+        [topicId]: true,
+      }))
     }
-  }, [step, percentage])
+  }, [step, percentage, topicId, completedTopics])
 
   if (step === "mini") {
     return (
@@ -83,7 +91,7 @@ export function ReviewFlowPracticalPage() {
             currentExp={60}
             earnedExp={40}
             expPerLevel={100}
-            onComplete={() => setShowLevelUp(false)} // “확인” 누르면 LevelUp만 닫힘
+            onComplete={() => setShowLevelUp(false)} // “확인” 누르면 닫힘
           />
         )}
       </>

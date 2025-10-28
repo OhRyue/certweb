@@ -269,23 +269,14 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                                 navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
                               }
                             }}
-                            className="text-white"
-                            style={{
-                              background: isMainTopicCompleted(mainTopic)
-                                ? "#9CA3AF" // Tailwind의 gray-400 컬러
-                                : "linear-gradient(to right, #3B82F6, #06B6D4)", // 기존 blue→cyan gradient
-                            }}
+                            className={`text-white ${mainTopic.reviewCompleted
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                              : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                              }`}
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
                             Review 총정리
                           </Button>
-
-
-
-
-
-
-
                           {expandedMainTopic === mainTopic.id ? (
                             <ChevronDown className="w-5 h-5 text-purple-600" />
                           ) : (

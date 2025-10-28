@@ -30,6 +30,7 @@ export interface MainTopic {
   subTopics: SubTopic[];
   icon?: string;
   color?: string;
+  reviewCompleted?: boolean;
   // Review는 MainTopic 단위로!
 }
 

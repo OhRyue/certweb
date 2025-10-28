@@ -43,17 +43,38 @@ export function MicroFlowPage() {
   const totalScore = miniScore + problemScore
   const percentage = Math.round((totalScore / totalProblems) * 100)
 
+  // ✅ Hook은 항상 컴포넌트 상단에서 호출
   useEffect(() => {
-    if (step === "result" && percentage === 100) {
-      setShowLevelUp(true)
-    }
-  }, [step, percentage])
+    if (!currentDetail || !concept) return
 
+    // 결과 단계 + 정답률 100%일 때만 체크
+    if (step === "result" && percentage === 100) {
+      // 이미 완료된 detail이 아닐 경우에만 경험치 지급
+      if (!currentDetail.completed) {
+        setShowLevelUp(true)
+
+        // detail.completed를 true로 업데이트
+        const subjectIndex = subjects.findIndex(s => s.id === currentDetail.subject.id)
+        const mainTopic = subjects[subjectIndex].mainTopics.find(m =>
+          m.subTopics.some(sub => sub.details.some(d => d.id === currentDetail.id))
+        )
+
+        if (mainTopic) {
+          for (const sub of mainTopic.subTopics) {
+            const target = sub.details.find(d => d.id === currentDetail.id)
+            if (target) target.completed = true
+          }
+        }
+      }
+    }
+  }, [step, percentage, currentDetail, concept])
+
+  // ✅ 데이터 없을 때 예외 처리
   if (!currentDetail || !concept) {
     return <div className="p-8 text-center text-red-500">데이터를 불러올 수 없습니다</div>
   }
 
-  // 단계별 흐름 유지
+  // ✅ 단계별 흐름
   if (step === "concept") {
     return (
       <ConceptView
@@ -92,10 +113,6 @@ export function MicroFlowPage() {
   }
 
   if (step === "result") {
-    const handleBack = () => {
-      setShowLevelUp(false)
-      navigate("/learning")
-    }
 
     return (
       <>

@@ -535,6 +535,7 @@ export const subjects: Subject[] = [
         id: 1,
         name: "요구사항 분석",
         icon: "📋",
+        reviewCompleted: true,
         color: "#3B82F6",
         subTopics: [
           {
@@ -561,6 +562,7 @@ export const subjects: Subject[] = [
         id: 2,
         name: "화면 구현",
         icon: "🎨",
+        reviewCompleted: true,
         color: "#60A5FA",
         subTopics: [
           {
@@ -598,6 +600,7 @@ export const subjects: Subject[] = [
         id: 3,
         name: "데이터베이스 설계",
         icon: "🏗️",
+        reviewCompleted: false,
         color: "#38BDF8",
         subTopics: [
           {
@@ -624,6 +627,7 @@ export const subjects: Subject[] = [
         id: 4,
         name: "SQL 활용",
         icon: "💾",
+        reviewCompleted: false,
         color: "#7DD3FC",
         subTopics: [
           {
@@ -661,6 +665,7 @@ export const subjects: Subject[] = [
         id: 5,
         name: "OSI 7계층",
         icon: "📡",
+        reviewCompleted: false,
         color: "#06B6D4",
         subTopics: [
           {
@@ -687,6 +692,7 @@ export const subjects: Subject[] = [
         id: 6,
         name: "프로토콜",
         icon: "🔌",
+        reviewCompleted: false,
         color: "#22D3EE",
         subTopics: [
           {
@@ -787,6 +793,7 @@ export const subjects: Subject[] = [
         id: 101,
         name: "알고리즘 구현",
         icon: "🔢",
+        reviewCompleted: true,
         color: "#F59E0B",
         subTopics: [
           {
@@ -813,6 +820,7 @@ export const subjects: Subject[] = [
         id: 102,
         name: "데이터 구조 구현",
         icon: "📦",
+        reviewCompleted: true,
         color: "#FB923C",
         subTopics: [
           {
@@ -850,6 +858,7 @@ export const subjects: Subject[] = [
         id: 103,
         name: "DDL 실습",
         icon: "🛠️",
+        reviewCompleted: false,
         color: "#EA580C",
         subTopics: [
           {
@@ -876,6 +885,7 @@ export const subjects: Subject[] = [
         id: 104,
         name: "DML 실습",
         icon: "✏️",
+        reviewCompleted: false,
         color: "#F97316",
         subTopics: [
           {
@@ -913,6 +923,7 @@ export const subjects: Subject[] = [
         id: 105,
         name: "객체지향 설계",
         icon: "🧩",
+        reviewCompleted: false,
         color: "#C2410C",
         subTopics: [
           {
@@ -939,6 +950,7 @@ export const subjects: Subject[] = [
         id: 106,
         name: "시스템 설계",
         icon: "🏗️",
+        reviewCompleted: false,
         color: "#9A3412",
         subTopics: [
           {
