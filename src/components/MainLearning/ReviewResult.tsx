@@ -6,9 +6,7 @@ import { Trophy, Star, Home, RotateCcw, Sparkles } from "lucide-react"
 
 interface ReviewResultProps {
   topicName: string
-  miniCheckScore: number
   problemScore: number
-  totalMini: number
   totalProblem: number
   onBackToDashboard: () => void
   onRetry: () => void
@@ -16,16 +14,12 @@ interface ReviewResultProps {
 
 export function ReviewResult({
   topicName,
-  miniCheckScore,
   problemScore,
-  totalMini,
   totalProblem,
   onBackToDashboard,
   onRetry,
 }: ReviewResultProps) {
-  const totalScore = miniCheckScore + problemScore
-  const totalProblems = totalMini + totalProblem
-  const percentage = Math.round((totalScore / totalProblems) * 100)
+  const percentage = Math.round((problemScore / totalProblem) * 100)
 
   const getMessage = () => {
     if (percentage >= 90) return { emoji: "🎉", text: "완벽해요!", color: "from-yellow-400 to-orange-400" }
@@ -69,7 +63,7 @@ export function ReviewResult({
             <p className="text-gray-600 mb-8">총정리 학습을 완료했습니다!</p>
           </motion.div>
 
-          {/* Score Display */}
+          {/* Score Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -77,29 +71,20 @@ export function ReviewResult({
             className="mb-8"
           >
             <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+              <div className="grid grid-cols-2 gap-6">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
                     <span className="text-gray-600">정답률</span>
                   </div>
-                  <div className="text-purple-600 font-semibold text-lg">{percentage}%</div>
+                  <div className="text-purple-600 text-3xl">{percentage}%</div>
                 </div>
-                <div>
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <span className="text-2xl">⭕</span>
-                    <span className="text-gray-600">OX</span>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <Sparkles className="w-6 h-6 text-purple-500" />
+                    <span className="text-gray-600">문제풀이</span>
                   </div>
-                  <div className="text-purple-600">
-                    {miniCheckScore} / {totalMini}
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Sparkles className="w-5 h-5 text-purple-500" />
-                    <span className="text-gray-600">객관식</span>
-                  </div>
-                  <div className="text-purple-600">
+                  <div className="text-purple-600 text-3xl">
                     {problemScore} / {totalProblem}
                   </div>
                 </div>
@@ -119,7 +104,7 @@ export function ReviewResult({
                 <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0" />
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-blue-900 font-semibold">AI 학습 요약</h3>
+                    <h3 className="text-blue-900">AI 학습 요약</h3>
                     <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
                       Beta
                     </Badge>
@@ -129,14 +114,14 @@ export function ReviewResult({
                       ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
                       : percentage >= 60
                       ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다."
-                      : "개념 이해가 조금 더 필요합니다. 다시 복습해보는 걸 추천드려요."}
+                      : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한 번 복습해보세요."}
                   </p>
                 </div>
               </div>
             </Card>
           </motion.div>
 
-          {/* Action Buttons */}
+          {/* Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
