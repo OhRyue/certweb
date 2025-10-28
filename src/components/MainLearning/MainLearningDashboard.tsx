@@ -243,7 +243,7 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                           <div className="flex-1">
                             <div className="flex items-center gap-3">
                               <h3 className="text-purple-900">{mainTopic.name}</h3>
-                              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                              <Badge variant="secondary" className="git text-purple-700">
                                 {mainTopic.subTopics.length}개 세부 주제
                               </Badge>
                               {/* 모든 subTopic 완료 시 완료 배지 */}
@@ -269,11 +269,22 @@ export function MainLearningDashboard({ subjects, targetCertification, onStartMi
                                 navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
                               }
                             }}
-                            className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                            className="text-white"
+                            style={{
+                              background: isMainTopicCompleted(mainTopic)
+                                ? "#9CA3AF" // Tailwind의 gray-400 컬러
+                                : "linear-gradient(to right, #3B82F6, #06B6D4)", // 기존 blue→cyan gradient
+                            }}
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
                             Review 총정리
                           </Button>
+
+
+
+
+
+
 
                           {expandedMainTopic === mainTopic.id ? (
                             <ChevronDown className="w-5 h-5 text-purple-600" />
