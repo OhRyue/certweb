@@ -39,7 +39,7 @@ export function MiniCheck({ questions, topicName, onComplete }: MiniCheckProps) 
       setSelectedAnswer(null);
       setShowResult(false);
     } else {
-      onComplete(score + (selectedAnswer === currentQuestion.correctAnswer ? 1 : 0));
+      onComplete(score);
     }
   };
 

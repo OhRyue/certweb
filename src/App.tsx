@@ -35,6 +35,8 @@ import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
 import { CommunityDashboard } from "./components/Community/CommunityDashboard"
 import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
 import { ShopDashboard } from "./components/Shop/ShopDashboard"
+import { LevelUpScreen } from "./components/LevelUpScreen"
+import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
 import { subjects, userProfile, userSettings, shopItems, questions } from "./data/mockData"
 
 import { useState } from "react"
@@ -110,6 +112,8 @@ export default function App() {
             <Route path="/report" element={<ReportDashboard />} />
             <Route path="/certinfo" element={<CertInfoDashboard />} />
             <Route path="/community" element={<CommunityDashboard />} />
+            <Route path="/levelUp" element={<LevelUpScreen />} />
+            <Route path="/levelUp-d" element={<LevelUpScreenDemo />} />
             <Route
               path="/settings"
               element={
