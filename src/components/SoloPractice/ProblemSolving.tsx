@@ -19,7 +19,7 @@ interface ReviewProblemSolvingProps {
 
 // 카테고리 퀴즈의 필기(객관식) 문제 풀이 컴포넌트
 
-export function CategoryProblemSolving({ questions, onComplete }: ReviewProblemSolvingProps) {
+export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingProps) {
   const [currentIndex, setCurrentIndex] = useState(0)                             // 현재 문제 인덱스(0부터 시작)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)       // 사용자가 선택한 보기 번호
   const [showResult, setShowResult] = useState(false)                             // 결과(정답 여부) 보여줄지 여부

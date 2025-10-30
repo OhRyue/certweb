@@ -4,6 +4,7 @@ import { Button } from "../ui/button"
 import { BarChart2, Play, TrendingUp } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
 import { Label } from "../ui/label"
+import { useNavigate } from "react-router-dom"
 
 interface DifficultyQuizProps {
   onStart: (difficulty: string, count: number, examType: "written" | "practical") => void
@@ -33,6 +34,7 @@ export function DifficultyQuiz({ onStart, onBack }: DifficultyQuizProps) {
   const handleStart = () => {
     onStart(difficulty, parseInt(questionCount), selectedExamType)
   }
+  const navigate = useNavigate()
 
   return (
     <div className="p-8">
@@ -179,13 +181,27 @@ export function DifficultyQuiz({ onStart, onBack }: DifficultyQuizProps) {
             {/* 버튼 */}
             <div className="space-y-3">
               <Button
-                onClick={handleStart}
-                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white"
+                onClick={() => {
+                  // 퀴즈 플레이 화면으로 이동하면서 선택 데이터 전달
+                  navigate("/solo/play", {
+                    state: {
+                      difficulty,
+                      questionCount: parseInt(questionCount),
+                      examType: selectedExamType,
+                      quizType: "difficulty", // 난이도 퀴즈에서 왔다
+                    },
+                  })
+                }}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
               >
                 <Play className="w-4 h-4 mr-2" />
                 퀴즈 시작
               </Button>
-              <Button onClick={onBack} variant="outline" className="w-full border-2">
+              <Button
+                onClick={() => navigate("/solo")}
+                variant="outline"
+                className="w-full border-2"
+              >
                 뒤로 가기
               </Button>
             </div>

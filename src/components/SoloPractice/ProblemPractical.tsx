@@ -20,7 +20,7 @@ interface ReviewProblemSolvingPracticalProps {
 
 // 실기 객관식 문제 풀이 컴포넌트
 
-export function CategoryProblemPractical({
+export function ProblemPractical({
   questions,
   topicName,
   onComplete,

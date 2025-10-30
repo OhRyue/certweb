@@ -336,6 +336,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                       selectedDetails,
                       questionCount: parseInt(questionCount),
                       examType: selectedExamType, // 필기 실기 정보 전달
+                      quizType: "category"        // 어떤 퀴즈에서 왔는지 명시
                     },
                   })
                 }}

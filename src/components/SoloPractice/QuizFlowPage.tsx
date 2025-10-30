@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { CategoryProblemSolving } from "./CategoryProblemSolving"
-import { CategoryProblemPractical } from "./CategoryProblemPractical"
+import { ProblemSolving } from "./ProblemSolving"
+import { ProblemPractical } from "./ProblemPractical"
 import { ReviewResult } from "../MainLearning/ReviewResult"
 import { LevelUpScreen } from "../LevelUpScreen"
 import { questions } from "../../data/mockData"
@@ -10,7 +10,7 @@ import { questions } from "../../data/mockData"
 // 1. 문제 풀이 (컴포넌트 분기: 필기 / 실기)
 // 2. 결과 화면 및 레벨업 오버레이
 
-export function CategoryQuizFlowPage() {
+export function QuizFlowPage() {
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -44,7 +44,7 @@ export function CategoryQuizFlowPage() {
   if (step === "problem") {
     if (examType === "written") {
       return (
-        <CategoryProblemSolving
+        <ProblemSolving
           questions={relatedQuestions}
           onComplete={(score) => {
             setProblemScore(score)
@@ -54,7 +54,7 @@ export function CategoryQuizFlowPage() {
       )
     } else if (examType === "practical") {
       return (
-        <CategoryProblemPractical
+        <ProblemPractical
           questions={relatedQuestions}
           topicName="카테고리 퀴즈"
           onComplete={(score) => {
