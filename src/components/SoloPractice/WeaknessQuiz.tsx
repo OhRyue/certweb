@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Label } from "../ui/label";
 import { Heart, TrendingDown, Sparkles, Play, AlertCircle, FileText, Code } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface WeaknessQuizProps {
   onStart: (weakTags: string[], count: number, examType: "written" | "practical") => void;
@@ -43,6 +44,7 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
       .map(t => t.tag);
     onStart(weakTags, parseInt(questionCount), examType);
   };
+  const navigate = useNavigate()
 
   return (
     <div className="p-8">
@@ -59,37 +61,6 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Weakness Analysis */}
           <div className="lg:col-span-2 space-y-6">
-            {/* AI Analysis */}
-            <Card className="p-6 bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200">
-              <div className="flex items-start gap-3">
-                <Sparkles className="w-6 h-6 text-red-600 flex-shrink-0" />
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-red-900">AI 약점 분석</h3>
-                    <Badge variant="secondary" className="bg-red-100 text-red-700 text-xs">
-                      Beta
-                    </Badge>
-                  </div>
-                  <p className="text-gray-700 mb-3">
-                    최근 학습 기록을 분석한 결과, {examType === "written" ? (
-                      <>
-                        <strong>정규화</strong>와 <strong>OOP</strong> 태그의 정답률이 낮습니다.
-                      </>
-                    ) : (
-                      <>
-                        <strong>알고리즘 구현</strong>과 <strong>데이터 처리</strong> 태그의 정답률이 낮습니다.
-                      </>
-                    )}
-                    {" "}이 영역을 집중적으로 학습하면 전체 점수를 크게 향상시킬 수 있습니다.
-                  </p>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>약점 보완으로 예상 점수 향상: +15점</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
             {/* Weakness Tags */}
             <Card className="p-6 border-2 border-red-200">
               <div className="flex items-center justify-between mb-4">
@@ -99,7 +70,7 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
                     약점 레벨이 높을수록 집중 학습이 필요합니다
                   </p>
                 </div>
-                
+
                 {/* Exam Type Toggle */}
                 <Tabs value={examType} onValueChange={(v) => setExamType(v as "written" | "practical")} className="w-auto">
                   <TabsList className="bg-red-100">
@@ -124,30 +95,15 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
                         <span className="text-gray-800">#{item.tag}</span>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-600">
-                          {item.correct} / {item.total}
-                        </span>
                         <div className="flex items-center gap-2">
-                          <Badge
-                            variant="secondary"
-                            className={
-                              item.proficiency >= 80
-                                ? "bg-green-100 text-green-700"
-                                : item.proficiency >= 60
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                            }
-                          >
-                            {item.proficiency}%
-                          </Badge>
                           <Badge
                             variant="secondary"
                             className={
                               item.weaknessLevel >= 70
                                 ? "bg-red-100 text-red-700"
                                 : item.weaknessLevel >= 50
-                                ? "bg-orange-100 text-orange-700"
-                                : "bg-green-100 text-green-700"
+                                  ? "bg-orange-100 text-orange-700"
+                                  : "bg-green-100 text-green-700"
                             }
                           >
                             약점도 {item.weaknessLevel}%
@@ -231,32 +187,33 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
             </Card>
 
             {/* Summary */}
-            <Card className="p-6 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200">
-              <h3 className="text-yellow-900 mb-4">예상 효과</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">현재 평균 점수</span>
-                  <span className="text-gray-800">68점</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">목표 점수</span>
-                  <span className="text-yellow-600">83점 (+15)</span>
-                </div>
-                <Progress value={68} className="h-2" />
-              </div>
-            </Card>
 
             {/* Action Buttons */}
             <div className="space-y-3">
               <Button
-                onClick={handleStart}
-                className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white"
+                onClick={() => {
+                  // 약점 태그 필터링
+                  const weakTags = weaknessTags
+                    .filter(t => t.weaknessLevel >= 70)
+                    .map(t => t.tag)
+
+                  // FlowPage로 이동하면서 선택 정보 전달
+                  navigate("/solo/play", {
+                    state: {
+                      weakTags,                         // 약점 태그 배열
+                      questionCount: parseInt(questionCount),
+                      examType,                          // 필기 / 실기 정보
+                      quizType: "weakness",              // 어떤 퀴즈인지 명시
+                    },
+                  })
+                }}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
               >
                 <Play className="w-4 h-4 mr-2" />
-                약점 보완 시작
+                퀴즈 시작
               </Button>
               <Button
-                onClick={onBack}
+                onClick={() => navigate("/solo")}
                 variant="outline"
                 className="w-full border-2"
               >
