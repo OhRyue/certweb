@@ -8,30 +8,34 @@ import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
 import { Question } from "../../types"
 
+// props로 받을 타입 정의
 interface ReviewProblemSolvingPracticalProps {
-  questions: Question[]
-  topicName: string
-  onComplete: (
-    score: number,
+  questions: Question[]   // 주관식 문제 배열
+  topicName: string     
+  onComplete: (           // 모든 문제 완료 시 호출되는 콜백
+    score: number,        //  맞은 개수
     answers: { questionId: string | number; selectedAnswer: string; isCorrect: boolean }[]
   ) => void
 }
+
+// 실기 객관식 문제 풀이 컴포넌트
 
 export function CategoryProblemPractical({
   questions,
   topicName,
   onComplete,
 }: ReviewProblemSolvingPracticalProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [typedAnswer, setTypedAnswer] = useState("")
-  const [showResult, setShowResult] = useState(false)
-  const [isGrading, setIsGrading] = useState(false)
-  const [score, setScore] = useState(0)
+  // 현재 문제 인덱스와 선택 결과 및 점수 상태
+  const [currentIndex, setCurrentIndex] = useState(0)     // 현재 문제 인덱스(0부터 시작)
+  const [typedAnswer, setTypedAnswer] = useState("")      // 사용자가 입력한 답
+  const [showResult, setShowResult] = useState(false)     // 결과(정답 여부) 보여줄지 여부
+  const [isGrading, setIsGrading] = useState(false)       // 맞힌 문제 개수
+  const [score, setScore] = useState(0)                   // 사용자가 풀었던 모든 문제 기록(오답노트용)
   const [answers, setAnswers] = useState<
     { questionId: string | number; selectedAnswer: string; isCorrect: boolean }[]
   >([])
 
-  // 문제 비었을 때 방어
+  // 문제 배열이 비었을 때 예외 처리
   if (!questions || questions.length === 0) {
     return (
       <div className="p-8 text-center text-gray-600">
@@ -40,8 +44,12 @@ export function CategoryProblemPractical({
     )
   }
 
+  // 현재 문제 추출(인덱스 기준)
   const currentQuestion = questions[currentIndex]
+
+  // 진행률 계산
   const progress = ((currentIndex + 1) / questions.length) * 100
+  // 
   const isCorrect =
     typedAnswer.trim().toLowerCase() ===
     String(currentQuestion.correctAnswer).toLowerCase()
@@ -54,7 +62,7 @@ export function CategoryProblemPractical({
     setShowResult(true)
     if (isCorrect) setScore((prev) => prev + 1)
 
-    // ✅ 오답노트용 데이터 저장
+    // 오답노트용 데이터 저장
     setAnswers((prev) => [
       ...prev,
       {
@@ -71,7 +79,7 @@ export function CategoryProblemPractical({
       setTypedAnswer("")
       setShowResult(false)
     } else {
-      // ✅ 오답 데이터 포함하여 전달
+      // 오답 데이터 포함하여 전달
       onComplete(score, answers)
     }
   }

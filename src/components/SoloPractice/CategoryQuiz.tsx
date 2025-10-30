@@ -9,23 +9,22 @@ import { Tag, Play, ChevronRight, ChevronDown } from "lucide-react";
 import { subjects } from "../../data/mockData";
 import { useNavigate } from "react-router-dom";
 
-interface CategoryQuizProps {
-  onStart: (detailIds: number[], count: number) => void;
-  onBack: () => void;
-  targetCertification: string;
-}
+// 카테고리 기반 퀴즈 시작 화면
+// 좌측: 과목 선택
+// 우측: 문제 수 선택, 시작 버튼
 
 export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps) {
+  // 사용자가 선택한 detail id 목록
   const [selectedDetails, setSelectedDetails] = useState<number[]>([])
+  // 문제 수 라디오 버튼 상태 문자열 유지 후 사용 시 숫자로 변환
   const [questionCount, setQuestionCount] = useState("10")
+  // 아코디언 확장 상태들
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
-
-  // 추가: 필기 / 실기 토글 상태
+  // 필기 / 실기 토글 상태
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
-
-  // 필기/실기 토글 버튼 핸들러
+  // 필기/실기 전환 시 트리 확장 및 선택 초기화
   const toggleExamType = (type: "written" | "practical") => {
     setSelectedExamType(type)
     setExpandedSubject(null)
@@ -33,12 +32,11 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
     setExpandedSubTopic(null)
     setSelectedDetails([])
   }
-
-  // 필터 조건: 자격증 + 필기/실기 둘 다
+  // 현재 자격증과 시험 유형으로 과목 필터
   const currentSubjects = subjects.filter(
     s => s.category === targetCertification && s.examType === selectedExamType
   )
-
+  // 개별 detail 토글 선택
   const toggleDetail = (detailId: number) => {
     if (selectedDetails.includes(detailId)) {
       setSelectedDetails(selectedDetails.filter(d => d !== detailId))
@@ -46,31 +44,24 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
       setSelectedDetails([...selectedDetails, detailId])
     }
   }
-
-  const handleStart = () => {
-    if (selectedDetails.length > 0) {
-      onStart(selectedDetails, parseInt(questionCount))
-    }
-  }
-
-  // subject 기준으로 모든 detail id 모으기
+  // subject 기준으로 하위 모든 detail id 모으기
   const getAllDetailIdsInSubject = (subject: any) => {
     return subject.mainTopics.flatMap(main =>
       main.subTopics.flatMap(sub => sub.details.map(d => d.id))
     )
   }
-
-  // mainTopic 기준
+  // mainTopic 기준으로 하위 모든 detail id 모으기
   const getAllDetailIdsInMainTopic = (mainTopic: any) => {
     return mainTopic.subTopics.flatMap(sub => sub.details.map(d => d.id))
   }
 
-  // subTopic 기준
+  // subTopic 기준으로 하위 모든 detail id 모으기
   const getAllDetailIdsInSubTopic = (subTopic: any) => {
     return subTopic.details.map(d => d.id)
   }
 
   const navigate = useNavigate()
+
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
@@ -87,15 +78,14 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
           </div>
         </div>
 
-        {/* 기존 코드 아래 그대로 유지 */}
+        {/* 좌측 트리 설정 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Topic Selection */}
+          {/* 좌측 트리 섹션 */}
           <div className="lg:col-span-2">
             <Card className="p-6 border-2 border-purple-200">
-              {/* 제목 + 토글 같은 줄 */}
+              {/* 제목과 필기 실기 토글 */}
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-purple-900">학습 주제 선택</h2>
-
                 {/* 필기/실기 토글 */}
                 <div className="flex gap-2 bg-blue-100 p-1 rounded-xl">
                   <Button
@@ -120,17 +110,17 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                   </Button>
                 </div>
               </div>
-
+              {/* 안내 문구 */}
               <p className="text-sm text-gray-600 mb-4">
                 {selectedExamType === "written"
                   ? "필기 과목의 세부 주제를 선택하세요"
                   : "실기 과목의 세부 주제를 선택하세요"}
               </p>
-              {/* Subject List */}
+              {/* Subject 트리 렌더링 */}
               <div className="space-y-4">
                 {currentSubjects.map(subject => (
                   <div key={subject.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                    {/* Subject Header */}
+                    {/* Subject 헤더 전체 선택 체크와 아이콘 */}
                     <div
                       onClick={() =>
                         setExpandedSubject(expandedSubject === subject.id ? null : subject.id)
@@ -172,7 +162,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                           : <ChevronRight className="w-5 h-5 text-purple-600" />}
                       </div>
                     </div>
-                    {/* 기존 topic 구조 그대로 */}
+                    {/* 과목 펼침 시 메인 토픽 */}
                     {expandedSubject === subject.id && (
                       <div className="p-4 bg-white space-y-3">
                         {subject.mainTopics.map(mainTopic => (
@@ -180,6 +170,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                             key={mainTopic.id}
                             className="border-l-4 border-purple-300 pl-4"
                           >
+                            {/* 메인토픽 헤더 전체 선택 토글 */}
                             <div
                               onClick={() =>
                                 setExpandedMainTopic(expandedMainTopic === mainTopic.id ? null : mainTopic.id)
@@ -211,6 +202,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                                 ? <ChevronDown className="w-4 h-4 text-purple-600" />
                                 : <ChevronRight className="w-4 h-4 text-purple-600" />}
                             </div>
+                            {/* 서브 토픽들 */}
                             {expandedMainTopic === mainTopic.id && (
                               <div className="ml-6 space-y-2 mt-2">
                                 {mainTopic.subTopics.map(subTopic => (
@@ -243,6 +235,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                                         ? <ChevronDown className="w-3 h-3 text-purple-600" />
                                         : <ChevronRight className="w-3 h-3 text-purple-600" />}
                                     </div>
+                                    {/* 디테일 리스트 개별 선택 가능 */}
                                     {expandedSubTopic === subTopic.id && (
                                       <div className="ml-4 space-y-1 mt-2">
                                         {subTopic.details.map(detail => (
@@ -278,7 +271,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                   </div>
                 ))}
               </div>
-
+              {/* 현재 유형에 데이터가 없을 때 안내 */}
               {currentSubjects.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   해당 유형({selectedExamType === "written" ? "필기" : "실기"})의 학습 자료가 없습니다.
@@ -287,9 +280,9 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
             </Card>
           </div>
 
-          {/* Settings */}
+          {/* 우측 설정 섹션 */}
           <div className="space-y-6">
-            {/* Question Count */}
+            {/* 문제 수 선택 */}
             <Card className="p-6 border-2 border-purple-200">
               <h3 className="text-purple-900 mb-4">문제 수</h3>
               <RadioGroup value={questionCount} onValueChange={setQuestionCount}>
@@ -316,7 +309,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
               </RadioGroup>
             </Card>
 
-            {/* Summary */}
+            {/* 선택 요약 */}
             <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
               <h3 className="text-purple-900 mb-4">선택 요약</h3>
               <div className="space-y-3">
@@ -333,15 +326,16 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
               </div>
             </Card>
 
-            {/* Action Buttons */}
+            {/* 시작 밑 뒤로 가기 버튼 */}
             <div className="space-y-3">
               <Button
                 onClick={() => {
+                  // 퀴즈 플레이 화면으로 이동하면서 선택 데이터 전달
                   navigate("/solo/play", {
                     state: {
                       selectedDetails,
                       questionCount: parseInt(questionCount),
-                      examType: selectedExamType, // 추가됨
+                      examType: selectedExamType, // 필기 실기 정보 전달
                     },
                   })
                 }}

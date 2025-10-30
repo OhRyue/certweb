@@ -6,23 +6,31 @@ import { ReviewResult } from "../MainLearning/ReviewResult"
 import { LevelUpScreen } from "../LevelUpScreen"
 import { questions } from "../../data/mockData"
 
+// 카테고리 퀴즈의 플로우 컨테이너
+// 1. 문제 풀이 (컴포넌트 분기: 필기 / 실기)
+// 2. 결과 화면 및 레벨업 오버레이
+
 export function CategoryQuizFlowPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { selectedDetails, questionCount, examType } = location.state || {}
 
+  // CategoryQuiz에서 navigate로 전달된 상태값
+  const { selectedDetails, questionCount, examType } = location.state || {}
+  // 선택된 detail id 배열 보정
   const detailIds = Array.isArray(selectedDetails) ? selectedDetails : []
 
   // mockData에서 필터링
   const relatedQuestions = useMemo(() => {
-    const filtered = questions.filter(q => detailIds.includes(q.detailId))
+    const filtered = questions.filter(q => detailIds.map(String).includes(q.topicId))
     return filtered.slice(0, questionCount || 10)
   }, [detailIds, questionCount])
 
+  // 단계 상태 문제 -> 결과
   const [step, setStep] = useState<"problem" | "result">("problem")
   const [problemScore, setProblemScore] = useState(0)
   const [showLevelUp, setShowLevelUp] = useState(false)
 
+  // 점수 비율로 레벨업 조건 판단
   const totalProblems = relatedQuestions.length
   const percentage = Math.round((problemScore / totalProblems) * 100)
 
@@ -32,7 +40,7 @@ export function CategoryQuizFlowPage() {
     }
   }, [step, percentage])
 
-  // 🧠 examType에 따라 문제풀이 컴포넌트 분기
+  // 문제 풀이 단계 필기/실기 분기
   if (step === "problem") {
     if (examType === "written") {
       return (
@@ -82,5 +90,6 @@ export function CategoryQuizFlowPage() {
     )
   }
 
+  // 방어 return
   return null
 }
