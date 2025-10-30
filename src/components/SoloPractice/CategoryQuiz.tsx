@@ -15,13 +15,13 @@ interface CategoryQuizProps {
   targetCertification: string;
 }
 
-export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps){
+export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps) {
   const [selectedDetails, setSelectedDetails] = useState<number[]>([])
   const [questionCount, setQuestionCount] = useState("10")
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
-  
+
   // 추가: 필기 / 실기 토글 상태
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
 
@@ -336,9 +336,17 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
             {/* Action Buttons */}
             <div className="space-y-3">
               <Button
-                onClick={handleStart}
+                onClick={() => {
+                  navigate("/solo/play", {
+                    state: {
+                      selectedDetails,
+                      questionCount: parseInt(questionCount),
+                      examType: selectedExamType, // 추가됨
+                    },
+                  })
+                }}
                 disabled={selectedDetails.length === 0}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
               >
                 <Play className="w-4 h-4 mr-2" />
                 퀴즈 시작

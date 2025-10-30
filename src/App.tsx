@@ -16,6 +16,7 @@ import { ReviewFlowPracticalPage } from "./components/MainLearning/ReviewFlowPra
 // Solo Practice
 import { SoloPracticeDashboard } from "./components/SoloPractice/SoloPracticeDashboard"
 import { CategoryQuiz } from "./components/SoloPractice/CategoryQuiz"
+import { CategoryQuizFlowPage } from "./components/SoloPractice/CategoryQuizFlowPage"
 import { DifficultyQuiz } from "./components/SoloPractice/DifficultyQuiz"
 import { WeaknessQuiz } from "./components/SoloPractice/WeaknessQuiz"
 
@@ -135,6 +136,7 @@ function InnerApp({
               />
             }
           />
+          <Route path="/solo/play" element={<CategoryQuizFlowPage />} />
           <Route path="/solo/difficulty" element={<DifficultyQuiz />} />
           <Route path="/solo/weakness" element={<WeaknessQuiz />} />
 
