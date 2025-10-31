@@ -167,44 +167,6 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
             </Button>
           </Card>
         </div>
-
-        {/* Ongoing Matches */}
-        {ongoingMatches.length > 0 && (
-          <Card className="p-6 border-2 border-purple-200">
-            <h2 className="text-purple-900 mb-4">진행중인 대전</h2>
-            <div className="space-y-3">
-              {ongoingMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className="flex items-center justify-between p-4 bg-purple-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <Users className="w-5 h-5 text-purple-600" />
-                    <div>
-                      <h3 className="text-gray-900">{match.opponent}</h3>
-                      <p className="text-sm text-gray-600">{match.mode} · {match.round}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      variant="secondary"
-                      className={
-                        match.status === "진행중"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }
-                    >
-                      {match.status}
-                    </Badge>
-                    <Button size="sm" variant="outline">
-                      {match.status === "진행중" ? "계속하기" : "대기"}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   );
