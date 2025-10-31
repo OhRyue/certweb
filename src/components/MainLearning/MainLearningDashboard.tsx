@@ -1,18 +1,94 @@
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react";
-import { Subject, MainTopic, SubTopic, Detail } from "../../types";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Card } from "../ui/card"
+import { Button } from "../ui/button"
+import { Badge } from "../ui/badge"
+import { Progress } from "../ui/progress"
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
+import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react"
+import { Subject, MainTopic, SubTopic, Detail } from "../../types"
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import axios from "axios"
 
+// 추가 백엔드 토픽 타입과 트리 빌더
+type ExamMode = "WRITTEN" | "PRACTICAL"
+interface RawTopic {
+  id: number
+  parentId: number | null
+  code: string
+  title: string
+  examMode: ExamMode
+  children?: RawTopic[]
+}
+
+function buildTree(data: RawTopic[]) {
+  const map = new Map<number, RawTopic>()
+  const roots: RawTopic[] = []
+  data.forEach(it => map.set(it.id, { ...it, children: [] }))
+  data.forEach(it => {
+    if (it.parentId === null) roots.push(map.get(it.id)!)
+    else {
+      const p = map.get(it.parentId)
+      if (p) p.children!.push(map.get(it.id)!)
+    }
+  })
+  const sortRec = (arr?: RawTopic[]) => {
+    if (!arr) return
+    arr.sort((a, b) => a.code.localeCompare(b.code))
+    arr.forEach(n => sortRec(n.children))
+  }
+  sortRec(roots)
+  return roots
+}
+
+// 트리 → 기존 Subject 구조 어댑트
+function toSubjectsTree(roots: RawTopic[], targetCertification: string): Subject[] {
+  // UI 유지용 기본값
+  const fallbackColor = "#8b5cf6"
+  const subjectIcon = "📘"
+  const mainIcon = "📂"
+
+  const mapExam = (m: ExamMode): "written" | "practical" =>
+    m === "WRITTEN" ? "written" : "practical"
+
+  // roots는 subject 레벨
+  const subjects: Subject[] = roots.map(root => {
+    const mainTopics: MainTopic[] =
+      (root.children || []).map(mt => {
+        const subTopics: SubTopic[] =
+          (mt.children || []).map(st => ({
+            id: st.id,
+            name: st.title,
+            completed: false, // 백엔드에 없으니 기본 false
+          }))
+
+        return {
+          id: mt.id,
+          name: mt.title,
+          color: fallbackColor,
+          icon: mainIcon,
+          reviewCompleted: false, // 백엔드에 없으니 기본 false
+          subTopics,
+        }
+      })
+
+    return {
+      id: root.id,
+      category: targetCertification, // 기존 필터를 위해 주입
+      examType: mapExam(root.examMode),
+      name: root.title,
+      color: fallbackColor,
+      icon: subjectIcon,
+      mainTopics,
+    }
+  })
+
+  return subjects
+}
+
 interface MainLearningDashboardProps {
-  targetCertification: string;
-  onStartMicro: (detailId: number, detailName: string, examType: "written" | "practical") => void;
-  onStartReview: (mainTopicId: number, mainTopicName: string, examType: "written" | "practical") => void;
+  targetCertification: string
+  onStartMicro: (detailId: number, detailName: string, examType: "written" | "practical") => void
+  onStartReview: (mainTopicId: number, mainTopicName: string, examType: "written" | "practical") => void
 }
 
 export function MainLearningDashboard({ targetCertification, onStartMicro, onStartReview }: MainLearningDashboardProps) {
@@ -20,17 +96,19 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // 아코디언 확장
-  const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null);
-  const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null);
-  const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written");
+  const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
+  const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
+  const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
 
   // 백엔드에서 데이터 불러오기
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const res = await axios.get(`/api/subjects?cert=${targetCertification}`)
-        setSubjects(res.data)
+        // 변경점 api 경로와 어댑트
+        const res = await axios.get(`/api/study/topics`)
+        const tree = buildTree(res.data as RawTopic[])
+        const adapted = toSubjectsTree(tree, targetCertification)
+        setSubjects(adapted)
       } catch (err) {
         console.log(err)
         setError("데이터를 불러오는 중 오류가 발생했습니다")
@@ -41,16 +119,15 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
     fetchSubjects()
   }, [targetCertification])
 
-  // 로딩 / 에러 처리
   if (loading) return <div className="p-8 text-center text-gray-500">불러오는 중...</div>
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>
 
-  // Filter subjects by target certification and exam type
+  // 기존 필터 그대로 유지
   const currentSubjects = subjects.filter(
     s => s.category === targetCertification && s.examType === selectedExamType
-  );
+  )
 
-  // 진행률 계산 (subTopic 기준)
+  // 진행률 계산 그대로 유지
   const calculateProgress = () => {
     let totalSubTopics = 0
     let completedSubTopics = 0
@@ -78,12 +155,13 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
     return (
       <div className="p-8">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-600">선택된 자격증에 대한 학습 자료가 없습니다.</p>
+          <p className="text-gray-600">선택된 자격증에 대한 학습 자료가 없습니다</p>
         </div>
       </div>
     )
   }
 
+  // 아래부터는 네 UI 그대로 유지
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
@@ -95,7 +173,7 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                 <BookOpen className="w-8 h-8 text-purple-600" />
                 <h1 className="text-purple-900">메인 학습</h1>
               </div>
-              <p className="text-gray-600">체계적으로 개념을 학습하고 문제를 풀어보세요!</p>
+              <p className="text-gray-600">체계적으로 개념을 학습하고 문제를 풀어보세요</p>
             </div>
 
             {/* Exam Type Toggle */}
@@ -132,26 +210,14 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
               </div>
               <div className="flex-1">
                 <h3 className="text-blue-900 mb-2">Micro 학습</h3>
-                <p className="text-gray-700 text-sm mb-3">개념 학습 → O/X 미니체크 → 문제풀이</p>
+                <p className="text-gray-700 text-sm mb-3">개념 학습 → OX 미니체크 → 문제풀이</p>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="bg-white/60">
-                    개념 보기
-                  </Badge>
-                  <Badge variant="secondary" className="bg-white/60">
-                    O/X 4문항
-                  </Badge>
-                  <Badge variant="secondary" className="bg-white/60">
-                    문제 5문항
-                  </Badge>
-                  {selectedExamType === "practical" ? (
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                      AI 채점 + AI 해설
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                      AI 해설
-                    </Badge>
-                  )}
+                  <Badge variant="secondary" className="bg-white/60">개념 보기</Badge>
+                  <Badge variant="secondary" className="bg-white/60">OX 4문항</Badge>
+                  <Badge variant="secondary" className="bg-white/60">문제 5문항</Badge>
+                  {selectedExamType === "practical"
+                    ? <Badge variant="secondary" className="bg-orange-100 text-orange-700">AI 채점 + AI 해설</Badge>
+                    : <Badge variant="secondary" className="bg-blue-100 text-blue-700">AI 해설</Badge>}
                 </div>
               </div>
             </div>
@@ -166,24 +232,12 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                 <h3 className="text-blue-900 mb-2">Review 총정리</h3>
                 <p className="text-gray-700 text-sm mb-3">종합 문제 풀이와 AI 요약</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedExamType === "practical" ? (
-                    <Badge variant="secondary" className="bg-white/60">
-                      문제 10문항
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="bg-white/60">
-                      문제 20문항
-                    </Badge>
-                  )}
-                  {selectedExamType === "practical" ? (
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                      AI 채점 + AI 해설
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                      AI 해설
-                    </Badge>
-                  )}
+                  {selectedExamType === "practical"
+                    ? <Badge variant="secondary" className="bg-white/60">문제 10문항</Badge>
+                    : <Badge variant="secondary" className="bg-white/60">문제 20문항</Badge>}
+                  {selectedExamType === "practical"
+                    ? <Badge variant="secondary" className="bg-orange-100 text-orange-700">AI 채점 + AI 해설</Badge>
+                    : <Badge variant="secondary" className="bg-blue-100 text-blue-700">AI 해설</Badge>}
                 </div>
               </div>
             </div>
@@ -209,18 +263,10 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
               <span className="text-purple-900">{progress}%</span>
             </div>
           </div>
-          <Progress
-            value={progress}
-            className={`h-3 bg-white/60`}
-            style={{
-              "--tw-bg-opacity": "1",
-              backgroundColor: "rgba(255,255,255,0.6)",
-            }}
-          />
+          <Progress value={progress} className="h-3 bg-white/60" />
           <style>
-            {`.bg-white\\/60 > div {background-color: ${selectedExamType === "written" ? "#3B82F6" : "#FACC15"} !important;}`}
+            {`.bg-white\\/60 > div {background-color: ${selectedExamType === "written" ? "#3B82F6" : "#F59E0B"} !important;}`}
           </style>
-
         </Card>
 
         {/* 과목 리스트 */}
@@ -272,7 +318,7 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                               <Badge variant="secondary" className="git text-purple-700">
                                 {mainTopic.subTopics.length}개 세부 주제
                               </Badge>
-                              {isMainTopicCompleted(mainTopic) && (
+                              {mainTopic.subTopics.every(s => s.completed) && (
                                 <Badge variant="secondary" className="bg-green-100 text-green-700">
                                   완료
                                 </Badge>
@@ -291,7 +337,7 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                                 navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
                               }
                             }}
-                            className={`text-white ${mainTopic.reviewCompleted
+                            className={`text-white ${false
                                 ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                                 : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                               }`}

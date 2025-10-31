@@ -15,14 +15,19 @@ export default defineConfig({
     outDir: 'build',
   },
   server: {
+    host: "0.0.0.0",
     port: 3000,
     open: true,
     proxy: {
       '/api': {
-        target: 'http://192.168.144.1:8081',
+        target: 'http://210.110.33.223:8082',
         changeOrigin: true,
         secure: false,
       },
+    },
+    hmr: {
+      host: "localhost",
+      protocol: "ws",
     },
   },
 });
