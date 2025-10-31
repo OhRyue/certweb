@@ -19,7 +19,7 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://192.168.144.1:8081',
         changeOrigin: true,
         secure: false,
       },

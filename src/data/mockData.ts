@@ -520,7 +520,6 @@ export const categoryProgress = [
 
 // Subject Structure for Main Learning
 import { Subject } from "../types";
-
 export const subjects: Subject[] = [
   // 정보처리기사 필기 - 응용 SW 엔지니어링
   {
@@ -541,19 +540,21 @@ export const subjects: Subject[] = [
           {
             id: 1,
             name: "요구사항 정의",
+            completed: true,
             details: [
-              { id: 1, name: "요구사항 명세서 작성", conceptId: "c1", completed: true },
-              { id: 2, name: "요구사항 변경 관리", conceptId: "c1", completed: true },
-              { id: 3, name: "요구사항 검토 및 승인", conceptId: "c1", completed: false }
+              { id: 1, name: "요구사항 명세서 작성", conceptId: "c1" },
+              { id: 2, name: "요구사항 변경 관리", conceptId: "c2" },
+              { id: 3, name: "요구사항 검토 및 승인", conceptId: "c3" }
             ]
           },
           {
             id: 2,
             name: "분석 모델링",
+            completed: false,
             details: [
-              { id: 4, name: "데이터 흐름도(DFD)", conceptId: "c1", completed: true },
-              { id: 5, name: "ER 다이어그램(ERD)", conceptId: "c1", completed: false },
-              { id: 6, name: "UML 모델링", conceptId: "c1", completed: false }
+              { id: 4, name: "데이터 흐름도(DFD)", conceptId: "c1" },
+              { id: 5, name: "ER 다이어그램(ERD)", conceptId: "c1" },
+              { id: 6, name: "UML 모델링", conceptId: "c1" }
             ]
           }
         ]
@@ -568,19 +569,21 @@ export const subjects: Subject[] = [
           {
             id: 3,
             name: "UI 설계",
+            completed: false,
             details: [
-              { id: 7, name: "UI 흐름 설계", conceptId: "c2", completed: true },
-              { id: 8, name: "UI 표준 및 가이드 정의", conceptId: "c2", completed: false },
-              { id: 9, name: "화면 레이아웃 설계", conceptId: "c2", completed: false }
+              { id: 7, name: "UI 흐름 설계", conceptId: "c2" },
+              { id: 8, name: "UI 표준 및 가이드 정의", conceptId: "c2" },
+              { id: 9, name: "화면 레이아웃 설계", conceptId: "c2" }
             ]
           },
           {
             id: 4,
             name: "UI 구현",
+            completed: false,
             details: [
-              { id: 10, name: "HTML/CSS 구현", conceptId: "c2", completed: false },
-              { id: 11, name: "JavaScript 이벤트 처리", conceptId: "c2", completed: false },
-              { id: 12, name: "React 기반 SPA 구현", conceptId: "c2", completed: false }
+              { id: 10, name: "HTML/CSS 구현", conceptId: "c2" },
+              { id: 11, name: "JavaScript 이벤트 처리", conceptId: "c2" },
+              { id: 12, name: "React 기반 SPA 구현", conceptId: "c2" }
             ]
           }
         ]
@@ -606,19 +609,21 @@ export const subjects: Subject[] = [
           {
             id: 5,
             name: "논리적 설계",
+            completed: false,
             details: [
-              { id: 13, name: "개념적 데이터 모델링", conceptId: "c1", completed: true },
-              { id: 14, name: "논리적 데이터 모델링", conceptId: "c1", completed: false },
-              { id: 15, name: "정규화 1NF-3NF", conceptId: "c1", completed: false }
+              { id: 13, name: "개념적 데이터 모델링", conceptId: "c1" },
+              { id: 14, name: "논리적 데이터 모델링", conceptId: "c1" },
+              { id: 15, name: "정규화 1NF-3NF", conceptId: "c1" }
             ]
           },
           {
             id: 6,
             name: "물리적 설계",
+            completed: false,
             details: [
-              { id: 16, name: "테이블 생성 및 제약조건", conceptId: "c1", completed: false },
-              { id: 17, name: "인덱스 설계", conceptId: "c1", completed: false },
-              { id: 18, name: "파티셔닝 전략", conceptId: "c1", completed: false }
+              { id: 16, name: "테이블 생성 및 제약조건", conceptId: "c1" },
+              { id: 17, name: "인덱스 설계", conceptId: "c1" },
+              { id: 18, name: "파티셔닝 전략", conceptId: "c1" }
             ]
           }
         ]
@@ -633,19 +638,21 @@ export const subjects: Subject[] = [
           {
             id: 7,
             name: "기본 SQL",
+            completed: false,
             details: [
-              { id: 19, name: "DDL 작성", conceptId: "c1", completed: false },
-              { id: 20, name: "DML 작성", conceptId: "c1", completed: false },
-              { id: 21, name: "DCL 및 TCL", conceptId: "c1", completed: false }
+              { id: 19, name: "DDL 작성", conceptId: "c1" },
+              { id: 20, name: "DML 작성", conceptId: "c1" },
+              { id: 21, name: "DCL 및 TCL", conceptId: "c1" }
             ]
           },
           {
             id: 8,
             name: "고급 SQL",
+            completed: false,
             details: [
-              { id: 22, name: "조인 및 서브쿼리", conceptId: "c1", completed: false },
-              { id: 23, name: "집합 연산 및 그룹화", conceptId: "c1", completed: false },
-              { id: 24, name: "윈도우 함수", conceptId: "c1", completed: false }
+              { id: 22, name: "조인 및 서브쿼리", conceptId: "c1" },
+              { id: 23, name: "집합 연산 및 그룹화", conceptId: "c1" },
+              { id: 24, name: "윈도우 함수", conceptId: "c1" }
             ]
           }
         ]
@@ -671,19 +678,21 @@ export const subjects: Subject[] = [
           {
             id: 9,
             name: "하위 계층",
+            completed: false,
             details: [
-              { id: 25, name: "물리 계층", conceptId: "c2", completed: false },
-              { id: 26, name: "데이터링크 계층", conceptId: "c2", completed: false },
-              { id: 27, name: "네트워크 계층", conceptId: "c2", completed: false }
+              { id: 25, name: "물리 계층", conceptId: "c2" },
+              { id: 26, name: "데이터링크 계층", conceptId: "c2" },
+              { id: 27, name: "네트워크 계층", conceptId: "c2" }
             ]
           },
           {
             id: 10,
             name: "상위 계층",
+            completed: false,
             details: [
-              { id: 28, name: "전송 계층", conceptId: "c2", completed: false },
-              { id: 29, name: "세션/표현 계층", conceptId: "c2", completed: false },
-              { id: 30, name: "응용 계층", conceptId: "c2", completed: false }
+              { id: 28, name: "전송 계층", conceptId: "c2" },
+              { id: 29, name: "세션/표현 계층", conceptId: "c2" },
+              { id: 30, name: "응용 계층", conceptId: "c2" }
             ]
           }
         ]
@@ -698,19 +707,21 @@ export const subjects: Subject[] = [
           {
             id: 11,
             name: "전송 프로토콜",
+            completed: false,
             details: [
-              { id: 31, name: "TCP 프로토콜", conceptId: "c2", completed: false },
-              { id: 32, name: "UDP 프로토콜", conceptId: "c2", completed: false },
-              { id: 33, name: "IP 프로토콜", conceptId: "c2", completed: false }
+              { id: 31, name: "TCP 프로토콜", conceptId: "c2" },
+              { id: 32, name: "UDP 프로토콜", conceptId: "c2" },
+              { id: 33, name: "IP 프로토콜", conceptId: "c2" }
             ]
           },
           {
             id: 12,
             name: "응용 프로토콜",
+            completed: false,
             details: [
-              { id: 34, name: "HTTP/HTTPS", conceptId: "c2", completed: false },
-              { id: 35, name: "웹 소켓", conceptId: "c2", completed: false },
-              { id: 36, name: "DNS/FTP", conceptId: "c2", completed: false }
+              { id: 34, name: "HTTP/HTTPS", conceptId: "c2" },
+              { id: 35, name: "웹 소켓", conceptId: "c2" },
+              { id: 36, name: "DNS/FTP", conceptId: "c2" }
             ]
           }
         ]
@@ -735,19 +746,21 @@ export const subjects: Subject[] = [
           {
             id: 13,
             name: "시제",
+            completed: false,
             details: [
-              { id: 37, name: "현재/과거/미래 시제", conceptId: "c3", completed: false },
-              { id: 38, name: "완료 시제", conceptId: "c3", completed: false },
-              { id: 39, name: "진행 시제", conceptId: "c3", completed: false }
+              { id: 37, name: "현재/과거/미래 시제", conceptId: "c3" },
+              { id: 38, name: "완료 시제", conceptId: "c3" },
+              { id: 39, name: "진행 시제", conceptId: "c3" }
             ]
           },
           {
             id: 14,
             name: "태",
+            completed: false,
             details: [
-              { id: 40, name: "능동태와 수동태", conceptId: "c3", completed: false },
-              { id: 41, name: "시제별 수동태", conceptId: "c3", completed: false },
-              { id: 42, name: "주의해야 할 수동태", conceptId: "c3", completed: false }
+              { id: 40, name: "능동태와 수동태", conceptId: "c3" },
+              { id: 41, name: "시제별 수동태", conceptId: "c3" },
+              { id: 42, name: "주의해야 할 수동태", conceptId: "c3" }
             ]
           }
         ]
@@ -761,19 +774,21 @@ export const subjects: Subject[] = [
           {
             id: 15,
             name: "명사",
+            completed: false,
             details: [
-              { id: 43, name: "가산명사와 불가산명사", conceptId: "c3", completed: false },
-              { id: 44, name: "단수와 복수", conceptId: "c3", completed: false },
-              { id: 45, name: "소유격", conceptId: "c3", completed: false }
+              { id: 43, name: "가산명사와 불가산명사", conceptId: "c3" },
+              { id: 44, name: "단수와 복수", conceptId: "c3" },
+              { id: 45, name: "소유격", conceptId: "c3" }
             ]
           },
           {
             id: 16,
             name: "관사",
+            completed: false,
             details: [
-              { id: 46, name: "a/an 용법", conceptId: "c3", completed: false },
-              { id: 47, name: "the 용법", conceptId: "c3", completed: false },
-              { id: 48, name: "관사 생략", conceptId: "c3", completed: false }
+              { id: 46, name: "a/an 용법", conceptId: "c3" },
+              { id: 47, name: "the 용법", conceptId: "c3" },
+              { id: 48, name: "관사 생략", conceptId: "c3" }
             ]
           }
         ]
@@ -799,19 +814,21 @@ export const subjects: Subject[] = [
           {
             id: 101,
             name: "정렬 알고리즘",
+            completed: true,
             details: [
-              { id: 1001, name: "버블 정렬 구현", conceptId: "c1", completed: true },
-              { id: 1002, name: "퀵 정렬 구현", conceptId: "c1", completed: true },
-              { id: 1003, name: "병합 정렬 구현", conceptId: "c1", completed: true }
+              { id: 1001, name: "버블 정렬 구현", conceptId: "c1" },
+              { id: 1002, name: "퀵 정렬 구현", conceptId: "c2" },
+              { id: 1003, name: "병합 정렬 구현", conceptId: "c3" }
             ]
           },
           {
             id: 102,
             name: "검색 알고리즘",
+            completed: true,
             details: [
-              { id: 1004, name: "이진 탐색 구현", conceptId: "c1", completed: true },
-              { id: 1005, name: "DFS 구현", conceptId: "c1", completed: true },
-              { id: 1006, name: "BFS 구현", conceptId: "c1", completed: true }
+              { id: 1004, name: "이진 탐색 구현", conceptId: "c1" },
+              { id: 1005, name: "DFS 구현", conceptId: "c1" },
+              { id: 1006, name: "BFS 구현", conceptId: "c1" }
             ]
           }
         ]
@@ -826,19 +843,21 @@ export const subjects: Subject[] = [
           {
             id: 103,
             name: "선형 구조",
+            completed: false,
             details: [
-              { id: 1007, name: "스택 구현", conceptId: "c1", completed: true },
-              { id: 1008, name: "큐 구현", conceptId: "c1", completed: false },
-              { id: 1009, name: "링크드 리스트 구현", conceptId: "c1", completed: false }
+              { id: 1007, name: "스택 구현", conceptId: "c1" },
+              { id: 1008, name: "큐 구현", conceptId: "c1" },
+              { id: 1009, name: "링크드 리스트 구현", conceptId: "c1" }
             ]
           },
           {
             id: 104,
             name: "비선형 구조",
+            completed: false,
             details: [
-              { id: 1010, name: "이진 트리 구현", conceptId: "c1", completed: false },
-              { id: 1011, name: "그래프 구현", conceptId: "c1", completed: false },
-              { id: 1012, name: "해시 테이블 구현", conceptId: "c1", completed: false }
+              { id: 1010, name: "이진 트리 구현", conceptId: "c1" },
+              { id: 1011, name: "그래프 구현", conceptId: "c1" },
+              { id: 1012, name: "해시 테이블 구현", conceptId: "c1" }
             ]
           }
         ]
@@ -864,19 +883,21 @@ export const subjects: Subject[] = [
           {
             id: 105,
             name: "테이블 관리",
+            completed: false,
             details: [
-              { id: 1013, name: "CREATE TABLE 작성", conceptId: "c1", completed: false },
-              { id: 1014, name: "ALTER TABLE 작성", conceptId: "c1", completed: false },
-              { id: 1015, name: "DROP TABLE 작성", conceptId: "c1", completed: false }
+              { id: 1013, name: "CREATE TABLE 작성", conceptId: "c1" },
+              { id: 1014, name: "ALTER TABLE 작성", conceptId: "c1" },
+              { id: 1015, name: "DROP TABLE 작성", conceptId: "c1" }
             ]
           },
           {
             id: 106,
             name: "제약조건",
+            completed: false,
             details: [
-              { id: 1016, name: "PRIMARY KEY 설정", conceptId: "c1", completed: false },
-              { id: 1017, name: "FOREIGN KEY 설정", conceptId: "c1", completed: false },
-              { id: 1018, name: "CHECK 제약조건", conceptId: "c1", completed: false }
+              { id: 1016, name: "PRIMARY KEY 설정", conceptId: "c1" },
+              { id: 1017, name: "FOREIGN KEY 설정", conceptId: "c1" },
+              { id: 1018, name: "CHECK 제약조건", conceptId: "c1" }
             ]
           }
         ]
@@ -891,19 +912,21 @@ export const subjects: Subject[] = [
           {
             id: 107,
             name: "데이터 조작",
+            completed: false,
             details: [
-              { id: 1019, name: "복잡한 SELECT 쿼리", conceptId: "c1", completed: false },
-              { id: 1020, name: "JOIN 활용", conceptId: "c1", completed: false },
-              { id: 1021, name: "서브쿼리 작성", conceptId: "c1", completed: false }
+              { id: 1019, name: "복잡한 SELECT 쿼리", conceptId: "c1" },
+              { id: 1020, name: "JOIN 활용", conceptId: "c1" },
+              { id: 1021, name: "서브쿼리 작성", conceptId: "c1" }
             ]
           },
           {
             id: 108,
             name: "집계 함수",
+            completed: false,
             details: [
-              { id: 1022, name: "GROUP BY 활용", conceptId: "c1", completed: false },
-              { id: 1023, name: "HAVING 조건", conceptId: "c1", completed: false },
-              { id: 1024, name: "윈도우 함수", conceptId: "c1", completed: false }
+              { id: 1022, name: "GROUP BY 활용", conceptId: "c1" },
+              { id: 1023, name: "HAVING 조건", conceptId: "c1" },
+              { id: 1024, name: "윈도우 함수", conceptId: "c1" }
             ]
           }
         ]
@@ -929,19 +952,21 @@ export const subjects: Subject[] = [
           {
             id: 109,
             name: "클래스 설계",
+            completed: false,
             details: [
-              { id: 1025, name: "클래스 다이어그램 작성", conceptId: "c3", completed: false },
-              { id: 1026, name: "상속 구조 설계", conceptId: "c3", completed: false },
-              { id: 1027, name: "인터페이스 설계", conceptId: "c3", completed: false }
+              { id: 1025, name: "클래스 다이어그램 작성", conceptId: "c3" },
+              { id: 1026, name: "상속 구조 설계", conceptId: "c3" },
+              { id: 1027, name: "인터페이스 설계", conceptId: "c3" }
             ]
           },
           {
             id: 110,
             name: "디자인 패턴",
+            completed: false,
             details: [
-              { id: 1028, name: "싱글톤 패턴 구현", conceptId: "c3", completed: false },
-              { id: 1029, name: "팩토리 패턴 구현", conceptId: "c3", completed: false },
-              { id: 1030, name: "옵저버 패턴 구현", conceptId: "c3", completed: false }
+              { id: 1028, name: "싱글톤 패턴 구현", conceptId: "c3" },
+              { id: 1029, name: "팩토리 패턴 구현", conceptId: "c3" },
+              { id: 1030, name: "옵저버 패턴 구현", conceptId: "c3" }
             ]
           }
         ]
@@ -956,23 +981,27 @@ export const subjects: Subject[] = [
           {
             id: 111,
             name: "아키텍처 설계",
+            completed: false,
             details: [
-              { id: 1031, name: "MVC 패턴 설계", conceptId: "c3", completed: false },
-              { id: 1032, name: "계층형 아키텍처", conceptId: "c3", completed: false },
-              { id: 1033, name: "마이크로서비스 설계", conceptId: "c3", completed: false }
+              { id: 1031, name: "MVC 패턴 설계", conceptId: "c3" },
+              { id: 1032, name: "계층형 아키텍처", conceptId: "c3" },
+              { id: 1033, name: "마이크로서비스 설계", conceptId: "c3" }
             ]
           },
           {
             id: 112,
             name: "API 설계",
+            completed: false,
             details: [
-              { id: 1034, name: "RESTful API 설계", conceptId: "c3", completed: false },
-              { id: 1035, name: "요청/응답 설계", conceptId: "c3", completed: false },
-              { id: 1036, name: "에러 핸들링 설계", conceptId: "c3", completed: false }
+              { id: 1034, name: "RESTful API 설계", conceptId: "c3" },
+              { id: 1035, name: "요청/응답 설계", conceptId: "c3" },
+              { id: 1036, name: "에러 핸들링 설계", conceptId: "c3" },
+              { id: 1036, name: "에러 핸들링 설계", conceptId: "c3" }
             ]
           }
         ]
       }
     ]
   }
-];
+]
+
