@@ -1,26 +1,23 @@
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Swords, Zap, Trophy, Users, Bell } from "lucide-react";
+import { Card } from "../ui/card"
+import { Button } from "../ui/button"
+import { Badge } from "../ui/badge"
+import { Swords, Zap, Trophy, Bell } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
-interface BattleDashboardProps {
-  onStart1v1: () => void;
-  onStartTournament: () => void;
-  onStartGoldenBell: () => void;
-}
+export function BattleDashboard() {
+  const navigate = useNavigate()
 
-export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBell }: BattleDashboardProps) {
   const myStats = {
     wins: 42,
     losses: 18,
     winRate: 70,
     rank: 127,
-  };
+  }
 
   const ongoingMatches = [
     { id: "m1", opponent: "코딩마스터", mode: "1:1", status: "진행중", round: "3/5" },
     { id: "m2", opponent: "토너먼트 8강", mode: "토너먼트", status: "대기중", round: "8강" },
-  ];
+  ]
 
   return (
     <div className="p-8">
@@ -66,9 +63,7 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
                 <Swords className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-purple-900 mb-2">1:1 배틀</h2>
-              <p className="text-gray-600 text-sm">
-                친구와 실시간으로 대결하세요
-              </p>
+              <p className="text-gray-600 text-sm">친구와 실시간으로 대결하세요</p>
             </div>
 
             <div className="space-y-3 mb-6">
@@ -87,7 +82,7 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
             </div>
 
             <Button
-              onClick={onStart1v1}
+              onClick={() => navigate("/battle/onevsone")}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
             >
               <Zap className="w-4 h-4 mr-2" />
@@ -102,9 +97,7 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
                 <Trophy className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-orange-900 mb-2">토너먼트</h2>
-              <p className="text-gray-600 text-sm">
-                8명이 참여하는 토너먼트
-              </p>
+              <p className="text-gray-600 text-sm">8명이 참여하는 토너먼트</p>
             </div>
 
             <div className="space-y-3 mb-6">
@@ -123,7 +116,7 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
             </div>
 
             <Button
-              onClick={onStartTournament}
+              onClick={() => navigate("/battle/tournament")}
               className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white"
             >
               <Trophy className="w-4 h-4 mr-2" />
@@ -138,9 +131,7 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
                 <Bell className="w-10 h-10 text-white" />
               </div>
               <h2 className="text-blue-900 mb-2">골든벨</h2>
-              <p className="text-gray-600 text-sm">
-                20명이 참여하는 생존 게임
-              </p>
+              <p className="text-gray-600 text-sm">20명이 참여하는 생존 게임</p>
             </div>
 
             <div className="space-y-3 mb-6">
@@ -159,7 +150,7 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
             </div>
 
             <Button
-              onClick={onStartGoldenBell}
+              onClick={() => navigate("/battle/goldenbell")}
               className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
             >
               <Bell className="w-4 h-4 mr-2" />
@@ -169,5 +160,5 @@ export function BattleDashboard({ onStart1v1, onStartTournament, onStartGoldenBe
         </div>
       </div>
     </div>
-  );
+  )
 }

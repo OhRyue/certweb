@@ -64,7 +64,7 @@ export default function App() {
   }
 
   return (
-    // ⬇️ 여기서부터 BrowserRouter 안으로 navigate 이동
+    // 여기서부터 BrowserRouter 안으로 navigate 이동
     <BrowserRouter>
       <InnerApp
         userProfile={userProfile}
@@ -80,7 +80,7 @@ export default function App() {
   )
 }
 
-// 🔹 이건 내부 Router 영역
+// 이건 내부 Router 영역
 function InnerApp({
   userProfile,
   setUserProfile,
@@ -91,14 +91,14 @@ function InnerApp({
   shopItems,
   setShopItems,
 }) {
-  const navigate = useNavigate() // 이제 에러 안 남
+  const navigate = useNavigate()
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50">
       <Navigation userProfile={userProfile} userPoints={userPoints} />
       <main className="ml-64 flex-1">
         <Routes>
-          {/* 메인 학습 전부 그대로 유지 */}
+          {/* 메인 학습 */}
           <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
           <Route
             path="/learning"
@@ -115,7 +115,7 @@ function InnerApp({
           <Route path="/learning/review-written" element={<ReviewFlowPage />} />
           <Route path="/learning/review-practical" element={<ReviewFlowPracticalPage />} />
 
-          {/* 혼자풀기 */}
+          {/* 보조 학습 */}
           <Route
             path="/solo"
             element={
@@ -139,6 +139,16 @@ function InnerApp({
           <Route path="/solo/play" element={<QuizFlowPage />} />
           <Route path="/solo/difficulty" element={<DifficultyQuiz />} />
           <Route path="/solo/weakness" element={<WeaknessQuiz />} />
+
+          <Route path="/battle" element={<BattleDashboard />} />
+          <Route path="/battle/onevsone" element={<OneVsOneBattle />} />
+          <Route path="/battle/game" element={<BattleGame />} />
+          <Route path="/battle/result" element={<BattleResult />} />
+          <Route path="/battle/tournament" element={<Tournament />} />
+          <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
+          <Route path="/battle/goldenbell" element={<GoldenBell />} />
+          <Route path="/battle/goldenbell/game" element={<GoldenBellGame />} />
+
 
           {/* 기타 그대로 */}
           <Route path="/report" element={<ReportDashboard />} />
