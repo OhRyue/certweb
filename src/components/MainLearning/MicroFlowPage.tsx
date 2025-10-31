@@ -9,9 +9,7 @@ import { LevelUpScreen } from "../LevelUpScreen"
 import { subjects, concepts, questions } from "../../data/mockData"
 
 export function MicroFlowPage() {
-  const [step, setStep] = useState<
-    "concept" | "mini" | "problem" | "wrong" | "result"
-  >("concept")
+  const [step, setStep] = useState<"concept" | "mini" | "problem" | "wrong" | "result">("concept")
   const [miniScore, setMiniScore] = useState(0)
   const [problemScore, setProblemScore] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState<any[]>([])
@@ -19,69 +17,60 @@ export function MicroFlowPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  const detailId = Number(searchParams.get("detailId"))
-  const examType =
-    (searchParams.get("type") as "written" | "practical") || "written"
+  const subTopicId = Number(searchParams.get("subTopicId"))
+  const examType = (searchParams.get("type") as "written" | "practical") || "written"
 
-  // detailId로 현재 세부 항목 찾기
-  const currentDetail = useMemo(() => {
+  // subTopicId로 현재 subTopic 찾기
+  const currentSubTopic = useMemo(() => {
     for (const subject of subjects) {
       for (const main of subject.mainTopics) {
-        for (const sub of main.subTopics) {
-          const found = sub.details.find((d) => d.id === detailId)
-          if (found) return { ...found, subject }
-        }
+        const found = main.subTopics.find((s) => s.id === subTopicId)
+        if (found) return { ...found, subject }
       }
     }
     return null
-  }, [detailId])
+  }, [subTopicId])
 
-  // 관련 concept 찾기
-  const concept = concepts.find((c) => c.id === currentDetail?.conceptId)
+  // ✅ subTopic 밑의 detail들이 참조하는 concept 전부 모으기
+  const conceptList = useMemo(() => {
+    if (!currentSubTopic) return []
+    const ids = currentSubTopic.details.map((d) => d.conceptId)
+    return concepts.filter((c) => ids.includes(c.id))
+  }, [currentSubTopic])
 
-  // 관련 문제 가져오기
-  const relatedQuestions = questions.filter(
-    (q) => q.topicId === concept?.topicId
-  )
+  // 관련 문제 (subTopic의 첫 concept 기준)
+  const firstConcept = conceptList[0]
+  const relatedQuestions = questions.filter((q) => q.topicId === firstConcept?.topicId)
   const oxQuestions = relatedQuestions.filter((q) => q.type === "ox")
-  const multipleQuestions = relatedQuestions.filter(
-    (q) => q.type === "multiple"
-  )
+  const multipleQuestions = relatedQuestions.filter((q) => q.type === "multiple")
 
   const totalProblems = oxQuestions.length + multipleQuestions.length
   const totalScore = miniScore + problemScore
   const percentage = Math.round((totalScore / totalProblems) * 100)
 
+  // 100% 정답 시 subTopic 완료 처리
   useEffect(() => {
-    if (!currentDetail || !concept) return
+    if (!currentSubTopic) return
 
-    // 결과 단계 + 정답률 100%일 때만 체크
     if (step === "result" && percentage === 100) {
-      if (!currentDetail.completed) {
+      if (!currentSubTopic.completed) {
         setShowLevelUp(true)
 
-        // detail.completed를 true로 업데이트
-        const subjectIndex = subjects.findIndex(
-          (s) => s.id === currentDetail.subject.id
-        )
+        const subjectIndex = subjects.findIndex((s) => s.id === currentSubTopic.subject.id)
         const mainTopic = subjects[subjectIndex].mainTopics.find((m) =>
-          m.subTopics.some((sub) =>
-            sub.details.some((d) => d.id === currentDetail.id)
-          )
+          m.subTopics.some((sub) => sub.id === currentSubTopic.id)
         )
 
         if (mainTopic) {
-          for (const sub of mainTopic.subTopics) {
-            const target = sub.details.find((d) => d.id === currentDetail.id)
-            if (target) target.completed = true
-          }
+          const target = mainTopic.subTopics.find((s) => s.id === currentSubTopic.id)
+          if (target) target.completed = true
         }
       }
     }
-  }, [step, percentage, currentDetail, concept])
+  }, [step, percentage, currentSubTopic])
 
-  // 데이터 없을 때 예외 처리
-  if (!currentDetail || !concept) {
+  // 데이터 없을 때
+  if (!currentSubTopic || conceptList.length === 0) {
     return (
       <div className="p-8 text-center text-red-500">
         데이터를 불러올 수 없습니다
@@ -89,12 +78,12 @@ export function MicroFlowPage() {
     )
   }
 
-  // 단계별 흐름
+  // 단계별 렌더링
   if (step === "concept") {
     return (
       <ConceptView
-        concept={concept}
-        topicName={currentDetail.name}
+        concepts={conceptList} // ✅ 여러 개의 개념 배열 전달
+        topicName={currentSubTopic.name}
         onNext={() => setStep("mini")}
       />
     )
@@ -104,7 +93,7 @@ export function MicroFlowPage() {
     return (
       <MiniCheck
         questions={oxQuestions}
-        topicName={currentDetail.name}
+        topicName={currentSubTopic.name}
         onComplete={(score) => {
           setMiniScore(score)
           setStep("problem")
@@ -117,20 +106,16 @@ export function MicroFlowPage() {
     return (
       <ProblemSolving
         questions={multipleQuestions}
-        topicName={currentDetail.name}
+        topicName={currentSubTopic.name}
         examType={examType}
         onComplete={(score, answers) => {
           setProblemScore(score)
           const wrongs = answers
             .filter((a) => !a.isCorrect)
             .map((a) => ({
-              question: multipleQuestions.find(
-                (q) => q.id === a.questionId
-              ),
+              question: multipleQuestions.find((q) => q.id === a.questionId),
               userAnswer: a.selectedAnswer,
-              correctAnswer: multipleQuestions.find(
-                (q) => q.id === a.questionId
-              )?.correctAnswer,
+              correctAnswer: multipleQuestions.find((q) => q.id === a.questionId)?.correctAnswer,
             }))
           setWrongAnswers(wrongs)
           setStep("wrong")
@@ -143,7 +128,7 @@ export function MicroFlowPage() {
     return (
       <MicroWrongAnswers
         wrongAnswers={wrongAnswers}
-        topicName={currentDetail.name}
+        topicName={currentSubTopic.name}
         examType={examType}
         onContinue={() => setStep("result")}
       />
@@ -154,14 +139,13 @@ export function MicroFlowPage() {
     return (
       <>
         <MicroResult
-          topicName={currentDetail.name}
+          topicName={currentSubTopic.name}
           miniCheckScore={miniScore}
           problemScore={problemScore}
           totalProblems={totalProblems}
           onRetry={() => setStep("concept")}
           onBackToDashboard={() => navigate("/learning")}
         />
-
         {showLevelUp && (
           <LevelUpScreen
             currentLevel={2}

@@ -543,8 +543,8 @@ export const subjects: Subject[] = [
             completed: true,
             details: [
               { id: 1, name: "요구사항 명세서 작성", conceptId: "c1" },
-              { id: 2, name: "요구사항 변경 관리", conceptId: "c1" },
-              { id: 3, name: "요구사항 검토 및 승인", conceptId: "c1" }
+              { id: 2, name: "요구사항 변경 관리", conceptId: "c2" },
+              { id: 3, name: "요구사항 검토 및 승인", conceptId: "c3" }
             ]
           },
           {
@@ -817,8 +817,8 @@ export const subjects: Subject[] = [
             completed: true,
             details: [
               { id: 1001, name: "버블 정렬 구현", conceptId: "c1" },
-              { id: 1002, name: "퀵 정렬 구현", conceptId: "c1" },
-              { id: 1003, name: "병합 정렬 구현", conceptId: "c1" }
+              { id: 1002, name: "퀵 정렬 구현", conceptId: "c2" },
+              { id: 1003, name: "병합 정렬 구현", conceptId: "c3" }
             ]
           },
           {
