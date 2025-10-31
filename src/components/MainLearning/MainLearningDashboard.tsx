@@ -5,21 +5,45 @@ import { Progress } from "../ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react";
 import { Subject, MainTopic, SubTopic, Detail } from "../../types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios"
 
 interface MainLearningDashboardProps {
-  subjects: Subject[];
   targetCertification: string;
   onStartMicro: (detailId: number, detailName: string, examType: "written" | "practical") => void;
   onStartReview: (mainTopicId: number, mainTopicName: string, examType: "written" | "practical") => void;
 }
 
-export function MainLearningDashboard({ subjects, targetCertification, onStartMicro, onStartReview }: MainLearningDashboardProps) {
+export function MainLearningDashboard({ targetCertification, onStartMicro, onStartReview }: MainLearningDashboardProps) {
   const navigate = useNavigate()
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  // 아코디언 확장
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null);
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null);
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written");
+
+  // 백엔드에서 데이터 불러오기
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await axios.get(`/api/subjects?cert=${targetCertification}`)
+        setSubjects(res.data)
+      } catch (err) {
+        console.log(err)
+        setError("데이터를 불러오는 중 오류가 발생했습니다")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchSubjects()
+  }, [targetCertification])
+
+  // 로딩 / 에러 처리
+  if (loading) return <div className="p-8 text-center text-gray-500">불러오는 중...</div>
+  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
 
   // Filter subjects by target certification and exam type
   const currentSubjects = subjects.filter(
