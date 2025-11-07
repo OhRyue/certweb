@@ -11,7 +11,8 @@ import { LevelUpScreen } from "../LevelUpScreen"
 
 export function MicroFlowPage() {
   const [step, setStep] = useState<"concept" | "mini" | "problem" | "wrong" | "result">("concept")
-  const [data, setData] = useState<any>(null)
+  const [conceptData, setData] = useState<any>(null)
+  const [miniData, setMiniData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [miniScore, setMiniScore] = useState(0)
@@ -24,11 +25,13 @@ export function MicroFlowPage() {
   const subTopicId = Number(searchParams.get("subTopicId"))
   const examType = (searchParams.get("type") as "written" | "practical") || "written"
 
-  // ✅ subTopicId로 백엔드에서 데이터 불러오기
+  const userId = "string"    // debug
+
+  // subTopicId로 백엔드에서 데이터 불러오기
   useEffect(() => {
     const fetchConcepts = async () => {
       try {
-        const res = await axios.get(`/api/study/concept/${subTopicId}`)
+        const res = await axios.get(`/api/study/practical/concept/${subTopicId}`)
         setData(res.data)
       } catch (err) {
         console.error(err)
@@ -42,14 +45,23 @@ export function MicroFlowPage() {
 
   if (loading) return <div className="p-8 text-center text-gray-500">불러오는 중...</div>
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>
-  if (!data) return null
+  if (!conceptData) return null
 
   // 섹션(개념) 단계 → Mini → 문제 → 결과
   if (step === "concept") {
     return (
       <ConceptView
-        subtopicId={subTopicId}
-        onNext={() => setStep("mini")}
+        data={conceptData} 
+        onNext={async () => {
+          try {
+            const res = await axios.get(`/api/study/practical/mini/${subTopicId}`)
+            setMiniData(res.data)
+            setStep("mini")
+          } catch (err) {
+            console.error(err)
+            setError("Mini Quiz 데이터 불러오기 실패")
+          }
+        }}
       />
     )
   }
@@ -57,8 +69,10 @@ export function MicroFlowPage() {
   if (step === "mini") {
     return (
       <MiniCheck
-        questions={[]} // TODO: 백엔드 문제 API 연결 시 교체
-        topicName={data.title}
+        questions={miniData} // TODO: 백엔드 문제 API 연결 시 교체
+        topicName={conceptData.title}
+        userId={userId}
+        topicId={subTopicId}
         onComplete={(score) => {
           setMiniScore(score)
           setStep("problem")
@@ -71,7 +85,7 @@ export function MicroFlowPage() {
     return (
       <ProblemSolving
         questions={[]} // TODO: 백엔드 문제 API 연결 시 교체
-        topicName={data.title}
+        topicName={conceptData.title}
         examType={examType}
         onComplete={(score, answers) => {
           setProblemScore(score)
@@ -86,7 +100,7 @@ export function MicroFlowPage() {
     return (
       <MicroWrongAnswers
         wrongAnswers={wrongAnswers}
-        topicName={data.title}
+        topicName={conceptData.title}
         examType={examType}
         onContinue={() => setStep("result")}
       />
@@ -97,7 +111,7 @@ export function MicroFlowPage() {
     return (
       <>
         <MicroResult
-          topicName={data.title}
+          topicName={conceptData.title}
           miniCheckScore={miniScore}
           problemScore={problemScore}
           totalProblems={10} // 임시값, 나중에 문제 수 연동
