@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { ProblemSolving } from "./ProblemSolving"
 import { ProblemPractical } from "./ProblemPractical"
-import { ReviewResult } from "../MainLearning/ReviewResult"
+import { ReviewResult } from "./ReviewResult"
 import { LevelUpScreen } from "../LevelUpScreen"
 import { questions } from "../../data/mockData"
 
