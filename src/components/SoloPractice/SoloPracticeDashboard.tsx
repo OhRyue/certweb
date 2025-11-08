@@ -1,7 +1,9 @@
+import { useNavigate } from "react-router-dom"
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Dumbbell, Tag, BarChart2, Heart } from "lucide-react";
+
 
 interface SoloPracticeDashboardProps {
   onStartCategoryQuiz: () => void;
@@ -9,11 +11,13 @@ interface SoloPracticeDashboardProps {
   onStartWeaknessQuiz: () => void;
 }
 
-export function SoloPracticeDashboard({ 
-  onStartCategoryQuiz, 
+export function SoloPracticeDashboard({
+  onStartCategoryQuiz,
   onStartDifficultyQuiz,
-  onStartWeaknessQuiz 
+  onStartWeaknessQuiz
 }: SoloPracticeDashboardProps) {
+  const navigate = useNavigate()
+
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
@@ -56,7 +60,7 @@ export function SoloPracticeDashboard({
             </div>
 
             <Button
-              onClick={onStartCategoryQuiz}
+              onClick={() => navigate("/solo/category")}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
             >
               시작하기
@@ -91,7 +95,7 @@ export function SoloPracticeDashboard({
             </div>
 
             <Button
-              onClick={onStartDifficultyQuiz}
+              onClick={() => navigate("/solo/difficulty")}
               className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white"
             >
               시작하기
@@ -126,7 +130,7 @@ export function SoloPracticeDashboard({
             </div>
 
             <Button
-              onClick={onStartWeaknessQuiz}
+              onClick={() => navigate("/solo/weakness")}
               className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white"
             >
               시작하기
