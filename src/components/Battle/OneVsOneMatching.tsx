@@ -22,7 +22,7 @@ const potentialOpponents = [
   { id: "opp8", name: "파이썬러버", level: 14, avatar: "🐍", winRate: 85 },
 ];
 
-export function OneVsOneMatching({ topicName, difficulty, onMatchFound }: BattleMatchingProps) {
+export function BattleMatching({ topicName, difficulty, onMatchFound }: BattleMatchingProps) {
   const [matchingProgress, setMatchingProgress] = useState(0);
   const [step, setStep] = useState<"matching" | "matched">("matching");
   const [matchedOpponent, setMatchedOpponent] = useState<any>(null);
