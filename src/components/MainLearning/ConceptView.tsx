@@ -1,35 +1,51 @@
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { motion } from "motion/react";
-import { BookOpen, ArrowRight, Lightbulb } from "lucide-react";
-import { Concept } from "../../types";
+import { useState } from "react"
+import { Card } from "../ui/card"
+import { Button } from "../ui/button"
+import { Badge } from "../ui/badge"
+import { motion } from "motion/react"
+import { BookOpen, ArrowRight, Lightbulb } from "lucide-react"
+import { Concept } from "../../types"
 
 interface ConceptViewProps {
-  concept: Concept;
-  topicName: string;
-  onNext: () => void;
+  concepts: Concept[] // ✅ 여러 개의 개념 받기
+  topicName: string
+  onNext: () => void
 }
 
-export function ConceptView({ concept, topicName, onNext }: ConceptViewProps) {
+export function ConceptView({ concepts, topicName, onNext }: ConceptViewProps) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const concept = concepts[currentIndex]
+  const isLast = currentIndex === concepts.length - 1
+
+  const handleNextConcept = () => {
+    if (!isLast) {
+      setCurrentIndex((prev) => prev + 1)
+    } else {
+      onNext() // 마지막 개념이면 다음 단계로 이동
+    }
+  }
+
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <motion.div
+          key={concept.id} // ✅ 개념 전환 시 애니메이션 새로 적용
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           {/* Header */}
           <div className="mb-6">
-            <Badge className="bg-purple-500 text-white mb-3">
-              {topicName}
-            </Badge>
+            <Badge className="bg-purple-500 text-white mb-3">{topicName}</Badge>
             <div className="flex items-center gap-3 mb-2">
               <BookOpen className="w-8 h-8 text-purple-600" />
               <h1 className="text-purple-900">{concept.title}</h1>
             </div>
-            <p className="text-gray-600">개념을 차근차근 학습해보세요! 📚</p>
+            <p className="text-gray-600">
+              {concepts.length > 1
+                ? `(${currentIndex + 1}/${concepts.length})`
+                : "개념을 차근차근 학습해보세요!"}
+            </p>
           </div>
 
           {/* Main Content */}
@@ -40,9 +56,7 @@ export function ConceptView({ concept, topicName, onNext }: ConceptViewProps) {
               </div>
               <div>
                 <h2 className="text-purple-900 mb-4">핵심 개념</h2>
-                <p className="text-gray-800 leading-relaxed">
-                  {concept.content}
-                </p>
+                <p className="text-gray-800 leading-relaxed">{concept.content}</p>
               </div>
             </div>
 
@@ -74,7 +88,7 @@ export function ConceptView({ concept, topicName, onNext }: ConceptViewProps) {
               <div>
                 <h3 className="text-yellow-900 mb-2">학습 팁</h3>
                 <p className="text-gray-700">
-                  개념을 이해했다면 다음 단계로 넘어가 미니체크로 확인해보세요!
+                  개념을 이해했다면 다음 단계로 넘어가 미니체크로 확인해보세요!  
                   O/X 문제를 통해 핵심 내용을 빠르게 점검할 수 있습니다.
                 </p>
               </div>
@@ -84,16 +98,16 @@ export function ConceptView({ concept, topicName, onNext }: ConceptViewProps) {
           {/* Action Button */}
           <div className="flex justify-end">
             <Button
-              onClick={onNext}
+              onClick={handleNextConcept}
               size="lg"
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8"
             >
-              미니체크 시작하기
+              {isLast ? "미니체크 시작하기" : "다음 개념 보기"}
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
         </motion.div>
       </div>
     </div>
-  );
+  )
 }
