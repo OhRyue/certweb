@@ -4,165 +4,140 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Label } from "../ui/label";
-import { Input } from "../ui/input";
-import { Swords, Search, Users, Play } from "lucide-react";
+import { Swords, ArrowLeft, Zap, Users, Target } from "lucide-react";
+import { motion } from "motion/react";
+import { subjects } from "../../data/mockData";
 
 interface OneVsOneBattleProps {
-  onStart: (opponentId: string, category: string, difficulty: string) => void;
+  onStartMatching: (topicId: string, topicName: string, difficulty: string) => void;
   onBack: () => void;
 }
 
-export function OneVsOneBattle({ onStart, onBack }: OneVsOneBattleProps) {
-  const [category, setCategory] = useState("db");
+export function OneVsOneBattle({ onStartMatching, onBack }: OneVsOneBattleProps) {
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
+  const [selectedMainTopicId, setSelectedMainTopicId] = useState<number | null>(null);
   const [difficulty, setDifficulty] = useState("medium");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOpponent, setSelectedOpponent] = useState("");
 
-  const onlineUsers = [
-    { id: "u1", name: "코딩마스터", level: 12, winRate: 75, status: "online" },
-    { id: "u2", name: "알고킹", level: 10, winRate: 68, status: "online" },
-    { id: "u3", name: "DB전문가", level: 15, winRate: 82, status: "online" },
-    { id: "u4", name: "네트워크천재", level: 8, winRate: 71, status: "online" },
-    { id: "u5", name: "OOP마스터", level: 11, winRate: 77, status: "online" },
-  ];
+  // 선택된 subject와 mainTopic 가져오기
+  const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
+  const selectedMainTopic = selectedSubject?.mainTopics.find(mt => mt.id === selectedMainTopicId);
 
-  const categories = [
-    { id: "db", name: "데이터베이스", icon: "🗄️" },
-    { id: "network", name: "네트워크", icon: "🌐" },
-    { id: "oop", name: "객체지향", icon: "💻" },
-    { id: "all", name: "전체", icon: "📚" },
-  ];
+  const handleStartMatching = () => {
+    if (selectedSubjectId && selectedMainTopicId && selectedMainTopic) {
+      const topicId = `${selectedSubjectId}-${selectedMainTopicId}`;
+      onStartMatching(topicId, selectedMainTopic.name, difficulty);
+    }
+  };
 
-  const filteredUsers = onlineUsers.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getDifficultyColor = (diff: string) => {
+    switch (diff) {
+      case "easy": return "text-green-600";
+      case "medium": return "text-yellow-600";
+      case "hard": return "text-red-600";
+      default: return "text-gray-600";
+    }
+  };
 
-  const handleStart = () => {
-    if (selectedOpponent) {
-      onStart(selectedOpponent, category, difficulty);
+  const getDifficultyLabel = (diff: string) => {
+    switch (diff) {
+      case "easy": return "쉬움";
+      case "medium": return "보통";
+      case "hard": return "어려움";
+      default: return "";
     }
   };
 
   return (
-    <div className="p-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            className="mb-4 text-gray-600 hover:text-purple-700"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            뒤로 가기
+          </Button>
           <div className="flex items-center gap-3 mb-2">
             <Swords className="w-8 h-8 text-purple-600" />
             <h1 className="text-purple-900">1:1 배틀</h1>
           </div>
-          <p className="text-gray-600">상대를 선택하고 배틀을 시작하세요!</p>
+          <p className="text-gray-600">토픽과 난이도를 선택하고 상대를 찾아보세요! ⚔️</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Opponent Selection */}
+          {/* 토픽 선택 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Search */}
-            <Card className="p-4 border-2 border-purple-200">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="상대 검색..."
-                  className="pl-10"
-                />
-              </div>
-            </Card>
-
-            {/* Online Users */}
-            <Card className="p-6 border-2 border-purple-200">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-purple-600" />
-                <h2 className="text-purple-900">온라인 사용자</h2>
-                <Badge variant="secondary" className="bg-green-100 text-green-700">
-                  {filteredUsers.length}명
-                </Badge>
+            <Card className="p-6 border-2 border-purple-200 bg-white/80 backdrop-blur">
+              <div className="flex items-center gap-2 mb-6">
+                <Target className="w-5 h-5 text-purple-600" />
+                <h2 className="text-purple-900">배틀 토픽 선택</h2>
               </div>
 
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredUsers.map((user) => (
-                  <div
-                    key={user.id}
-                    onClick={() => setSelectedOpponent(user.id)}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedOpponent === user.id
-                        ? "border-purple-500 bg-purple-50"
-                        : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
+              {/* Subject 선택 */}
+              <div className="space-y-4">
+                {subjects.map((subject) => (
+                  <div key={subject.id}>
+                    <button
+                      onClick={() => {
+                        setSelectedSubjectId(subject.id);
+                        setSelectedMainTopicId(null);
+                      }}
+                      className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                        selectedSubjectId === subject.id
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                    >
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white">
-                          {user.name[0]}
-                        </div>
-                        <div>
-                          <h3 className="text-gray-900">{user.name}</h3>
-                          <p className="text-sm text-gray-600">Level {user.level}</p>
+                        <div className="text-3xl">{subject.icon}</div>
+                        <div className="flex-1">
+                          <h3 className="text-gray-900">{subject.name}</h3>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                          승률 {user.winRate}%
-                        </Badge>
-                        <div className="flex items-center gap-1 mt-1">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span className="text-xs text-gray-600">온라인</span>
-                        </div>
-                      </div>
-                    </div>
+                    </button>
+
+                    {/* MainTopic 선택 */}
+                    {selectedSubjectId === subject.id && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        transition={{ duration: 0.3 }}
+                        className="ml-4 mt-3 space-y-2"
+                      >
+                        {subject.mainTopics.map((mainTopic) => (
+                          <button
+                            key={mainTopic.id}
+                            onClick={() => setSelectedMainTopicId(mainTopic.id)}
+                            className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                              selectedMainTopicId === mainTopic.id
+                                ? "border-pink-500 bg-pink-50"
+                                : "border-gray-200 hover:border-pink-300"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="text-xl">{mainTopic.icon}</div>
+                              <span className="text-sm text-gray-900">{mainTopic.name}</span>
+                              {selectedMainTopicId === mainTopic.id && (
+                                <Zap className="w-4 h-4 text-pink-600 ml-auto" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
                   </div>
                 ))}
               </div>
             </Card>
-
-            {/* Random Match */}
-            <Card className="p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-yellow-900 mb-1">랜덤 매칭</h3>
-                  <p className="text-sm text-gray-700">비슷한 실력의 상대와 자동 매칭</p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="border-2 border-yellow-500"
-                  onClick={() => {
-                    const randomUser = onlineUsers[Math.floor(Math.random() * onlineUsers.length)];
-                    setSelectedOpponent(randomUser.id);
-                  }}
-                >
-                  랜덤 매칭
-                </Button>
-              </div>
-            </Card>
           </div>
 
-          {/* Battle Settings */}
+          {/* 설정 & 시작 */}
           <div className="space-y-6">
-            {/* Category */}
-            <Card className="p-6 border-2 border-purple-200">
-              <h3 className="text-purple-900 mb-4">카테고리</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setCategory(cat.id)}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      category === cat.id
-                        ? "border-purple-500 bg-purple-50"
-                        : "border-gray-200 hover:border-purple-300"
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">{cat.icon}</div>
-                    <p className="text-xs text-gray-700">{cat.name}</p>
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            {/* Difficulty */}
-            <Card className="p-6 border-2 border-purple-200">
+            {/* 난이도 */}
+            <Card className="p-6 border-2 border-purple-200 bg-white/80 backdrop-blur">
               <h3 className="text-purple-900 mb-4">난이도</h3>
               <RadioGroup value={difficulty} onValueChange={setDifficulty}>
                 <div className="space-y-3">
@@ -191,35 +166,50 @@ export function OneVsOneBattle({ onStart, onBack }: OneVsOneBattleProps) {
               </RadioGroup>
             </Card>
 
-            {/* Battle Rules */}
-            <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
-              <h3 className="text-purple-900 mb-4">배틀 규칙</h3>
+            {/* 선택 요약 */}
+            {selectedMainTopic && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+                  <h3 className="text-purple-900 mb-4">배틀 설정</h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <p className="text-gray-600 mb-1">토픽</p>
+                      <p className="text-gray-900">{selectedMainTopic.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 mb-1">난이도</p>
+                      <p className={getDifficultyColor(difficulty)}>
+                        {getDifficultyLabel(difficulty)}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* 배틀 규칙 */}
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200">
+              <h3 className="text-blue-900 mb-4">⚡ 배틀 규칙</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 <li>• 총 10문제</li>
                 <li>• 제한 시간 5분</li>
-                <li>• 먼저 푸는 사람 가산점</li>
-                <li>• 정답 시 10점 획득</li>
+                <li>• 빠른 정답 가산점</li>
+                <li>• 콤보 보너스 점수</li>
               </ul>
             </Card>
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <Button
-                onClick={handleStart}
-                disabled={!selectedOpponent}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                배틀 시작
-              </Button>
-              <Button
-                onClick={onBack}
-                variant="outline"
-                className="w-full border-2"
-              >
-                뒤로 가기
-              </Button>
-            </div>
+            {/* 매칭 시작 버튼 */}
+            <Button
+              onClick={handleStartMatching}
+              disabled={!selectedSubjectId || !selectedMainTopicId}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-6 disabled:opacity-50"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              매칭 시작
+            </Button>
           </div>
         </div>
       </div>

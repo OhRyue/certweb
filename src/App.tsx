@@ -23,6 +23,7 @@ import { WeaknessQuiz } from "./components/SoloPractice/WeaknessQuiz"
 // Battle
 import { BattleDashboard } from "./components/Battle/BattleDashboard"
 import { OneVsOneBattle } from "./components/Battle/OneVsOneBattle"
+import { OneVsOneMatching } from "./components/Battle/OneVsOneMatching"
 import { BattleGame } from "./components/Battle/BattleGame"
 import { BattleResult } from "./components/Battle/BattleResult"
 import { Tournament } from "./components/Battle/Tournament"
@@ -142,6 +143,7 @@ function InnerApp({
 
           <Route path="/battle" element={<BattleDashboard />} />
           <Route path="/battle/onevsone" element={<OneVsOneBattle />} />
+          <Route path="/battle/onevsone/matching" element={<OneVsOneMatching />} />
           <Route path="/battle/game" element={<BattleGame />} />
           <Route path="/battle/result" element={<BattleResult />} />
           <Route path="/battle/tournament" element={<Tournament />} />
