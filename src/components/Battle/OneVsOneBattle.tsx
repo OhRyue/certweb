@@ -18,7 +18,7 @@ interface OneVsOneBattleProps {
   onBack: () => void
 }
 
-export function OneVsOneBattle({ onStartMatching, onBack }: OneVsOneBattleProps) {
+export function OneVsOneBattle() {
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)

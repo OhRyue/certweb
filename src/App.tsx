@@ -47,6 +47,7 @@ import {
   userSettings as initialSettings,
   shopItems as initialShopItems,
 } from "./data/mockData"
+import { BattleFlow } from "./components/Battle/BattleFlow"
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -141,10 +142,11 @@ function InnerApp({
           <Route path="/solo/difficulty" element={<DifficultyQuiz />} />
           <Route path="/solo/weakness" element={<WeaknessQuiz />} />
 
+          {/* 배틀 */}
           <Route path="/battle" element={<BattleDashboard />} />
           <Route path="/battle/onevsone" element={<OneVsOneBattle />} />
           <Route path="/battle/onevsone/matching" element={<OneVsOneMatching />} />
-          <Route path="/battle/game" element={<BattleGame />} />
+         <Route path="/battle/start" element={<BattleFlow />} />
           <Route path="/battle/result" element={<BattleResult />} />
           <Route path="/battle/tournament" element={<Tournament />} />
           <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
