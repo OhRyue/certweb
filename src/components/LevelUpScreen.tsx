@@ -105,7 +105,7 @@ export function LevelUpScreen({
   const expPercentage = (displayExp / expPerLevel) * 100;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
       <div className="relative w-full max-w-2xl p-8">
         {/* 메인 카드 */}
         <motion.div
