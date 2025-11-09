@@ -94,10 +94,6 @@ export function BattleGameWritten({ questions, opponentName, onComplete, onExit 
             </div>
             <h1 className="text-purple-900">1:1 배틀 ⚔️</h1>
           </div>
-          <Button onClick={onExit} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-            <X className="w-4 h-4 mr-2" />
-            나가기
-          </Button>
         </div>
 
         {/* Battle Arena */}
