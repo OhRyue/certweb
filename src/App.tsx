@@ -31,6 +31,9 @@ import { TournamentBracket } from "./components/Battle/TournamentBracket"
 import { GoldenBell } from "./components/Battle/GoldenBell"
 import { GoldenBellGame } from "./components/Battle/GoldenBellGame"
 
+// Rank & Badge
+import { RankBadgeDashboard } from "./components/RankBadge/RankBadgeDashboard"
+
 // Others
 import { ReportDashboard } from "./components/Report/ReportDashboard"
 import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
@@ -153,6 +156,8 @@ function InnerApp({
           <Route path="/battle/goldenbell" element={<GoldenBell />} />
           <Route path="/battle/goldenbell/game" element={<GoldenBellGame />} />
 
+          {/* 랭크 & 뱃지 */}
+          <Route path="/rankBadge" element={<RankBadgeDashboard/>}/>
 
           {/* 기타 그대로 */}
           <Route path="/report" element={<ReportDashboard />} />
