@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { BattleGameWritten } from "./BattleGameWritten"
 import { BattleGamePractical } from "./BattleGamePractical"
 import { BattleResult } from "./BattleResult"
+import { LevelUpScreen } from "../../components/LevelUpScreen" // 경로 맞춰야 함
 import { questions as allQuestions } from "../../data/mockData"
 import { Question } from "../../types"
 
@@ -14,8 +15,8 @@ export function BattleFlow() {
   const { state } = useLocation() as {
     state?: {
       opponentName?: string
-      topicId?: string   // ex) "db-basic" "network" "oop"
-      topicName?: string // 혹시 이렇게 넘겼으면 fallback
+      topicId?: string
+      topicName?: string
       difficulty?: "easy" | "medium" | "hard"
       examType?: ExamType
     }
@@ -26,7 +27,6 @@ export function BattleFlow() {
   const difficulty = state?.difficulty ?? "medium"
   const examType: ExamType = state?.examType ?? "written"
 
-  // state 안왔으면 매칭으로
   useEffect(() => {
     if (!state || !topicKey || !difficulty) {
       navigate("/battle/onevsone/matching")
@@ -34,19 +34,25 @@ export function BattleFlow() {
   }, [state, topicKey, difficulty, navigate])
 
   const filtered = useMemo<Question[]>(() => {
-    // 기본 필터
     const base = allQuestions.filter(q => q.topicId === topicKey && q.difficulty === difficulty)
     if (base.length > 0) return base
-    // 비어있을 때 최소한 5개 뽑아서 데모로라도 보이게
     return allQuestions.slice(0, 5)
   }, [topicKey, difficulty])
 
-  const [step, setStep] = useState<"game" | "result">("game")
+  // ✅ 3단계: game → result → levelUp
+  const [step, setStep] = useState<"game" | "result" | "levelUp">("game")
   const [myScore, setMyScore] = useState(0)
   const [opponentScore, setOpponentScore] = useState(0)
 
+  // ✅ 유저 정보(추후 API 연동 가능하도록 state로 분리)
+  const [currentLevel, setCurrentLevel] = useState(5)
+  const [currentExp, setCurrentExp] = useState(50)
+  const expPerLevel = 100
+
+  // ✅ 경험치 획득 공식 (여기서 임시로 점수 기반)
+  const earnedExp = myScore * 7 // 점수 x7을 경험치로 줬다고 가정
+
   if (step === "game") {
-    // 실기면 타이핑, 필기면 객관식
     return examType === "practical" ? (
       <BattleGamePractical
         questions={filtered}
@@ -72,13 +78,36 @@ export function BattleFlow() {
     )
   }
 
+  if (step === "result") {
+    return (
+      <BattleResult
+        myScore={myScore}
+        opponentScore={opponentScore}
+        opponentName={opponentName}
+        onRematch={() => navigate("/battle/onevsone/matching")}
+        onBackToDashboard={() => setStep("levelUp")} // ✅ 결과 → 경험치 화면
+      />
+    )
+  }
+
+  // ✅ 마지막: 경험치/레벨업 화면 (오버레이)
   return (
-    <BattleResult
-      myScore={myScore}
-      opponentScore={opponentScore}
-      opponentName={opponentName}
-      onRematch={() => navigate("/battle/onevsone/matching")}
-      onBackToDashboard={() => navigate("/battle")}
+    <LevelUpScreen
+      currentLevel={currentLevel}
+      currentExp={currentExp}
+      earnedExp={earnedExp}
+      expPerLevel={expPerLevel}
+      onComplete={() => {
+        // 실제로는 여기서 API 저장하면 됨
+        setCurrentExp(prev => {
+          const total = prev + earnedExp
+          const newLevel = currentLevel + Math.floor(total / expPerLevel)
+          const newExpInLevel = total % expPerLevel
+          setCurrentLevel(newLevel)
+          return newExpInLevel
+        })
+        navigate("/battle") // ✅ 경험치 다 보고 나서 다시 배틀 메뉴로
+      }}
     />
   )
 }
