@@ -6,6 +6,7 @@ import { Progress } from "../ui/progress";
 import { Input } from "../ui/input";
 import { Swords, Clock, Zap, X, Sparkles, Target } from "lucide-react";
 import { Question } from "../../types";
+import { OpponentLeftOverlay } from "./OpponentLeftOverlay"; // ✅ 추가
 
 interface BattleGamePracticalProps {
   questions: Question[];
@@ -30,8 +31,22 @@ export function BattleGamePractical({
   const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
+  // 오버레이 상태 추가
+  const [opponentLeft, setOpponentLeft] = useState(false);
+
   const totalQuestions = questions.length;
   const question = questions[currentQuestion];
+
+  // 테스트: ESC 누르면 상대 나간 상황 테스트
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpponentLeft(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Timer
   useEffect(() => {
@@ -51,27 +66,22 @@ export function BattleGamePractical({
   const handleAnswer = () => {
     setIsAnswered(true);
     setShowOpponentAnswer(true);
-    
-    // 답변이 비어있으면 틀림, 아니면 70% 확률로 정답 (UI용 간단한 로직)
+
     const answeredCorrectly = typingAnswer.trim().length > 0 && Math.random() > 0.3;
     setIsCorrect(answeredCorrectly);
 
-    // 내 점수
     if (answeredCorrectly) {
       const speedBonus = Math.floor(timeLeft / 3);
       setMyScore((prev) => prev + 10 + speedBonus);
     }
 
-    // 상대 점수
     const opponentCorrect = Math.random() > 0.3;
     const opponentTime = Math.floor(Math.random() * 25) + 5;
-
     if (opponentCorrect) {
       const opponentSpeedBonus = Math.floor(opponentTime / 3);
       setOpponentScore((prev) => prev + 10 + opponentSpeedBonus);
     }
 
-    // 결과 표시 후 다음 문제 or 종료
     setShowResult(true);
     setTimeout(() => {
       if (currentQuestion < totalQuestions - 1) {
@@ -83,7 +93,6 @@ export function BattleGamePractical({
         setTimeLeft(30);
         setIsCorrect(false);
       } else {
-        // Battle complete
         const finalMyScore = answeredCorrectly
           ? myScore + 10 + Math.floor(timeLeft / 3)
           : myScore;
@@ -109,6 +118,8 @@ export function BattleGamePractical({
           </div>
         </div>
 
+        {/* 여기까지 기존 UI 유지 (생략 가능) */}
+        
         {/* Score Board */}
         <div className="mb-6 relative">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
@@ -282,6 +293,19 @@ export function BattleGamePractical({
           </Card>
         </div>
       </div>
+
+      {/* 상대방 나감 오버레이 표시 */}
+      {opponentLeft && (
+        <OpponentLeftOverlay
+          opponentName={opponentName}
+          myScore={myScore}
+          opponentScore={opponentScore}
+          onConfirm={() => {
+            setOpponentLeft(false);
+            onExit(); // 홈으로 나가기
+          }}
+        />
+      )}
     </div>
   );
 }

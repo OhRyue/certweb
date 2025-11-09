@@ -63,7 +63,7 @@ export function OpponentLeftOverlay({
                   </Badge>
                 </div>
                 <p className="text-gray-700 text-lg mb-2">
-                  <span className="font-medium text-blue-700">🤖 {opponentName}</span>님이
+                  <span className="font-medium text-blue-700">{opponentName}</span>님이
                 </p>
                 <p className="text-gray-700 text-lg">
                   배틀에서 퇴장했습니다
@@ -148,33 +148,6 @@ export function OpponentLeftOverlay({
             </motion.div>
           </Card>
         </motion.div>
-
-        {/* 떠다니는 이모지 효과 */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(15)].map((_, i) => (
-            <motion.div
-              key={i}
-              initial={{ 
-                x: Math.random() * window.innerWidth,
-                y: window.innerHeight + 20,
-                opacity: 0,
-              }}
-              animate={{ 
-                y: -100,
-                opacity: [0, 1, 1, 0],
-                rotate: Math.random() * 360,
-              }}
-              transition={{ 
-                duration: Math.random() * 3 + 3,
-                delay: Math.random() * 2,
-                repeat: Infinity,
-              }}
-              className="absolute text-4xl"
-            >
-              {["😢", "😰", "💔", "👋", "🚪"][Math.floor(Math.random() * 5)]}
-            </motion.div>
-          ))}
-        </div>
 
         {/* 빛나는 테두리 효과 */}
         <motion.div

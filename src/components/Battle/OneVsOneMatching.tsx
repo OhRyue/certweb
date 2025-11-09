@@ -75,7 +75,7 @@ export function OneVsOneMatching({ topicName, difficulty, onMatchFound }: Battle
             opponentName: randomOpponent.name,
             topicName: topicName,   // topicId 대신 topicName 사용
             difficulty: difficulty, // 그대로 전달
-            examType: "written"    // 나중에 필기/실기 구분할 거면 변경 가능
+            examType: "practical"    // 나중에 필기/실기 구분할 거면 변경 가능
           }
         });
       }, 1500);
