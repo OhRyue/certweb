@@ -23,6 +23,7 @@ export function CommunityListPage() {
   const categories = ["전체", "후기", "꿀팁", "스터디", "질문", "자유"]
   const [activeTab, setActiveTab] = useState<"all" | "후기" | "꿀팁" | "스터디" | "질문" | "자유">("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -45,79 +46,73 @@ export function CommunityListPage() {
     return true
   })
 
-  const [currentPage, setCurrentPage] = useState(1)
   const perPage = 10
-
-  // 총 페이지 최소 1 보장
   const totalPagesRaw = Math.ceil(filteredPosts.length / perPage)
   const totalPages = Math.max(1, totalPagesRaw)
 
-  // 현재 페이지 보정
   useEffect(() => {
-    setCurrentPage((prev) => {
+    setCurrentPage(prev => {
       if (prev < 1) return 1
       if (prev > totalPages) return totalPages
       return prev
     })
   }, [totalPages])
 
-  // 현재 페이지의 아이템
   const pageItems = filteredPosts.slice((currentPage - 1) * perPage, currentPage * perPage)
 
- const renderPagination = () => {
-  // 이제 최소 1이라서 바로 진행
-  const pages = [] as (number | "ellipsis")[]
-  if (totalPages <= 5) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i)
-  } else {
-    if (currentPage <= 3) {
-      pages.push(1, 2, 3, 4, "ellipsis", totalPages)
-    } else if (currentPage >= totalPages - 2) {
-      pages.push(1, "ellipsis", totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+  const renderPagination = () => {
+    const pages: (number | "ellipsis")[] = []
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
     } else {
-      pages.push(1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages)
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, "ellipsis", totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, "ellipsis", totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+      } else {
+        pages.push(1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages)
+      }
     }
-  }
-  return (
-    <Pagination className="mt-6">
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious
-            onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
-            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-          />
-        </PaginationItem>
 
-        {pages.map((p, i) => (
-          <PaginationItem key={i}>
-            {p === "ellipsis" ? (
-              <PaginationEllipsis />
-            ) : (
-              <PaginationLink
-                isActive={p === currentPage}
-                onClick={() => setCurrentPage(p as number)}
-                className="cursor-pointer"
-              >
-                {p}
-              </PaginationLink>
-            )}
+    return (
+      <Pagination className="mt-6">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
           </PaginationItem>
-        ))}
-
-        <PaginationItem>
-          <PaginationNext
-            onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
-            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-          />
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
-  )
-}
+          {pages.map((p, i) => (
+            <PaginationItem key={i}>
+              {p === "ellipsis" ? (
+                <PaginationEllipsis />
+              ) : (
+                <PaginationLink
+                  isActive={p === currentPage}
+                  onClick={() => setCurrentPage(p as number)}
+                  className="cursor-pointer"
+                >
+                  {p}
+                </PaginationLink>
+              )}
+            </PaginationItem>
+          ))}
+          <PaginationItem>
+            <PaginationNext
+              onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+              className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    )
+  }
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
       <div className="max-w-6xl mx-auto relative">
+        {/* 헤더 */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <MessageSquare className="w-8 h-8 text-purple-600" />
@@ -126,6 +121,30 @@ export function CommunityListPage() {
           <p className="text-gray-600">함께 공부하며 정보를 나눠요! ✨</p>
         </div>
 
+        {/* 게시판 / 내 활동 탭 */}
+        <Card className="p-2 border-2 border-purple-200 bg-white/80 backdrop-blur mb-6">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => navigate("/community")}
+              className="h-10 md:h-10 px-4 rounded-lg text-sm font-medium tracking-tight
+                 bg-gradient-to-r from-purple-500 to-pink-500 text-white
+                 shadow-sm hover:shadow transition-all"
+            >
+              📋 게시판
+            </button>
+            <button
+              onClick={() => navigate("/community/my/posts")}
+              className="h-10 md:h-10 px-4 rounded-lg text-sm font-medium tracking-tight
+                 bg-gray-100 text-gray-700 hover:bg-gray-200
+                 border border-gray-200 shadow-sm transition-all"
+            >
+              ✍️ 내 활동
+            </button>
+          </div>
+        </Card>
+
+
+        {/* 카테고리 + 글쓰기 */}
         <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur mb-6">
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="flex-1 flex flex-wrap items-center gap-2">
@@ -155,6 +174,7 @@ export function CommunityListPage() {
           </div>
         </Card>
 
+        {/* 검색 */}
         <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -170,10 +190,11 @@ export function CommunityListPage() {
           </div>
         </Card>
 
+        {/* 인기글 */}
         <Card className="p-6 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 mb-6">
           <div className="flex items-center gap-3 mb-3">
             <TrendingUp className="w-5 h-5 text-orange-600" />
-            <h3 className="text-orange-900">인기 게시글</h3>
+            <h3 className="text-orange-900">🔥 인기 게시글</h3>
           </div>
           <div className="space-y-2">
             {mockPosts.slice(0, 3).map((post, idx) => (
@@ -188,6 +209,7 @@ export function CommunityListPage() {
           </div>
         </Card>
 
+        {/* 게시글 목록 */}
         <div className="space-y-3">
           {pageItems.map(post => (
             <motion.div key={post.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ scale: 1.01 }}>
@@ -201,7 +223,9 @@ export function CommunityListPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge className={`${getCategoryColor(post.category)} border`}>{post.category}</Badge>
+                      <Badge className={`${getCategoryColor(post.category)} border`}>
+                        {post.category}
+                      </Badge>
                       {post.isPinned && (
                         <Badge className="bg-red-100 text-red-700 border-red-300">
                           <Pin className="w-3 h-3 mr-1" /> 공지
