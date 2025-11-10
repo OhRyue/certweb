@@ -26,9 +26,9 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
       case "wrong":
         return "/assets/characters/character_normal.png"  // TODO: Use crying character image
       case "eliminated":
-        return "/assets/characters/character_normal.png" 
+        return "/assets/characters/character_normal.png"
       default:
-        return "/assets/characters/character_normal.png" 
+        return "/assets/characters/character_normal.png"
     }
   };
 
@@ -38,7 +38,7 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
         <AnimatePresence mode="popLayout">
           {sortedCharacters.map((character) => {
             const isEliminated = character.status === "eliminated";
-            
+
             return (
               <motion.div
                 key={character.id}
@@ -54,9 +54,8 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
                   duration: 0.5,
                   ease: "easeOut",
                 }}
-                className={`relative flex flex-col items-center justify-center ${
-                  !isEliminated && onCharacterClick ? "cursor-pointer" : ""
-                }`}
+                className={`relative flex flex-col items-center justify-center ${!isEliminated && onCharacterClick ? "cursor-pointer" : ""
+                  }`}
                 onClick={() => {
                   if (!isEliminated && onCharacterClick) {
                     onCharacterClick(character);
@@ -90,9 +89,9 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
                     transition={{ delay: 0.3, type: "spring" }}
                     className="absolute -top-24 left-1/2 -translate-x-1/2 z-5"
                   >
-                    <img 
-                      src="/assets/ui/arrow.png" 
-                      alt="You" 
+                    <img
+                      src="/assets/ui/arrow.png"
+                      alt="You"
                       className="w-12 h-12 object-contain"
                     />
                   </motion.div>
@@ -112,11 +111,9 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
                   <img
                     src={getCharacterImage(character.status)}
                     alt={character.name}
-                    className={`w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 object-contain ${
-                      isEliminated ? "grayscale" : ""
-                    }`}
+                    className={`w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 object-contain ${isEliminated ? "grayscale" : ""}`}
                   />
-                  
+
                   {/* Status indicator */}
                   {character.status === "correct" && (
                     <motion.div
@@ -127,7 +124,7 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
                       <span className="text-white text-lg">✓</span>
                     </motion.div>
                   )}
-                  
+
                   {character.status === "wrong" && !isEliminated && (
                     <motion.div
                       initial={{ scale: 0 }}
