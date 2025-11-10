@@ -7,6 +7,15 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Switch } from "../ui/switch";
 import { Label } from "../ui/label";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../ui/pagination";
 import { 
   MessageSquare, 
   PenSquare, 
@@ -148,10 +157,18 @@ const mockComments = [
 ];
 
 export function CommunityDashboard({ onViewRanking }: CommunityDashboardProps) {
+  const [mainTab, setMainTab] = useState("board"); // board or myActivity
   const [activeTab, setActiveTab] = useState("all");
   const [showWritePost, setShowWritePost] = useState(false);
   const [selectedPost, setSelectedPost] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [myActivityTab, setMyActivityTab] = useState("posts"); // posts or comments
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [myPostsPage, setMyPostsPage] = useState(1);
+  const [myCommentsPage, setMyCommentsPage] = useState(1);
+  const postsPerPage = 10;
   
   // Post write form
   const [postTitle, setPostTitle] = useState("");
@@ -164,6 +181,7 @@ export function CommunityDashboard({ onViewRanking }: CommunityDashboardProps) {
   const [commentAnonymous, setCommentAnonymous] = useState(false);
 
   const categories = ["전체", "후기", "꿀팁", "스터디", "질문", "자유"];
+  const currentUserId = "user123"; // Current logged-in user
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -181,8 +199,106 @@ export function CommunityDashboard({ onViewRanking }: CommunityDashboardProps) {
     return true;
   });
 
+  // Get user's posts and comments
+  const myPosts = mockPosts.filter(post => post.authorId === currentUserId);
+  const myComments = mockComments.filter(comment => comment.authorId === currentUserId);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
+  const totalMyPostsPages = Math.ceil(myPosts.length / postsPerPage);
+  const totalMyCommentsPages = Math.ceil(myComments.length / postsPerPage);
+  
+  const indexOfLastPost = currentPage * postsPerPage;
+  const indexOfFirstPost = indexOfLastPost - postsPerPage;
+  const currentPosts = filteredPosts.slice(indexOfFirstPost, indexOfLastPost);
+
+  const indexOfLastMyPost = myPostsPage * postsPerPage;
+  const indexOfFirstMyPost = indexOfLastMyPost - postsPerPage;
+  const currentMyPosts = myPosts.slice(indexOfFirstMyPost, indexOfLastMyPost);
+
+  const indexOfLastMyComment = myCommentsPage * postsPerPage;
+  const indexOfFirstMyComment = indexOfLastMyComment - postsPerPage;
+  const currentMyComments = myComments.slice(indexOfFirstMyComment, indexOfLastMyComment);
+
   const currentPost = selectedPost ? mockPosts.find(p => p.id === selectedPost) : null;
   const postComments = selectedPost ? mockComments.filter(c => c.postId === selectedPost) : [];
+
+  // Reset page when filters change
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  // Pagination helper function
+  const renderPagination = (currentPageNum: number, totalPagesNum: number, onPageChange: (page: number) => void) => {
+    if (totalPagesNum === 0) return null;
+
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalPagesNum <= maxVisible) {
+      for (let i = 1; i <= totalPagesNum; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPageNum <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push("ellipsis");
+        pages.push(totalPagesNum);
+      } else if (currentPageNum >= totalPagesNum - 2) {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = totalPagesNum - 3; i <= totalPagesNum; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push("ellipsis");
+        for (let i = currentPageNum - 1; i <= currentPageNum + 1; i++) pages.push(i);
+        pages.push("ellipsis");
+        pages.push(totalPagesNum);
+      }
+    }
+
+    return (
+      <Pagination className="mt-6">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => currentPageNum > 1 && onPageChange(currentPageNum - 1)}
+              className={currentPageNum === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+          
+          {pages.map((page, idx) => (
+            <PaginationItem key={idx}>
+              {page === "ellipsis" ? (
+                <PaginationEllipsis />
+              ) : (
+                <PaginationLink
+                  onClick={() => onPageChange(page as number)}
+                  isActive={currentPageNum === page}
+                  className="cursor-pointer"
+                >
+                  {page}
+                </PaginationLink>
+              )}
+            </PaginationItem>
+          ))}
+          
+          <PaginationItem>
+            <PaginationNext
+              onClick={() => currentPageNum < totalPagesNum && onPageChange(currentPageNum + 1)}
+              className={currentPageNum === totalPagesNum ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    );
+  };
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
@@ -337,12 +453,7 @@ export function CommunityDashboard({ onViewRanking }: CommunityDashboardProps) {
                     </div>
                     <h2 className="text-gray-900 mb-3">{currentPost.title}</h2>
                     <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white">
-                          {currentPost.isAnonymous ? "🎭" : currentPost.author[0]}
-                        </div>
-                        <span>{currentPost.author}</span>
-                      </div>
+                      <span>{currentPost.author}</span>
                       <span>•</span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -400,21 +511,16 @@ export function CommunityDashboard({ onViewRanking }: CommunityDashboardProps) {
                     {postComments.map((comment) => (
                       <div key={comment.id} className="p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm">
-                              {comment.isAnonymous ? "🎭" : comment.author[0]}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-900">{comment.author}</span>
+                              {comment.isAuthor && (
+                                <Badge className="bg-purple-500 text-white text-xs px-2 py-0">
+                                  작성자
+                                </Badge>
+                              )}
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-900">{comment.author}</span>
-                                {comment.isAuthor && (
-                                  <Badge className="bg-purple-500 text-white text-xs px-2 py-0">
-                                    작성자
-                                  </Badge>
-                                )}
-                              </div>
-                              <span className="text-xs text-gray-500">{comment.createdAt}</span>
-                            </div>
+                            <span className="text-xs text-gray-500">{comment.createdAt}</span>
                           </div>
                           <Button
                             variant="ghost"
@@ -427,7 +533,7 @@ export function CommunityDashboard({ onViewRanking }: CommunityDashboardProps) {
                             {comment.likes}
                           </Button>
                         </div>
-                        <p className="text-sm text-gray-700 ml-10">{comment.content}</p>
+                        <p className="text-sm text-gray-700">{comment.content}</p>
                       </div>
                     ))}
                   </div>
@@ -466,176 +572,320 @@ export function CommunityDashboard({ onViewRanking }: CommunityDashboardProps) {
           )}
         </AnimatePresence>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Sidebar - Categories & Write Button */}
-          <div className="space-y-4">
-            <Card className="p-6 border-2 border-purple-200 bg-white/80 backdrop-blur">
-              <Button
-                onClick={() => setShowWritePost(true)}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white mb-4"
-              >
-                <PenSquare className="w-4 h-4 mr-2" />
-                글쓰기
-              </Button>
+        {/* Main Tabs - Board / My Activity */}
+        <Tabs value={mainTab} onValueChange={setMainTab} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur border-2 border-purple-200">
+            <TabsTrigger value="board" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+              📋 게시판
+            </TabsTrigger>
+            <TabsTrigger value="myActivity" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+              ✍️ 내 활동
+            </TabsTrigger>
+          </TabsList>
 
-              <div className="space-y-2">
-                <h3 className="text-purple-900 mb-3">카테고리</h3>
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveTab(cat === "전체" ? "all" : cat)}
-                    className={`w-full text-left px-4 py-2 rounded-lg transition-all ${
-                      (cat === "전체" && activeTab === "all") || activeTab === cat
-                        ? "bg-purple-100 text-purple-700"
-                        : "hover:bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            {/* Quick Stats */}
-            <Card className="p-6 border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
-              <h3 className="text-purple-900 mb-4">📊 커뮤니티 통계</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">전체 게시글</span>
-                  <span className="text-purple-700">1,234</span>
+          <TabsContent value="board" className="mt-6">
+            {/* Top Navigation Bar */}
+            <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur mb-6">
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                {/* Categories */}
+                <div className="flex-1 flex flex-wrap items-center gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => handleTabChange(cat === "전체" ? "all" : cat)}
+                      className={`px-4 py-2 rounded-lg transition-all ${
+                        (cat === "전체" && activeTab === "all") || activeTab === cat
+                          ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                          : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">오늘의 게시글</span>
-                  <span className="text-purple-700">42</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">활성 사용자</span>
-                  <span className="text-green-600">●  328명</span>
-                </div>
-              </div>
-            </Card>
-          </div>
 
-          {/* Main Content - Post List */}
-          <div className="lg:col-span-3 space-y-4">
-            {/* Search Bar */}
-            <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="게시글 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 border-purple-200 focus:border-purple-400"
-                />
-              </div>
-            </Card>
-
-            {/* Popular Posts Banner */}
-            <Card className="p-6 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
-              <div className="flex items-center gap-3 mb-3">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
-                <h3 className="text-orange-900">🔥 인기 게시글</h3>
-              </div>
-              <div className="space-y-2">
-                {mockPosts.slice(0, 3).map((post, idx) => (
-                  <button
-                    key={post.id}
-                    onClick={() => setSelectedPost(post.id)}
-                    className="w-full text-left text-sm text-gray-700 hover:text-orange-700 transition-colors"
-                  >
-                    {idx + 1}. {post.title}
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            {/* Post List */}
-            <div className="space-y-3">
-              {filteredPosts.map((post) => (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.01 }}
+                {/* Write Button */}
+                <Button
+                  onClick={() => setShowWritePost(true)}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg whitespace-nowrap"
                 >
-                  <Card
-                    className={`p-6 border-2 cursor-pointer transition-all hover:shadow-lg ${
-                      post.isPinned
-                        ? "border-red-200 bg-gradient-to-r from-red-50 to-pink-50"
-                        : "border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
-                    }`}
-                    onClick={() => setSelectedPost(post.id)}
+                  <PenSquare className="w-4 h-4 mr-2" />
+                  글쓰기
+                </Button>
+              </div>
+            </Card>
+
+            {/* Main Content - Post List */}
+            <div className="space-y-4">
+              {/* Search Bar */}
+              <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    placeholder="게시글 검색..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="pl-10 border-purple-200 focus:border-purple-400"
+                  />
+                </div>
+              </Card>
+
+              {/* Popular Posts Banner */}
+              <Card className="p-6 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+                <div className="flex items-center gap-3 mb-3">
+                  <TrendingUp className="w-5 h-5 text-orange-600" />
+                  <h3 className="text-orange-900">🔥 인기 게시글</h3>
+                </div>
+                <div className="space-y-2">
+                  {mockPosts.slice(0, 3).map((post, idx) => (
+                    <button
+                      key={post.id}
+                      onClick={() => setSelectedPost(post.id)}
+                      className="w-full text-left text-sm text-gray-700 hover:text-orange-700 transition-colors"
+                    >
+                      {idx + 1}. {post.title}
+                    </button>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Post List */}
+              <div className="space-y-3">
+                {currentPosts.map((post) => (
+                  <motion.div
+                    key={post.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ scale: 1.01 }}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        {/* Badges */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge className={`${getCategoryColor(post.category)} border`}>
-                            {post.category}
-                          </Badge>
-                          {post.isPinned && (
-                            <Badge className="bg-red-100 text-red-700 border-red-300">
-                              <Pin className="w-3 h-3 mr-1" />
-                              공지
+                    <Card
+                      className={`p-6 border-2 cursor-pointer transition-all hover:shadow-lg ${
+                        post.isPinned
+                          ? "border-red-200 bg-gradient-to-r from-red-50 to-pink-50"
+                          : "border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
+                      }`}
+                      onClick={() => setSelectedPost(post.id)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          {/* Badges */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge className={`${getCategoryColor(post.category)} border`}>
+                              {post.category}
                             </Badge>
-                          )}
-                        </div>
-
-                        {/* Title */}
-                        <h3 className="text-gray-900 mb-2 truncate">
-                          {post.title}
-                        </h3>
-
-                        {/* Content Preview */}
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                          {post.content}
-                        </p>
-
-                        {/* Meta Info */}
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <div className="w-5 h-5 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white text-xs">
-                              {post.isAnonymous ? "🎭" : post.author[0]}
-                            </div>
-                            <span>{post.author}</span>
+                            {post.isPinned && (
+                              <Badge className="bg-red-100 text-red-700 border-red-300">
+                                <Pin className="w-3 h-3 mr-1" />
+                                공지
+                              </Badge>
+                            )}
                           </div>
-                          <span>•</span>
-                          <span>{post.createdAt}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            {post.views}
-                          </span>
-                        </div>
-                      </div>
 
-                      {/* Stats */}
-                      <div className="flex flex-col items-end gap-2 text-sm">
-                        <div className="flex items-center gap-1 text-pink-600">
-                          <Heart className={`w-4 h-4 ${post.isLiked ? "fill-pink-500" : ""}`} />
-                          <span>{post.likes}</span>
+                          {/* Title */}
+                          <h3 className="text-gray-900 mb-3">
+                            {post.title}
+                          </h3>
+
+                          {/* Meta Info */}
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>{post.author}</span>
+                            <span>•</span>
+                            <span>{post.createdAt}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Eye className="w-3 h-3" />
+                              {post.views}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 text-blue-600">
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{post.comments}</span>
+
+                        {/* Stats */}
+                        <div className="flex flex-col items-end gap-2 text-sm">
+                          <div className="flex items-center gap-1 text-pink-600">
+                            <Heart className={`w-4 h-4 ${post.isLiked ? "fill-pink-500" : ""}`} />
+                            <span>{post.likes}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-blue-600">
+                            <MessageCircle className="w-4 h-4" />
+                            <span>{post.comments}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </Card>
+                  </motion.div>
+                ))}
+
+                {currentPosts.length === 0 && (
+                  <Card className="p-12 text-center border-2 border-purple-200 bg-white/80">
+                    <div className="text-5xl mb-4">📭</div>
+                    <p className="text-gray-600">게시글이 없습니다</p>
                   </Card>
-                </motion.div>
-              ))}
+                )}
+              </div>
 
-              {filteredPosts.length === 0 && (
-                <Card className="p-12 text-center border-2 border-purple-200 bg-white/80">
-                  <div className="text-5xl mb-4">📭</div>
-                  <p className="text-gray-600">게시글이 없습니다</p>
-                </Card>
+              {/* Pagination */}
+              {renderPagination(currentPage, totalPages, setCurrentPage)}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="myActivity" className="mt-6">
+            {/* My Activity Tabs */}
+            <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur mb-6">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMyActivityTab("posts")}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-all ${
+                    myActivityTab === "posts"
+                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  📝 내가 쓴 글 ({myPosts.length})
+                </button>
+                <button
+                  onClick={() => setMyActivityTab("comments")}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-all ${
+                    myActivityTab === "comments"
+                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  💬 내가 쓴 댓글 ({myComments.length})
+                </button>
+              </div>
+            </Card>
+
+            <div className="space-y-4">
+              {/* My Posts */}
+              {myActivityTab === "posts" && (
+                <>
+                  <div className="space-y-3">
+                    {currentMyPosts.map((post) => (
+                    <motion.div
+                      key={post.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ scale: 1.01 }}
+                    >
+                      <Card
+                        className="p-6 border-2 cursor-pointer transition-all hover:shadow-lg border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
+                        onClick={() => setSelectedPost(post.id)}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            {/* Badges */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={`${getCategoryColor(post.category)} border`}>
+                                {post.category}
+                              </Badge>
+                            </div>
+
+                            {/* Title Only */}
+                            <h3 className="text-gray-900 mb-3">
+                              {post.title}
+                            </h3>
+
+                            {/* Meta Info */}
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span>{post.author}</span>
+                              <span>•</span>
+                              <span>{post.createdAt}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                {post.views}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Stats */}
+                          <div className="flex flex-col items-end gap-2 text-sm">
+                            <div className="flex items-center gap-1 text-pink-600">
+                              <Heart className={`w-4 h-4 ${post.isLiked ? "fill-pink-500" : ""}`} />
+                              <span>{post.likes}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-blue-600">
+                              <MessageCircle className="w-4 h-4" />
+                              <span>{post.comments}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                    ))}
+
+                    {currentMyPosts.length === 0 && (
+                      <Card className="p-12 text-center border-2 border-purple-200 bg-white/80">
+                        <div className="text-5xl mb-4">📝</div>
+                        <p className="text-gray-600">작성한 글이 없습니다</p>
+                      </Card>
+                    )}
+                  </div>
+                  
+                  {/* Pagination */}
+                  {renderPagination(myPostsPage, totalMyPostsPages, setMyPostsPage)}
+                </>
+              )}
+
+              {/* My Comments */}
+              {myActivityTab === "comments" && (
+                <>
+                  <div className="space-y-3">
+                    {currentMyComments.map((comment) => {
+                    const relatedPost = mockPosts.find(p => p.id === comment.postId);
+                    return (
+                      <motion.div
+                        key={comment.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        whileHover={{ scale: 1.01 }}
+                      >
+                        <Card
+                          className="p-6 border-2 cursor-pointer transition-all hover:shadow-lg border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
+                          onClick={() => relatedPost && setSelectedPost(relatedPost.id)}
+                        >
+                          {relatedPost && (
+                            <div className="mb-3 pb-3 border-b border-gray-200">
+                              <p className="text-sm text-gray-500 mb-1">댓글 단 게시글</p>
+                              <p className="text-sm text-gray-900">{relatedPost.title}</p>
+                            </div>
+                          )}
+                          
+                          <div className="mb-3">
+                            <p className="text-gray-800">{comment.content}</p>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center gap-4">
+                              <span>{comment.author}</span>
+                              <span>•</span>
+                              <span>{comment.createdAt}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-pink-600">
+                              <ThumbsUp className={`w-3 h-3 ${comment.isLiked ? "fill-pink-500" : ""}`} />
+                              <span>{comment.likes}</span>
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    );
+                    })}
+
+                    {currentMyComments.length === 0 && (
+                      <Card className="p-12 text-center border-2 border-purple-200 bg-white/80">
+                        <div className="text-5xl mb-4">💬</div>
+                        <p className="text-gray-600">작성한 댓글이 없습니다</p>
+                      </Card>
+                    )}
+                  </div>
+
+                  {/* Pagination */}
+                  {renderPagination(myCommentsPage, totalMyCommentsPages, setMyCommentsPage)}
+                </>
               )}
             </div>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
