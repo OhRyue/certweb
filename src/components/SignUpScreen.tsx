@@ -91,7 +91,7 @@ export function SignUpScreen() {
 
         try {
             setLoading(true)
-            await axios.post(`/account/register`, {
+            await axios.post(`/account/send-verification`, {
                 username: formData.userId,
                 password: formData.password,
                 email: formData.email,
@@ -146,16 +146,21 @@ export function SignUpScreen() {
 
     async function handleVerifyEmail() {
         try {
-            const res = await axios.post("api/account/verify-email", {
+            const res = await axios.post("/account/verify-email", {
                 email: formData.email,
-                code: formData.verificationCode
-            })
-            console.log("인증 성공:", res.data)
-            setIsVerificationSent(true)
-        } catch (err) {
-            console.error("인증 실패:", err)
+                code: formData.verificationCode,
+                username: formData.userId,   // 추가
+                password: formData.password  // 추가
+            });
+
+            alert("이메일 인증 및 회원가입이 완료되었습니다!");
+            navigate("/login");
+        } catch (err: any) {
+            alert(err.response?.data?.message || "인증 실패. 인증번호를 확인해주세요.");
+            console.error("인증 실패:", err);
         }
     }
+
 
     // 3) 뒤로가기
     const handleBack = () => {
@@ -370,11 +375,18 @@ export function SignUpScreen() {
                                             <Button
                                                 type="button"
                                                 onClick={handleSendVerification}
-                                                disabled={!formData.email || isVerificationSent}
+                                                disabled={
+                                                    !formData.email ||                  // 이메일 없으면 X
+                                                    isVerificationSent ||               // 이미 발송됐으면 X
+                                                    !idAvailable ||                     // 아이디 중복이면 X
+                                                    isIdInvalid ||                      // 아이디 형식 틀리면 X
+                                                    isPasswordInvalid ||                // 비밀번호 형식 틀리면 X
+                                                    formData.password !== formData.passwordConfirm // 비밀번호 확인 불일치면 X
+                                                }
                                                 className={`whitespace-nowrap ${isVerificationSent
                                                     ? 'bg-green-500 hover:bg-green-600'
                                                     : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-                                                    } text-white`}
+                                                    } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
                                             >
                                                 {isVerificationSent ? (
                                                     <>
@@ -568,7 +580,7 @@ export function SignUpScreen() {
                                         이전
                                     </Button>
                                     <Button
-                                        onClick={handleRegister}
+                                        onClick={handleVerifyEmail}
                                         disabled={!isStep2Valid}
                                         className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-6 disabled:opacity-50"
                                     >
