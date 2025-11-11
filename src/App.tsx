@@ -159,7 +159,29 @@ function InnerApp({
           <Route path="/battle/result" element={<BattleResult />} />
           <Route path="/battle/tournament" element={<Tournament />} />
           <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
-          <Route path="/battle/goldenbell" element={<GoldenBell />} />
+          <Route
+            path="/battle/goldenbell"
+            element={
+              <GoldenBell
+                onJoin={(sessionId) => navigate(`/battle/goldenbell/game/${sessionId}`)}
+                onBack={() => navigate(-1)}
+              />
+            }
+          />
+          <Route
+            path="/battle/goldenbell/game/:sessionId"
+            element={
+              <GoldenBellGame
+                sessionId="g1" // 임시값
+                onComplete={(survived, rank) => {
+                  console.log("결과:", survived, rank)
+                  navigate("/battle/goldenbell") // 다시 목록으로
+                }}
+                onExit={() => navigate("/battle/goldenbell")}
+              />
+            }
+          />
+
           <Route path="/battle/goldenbell/game" element={<GoldenBellGame />} />
 
           {/* 커뮤니티 */}
