@@ -23,7 +23,7 @@ export function RankingSection() {
             }`}
           >
             <TrendingUp className="w-4 h-4" />
-            전체 랭킹
+            종합 랭킹
           </button>
           <button
             onClick={() => setRankingTab("weekly")}
