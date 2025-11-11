@@ -14,7 +14,15 @@ export function SignUpScreen() {
     const [isVerificationSent, setIsVerificationSent] = useState(false)
     const [loading, setLoading] = useState(false)
     const [isCheckingId, setIsCheckingId] = useState(false)
-    const [idAvailable, setIdAvailable] = useState<boolean | null>(null)
+    const [idAvailable, setIdAvailable] = useState<boolean | null>(null)        // 중복 여부
+    const [isIdInvalid, setIsIdInvalid] = useState(false);      // 8~20글자, 영어/숫자 포함 조건 확인
+    const [isPasswordInvalid, setIsPasswordInvalid] = useState(false);      // 비밀번호 조건
+
+    // 아이디 유효성 정규식 (영문+숫자, 8~20자)
+    const idRegex = /^[A-Za-z0-9]{8,20}$/;
+    // 비밀번호 정규식: 영문 + 숫자 + 특수문자 최소 1개씩 포함, 8자 이상
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+
 
     const [formData, setFormData] = useState({
         userId: "",
@@ -26,29 +34,53 @@ export function SignUpScreen() {
         targetCertification: "",
     })
 
+    // 아이디 입력 blur 시 유효성 체크
+    const handleIdBlur = () => {
+        const trimmed = formData.userId.trim();
+        // 조건에 맞지 않으면 빨갛게 표시
+        if (!idRegex.test(trimmed)) {
+            setIsIdInvalid(true);
+        } else {
+            setIsIdInvalid(false);
+        }
+    };
+
+    const handlePasswordBlur = () => {
+        const trimmed = formData.password.trim();
+        if (!passwordRegex.test(trimmed)) {
+            setIsPasswordInvalid(true);
+        } else {
+            setIsPasswordInvalid(false);
+        }
+    };
+
     // 디바운싱용
     useEffect(() => {
         const delay = setTimeout(async () => {
-            if (formData.userId.trim().length >= 4) {
-                try {
-                    setIsCheckingId(true)
-                    const res = await axios.get(`account/check-username`, {
-                        params: { username: formData.userId },
-                    })
-                    setIdAvailable(res.data.available)
-                } catch (err) {
-                    console.error("중복 확인 오류:", err)
-                    setIdAvailable(null)
-                } finally {
-                    setIsCheckingId(false)
-                }
-            } else {
-                setIdAvailable(null)
-            }
-        }, 600) // 0.6초 동안 입력 멈추면 실행
+            const trimmedId = formData.userId.trim();
 
-        return () => clearTimeout(delay)
-    }, [formData.userId])
+            // 형식 자체가 틀리면 중복 체크 안 함
+            if (!idRegex.test(trimmedId)) {
+                setIdAvailable(null);
+                return;
+            }
+
+            try {
+                setIsCheckingId(true);
+                const res = await axios.get(`account/check-username`, {
+                    params: { username: trimmedId },
+                });
+                setIdAvailable(res.data.available);
+            } catch (err) {
+                console.error("중복 확인 오류:", err);
+                setIdAvailable(null);
+            } finally {
+                setIsCheckingId(false);
+            }
+        }, 600);
+
+        return () => clearTimeout(delay);
+    }, [formData.userId]);
 
     // 1) 이메일 인증 전송 (회원가입 단계)
     const handleSendVerification = async () => {
@@ -232,7 +264,6 @@ export function SignUpScreen() {
                                 <div className="space-y-5">
                                     {/* 아이디 */}
                                     <div>
-                                        {/* 아이디 라벨 + 상태문구 한 줄 */}
                                         <div className="flex items-center justify-between mb-2">
                                             <label className="text-sm text-gray-700 flex items-center gap-2">
                                                 <User className="w-4 h-4 text-purple-600" />
@@ -240,7 +271,6 @@ export function SignUpScreen() {
                                             </label>
 
                                             {formData.userId && (
-                                                // 글씨 크기 변경
                                                 <div className="text-[10px]">
                                                     {isCheckingId ? (
                                                         <p className="text-gray-500">⏳ 확인 중</p>
@@ -253,21 +283,25 @@ export function SignUpScreen() {
                                             )}
                                         </div>
 
-                                        {/* 중복 시 border 색 변경 */}
                                         <Input
                                             type="text"
                                             placeholder="사용할 아이디를 입력하세요"
                                             value={formData.userId}
                                             onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                                            className={`bg-white focus:border-purple-400 ${idAvailable === false
-                                                    ? "border-red-400 text-red-700 placeholder-red-300"
-                                                    : "border-purple-200"
+                                            onBlur={handleIdBlur} // ← 포커스 해제 시 유효성 검사
+                                            className={`bg-white focus:border-purple-400 transition-all ${isIdInvalid || idAvailable === false
+                                                ? "border-red-400 text-red-700 placeholder-red-300"
+                                                : "border-purple-200"
                                                 }`}
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">영문, 숫자 조합 10-20자</p>
+
+                                        <p
+                                            className={`text-xs mt-1 transition-colors ${isIdInvalid ? "text-red-500" : "text-gray-500"
+                                                }`}
+                                        >
+                                            영문, 숫자 조합 8-20자
+                                        </p>
                                     </div>
-
-
 
                                     {/* 비밀번호 */}
                                     <div>
@@ -280,10 +314,18 @@ export function SignUpScreen() {
                                             placeholder="••••••••"
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="bg-white border-purple-200 focus:border-purple-400"
+                                            onBlur={handlePasswordBlur}
+                                            className={`bg-white focus:border-purple-400 transition-all ${isPasswordInvalid ? "border-red-400 text-red-700 placeholder-red-300" : "border-purple-200"
+                                                }`}
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">영문, 숫자, 특수문자 조합 8자 이상</p>
+                                        <p
+                                            className={`text-xs mt-1 transition-colors ${isPasswordInvalid ? "text-red-500" : "text-gray-500"
+                                                }`}
+                                        >
+                                            영문, 숫자, 특수문자 조합 8자 이상
+                                        </p>
                                     </div>
+
 
                                     {/* 비밀번호 확인 */}
                                     <div>
