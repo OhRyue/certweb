@@ -32,11 +32,8 @@ import { GoldenBell } from "./components/Battle/GoldenBell"
 import { GoldenBellGame } from "./components/Battle/GoldenBellGame"
 
 // Community
+import { CommunityDashboard } from "./components/Community/CommunityDashboard"
 import { CommunityDetailModal } from "./components/Community/CommunityDetailModal"
-import { CommunityListPage } from "./components/Community/CommunityListPage"
-import { CommunityWriteModal } from "./components/Community/CommunityWriteModal"
-import { MyCommentsScreen } from "./components/Community/MyCommentsScreen"
-import { MyPostsScreen } from "./components/Community/MyPostsScreen"
 
 // Rank & Badge
 import { RankBadgeDashboard } from "./components/RankBadge/RankBadgeDashboard"
@@ -163,12 +160,9 @@ function InnerApp({
           <Route path="/battle/goldenbell/game" element={<GoldenBellGame />} />
 
           {/* 커뮤니티 */}
-          <Route path="/community" element={<CommunityListPage />}>
-            <Route path="write" element={<CommunityWriteModal />} />
+          <Route path="/community" element={<CommunityDashboard />}>
             <Route path=":postId" element={<CommunityDetailModal />} />
           </Route>
-          <Route path="/community/my/posts" element={<MyPostsScreen />} />
-          <Route path="/community/my/comments" element={<MyCommentsScreen />} />
 
           {/* 랭크 & 뱃지 */}
           <Route path="/rankBadge" element={<RankBadgeDashboard />} />
