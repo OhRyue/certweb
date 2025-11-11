@@ -37,6 +37,9 @@ import { CommunityDetailModal } from "./components/Community/CommunityDetailModa
 
 // Rank & Badge
 import { RankBadgeDashboard } from "./components/RankBadge/RankBadgeDashboard"
+import { GlobalRanking } from "./components/RankBadge/ranking/GlobalRanking"
+import { WeeklyRanking } from "./components/RankBadge/ranking/WeeklyRanking"
+import { HallOfFame } from "./components/RankBadge/ranking/HallOfFame"
 
 // Others
 import { ReportDashboard } from "./components/Report/ReportDashboard"
@@ -166,6 +169,9 @@ function InnerApp({
 
           {/* 랭크 & 뱃지 */}
           <Route path="/rankBadge" element={<RankBadgeDashboard />} />
+          <Route path="/rankBadge/global" element={<GlobalRanking />} />
+          <Route path="/rankBadge/weekly" element={<WeeklyRanking />} />
+          <Route path="/rankBadge/hall" element={<HallOfFame />} />
 
           {/* 기타 그대로 */}
           <Route path="/report" element={<ReportDashboard />} />
