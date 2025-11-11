@@ -1,6 +1,6 @@
 import axios from "./api/axiosConfig"
 import { useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { Card } from "./ui/card"
 import { Button } from "./ui/button"
@@ -13,6 +13,8 @@ export function SignUpScreen() {
     const [step, setStep] = useState(1)
     const [isVerificationSent, setIsVerificationSent] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [isCheckingId, setIsCheckingId] = useState(false)
+    const [idAvailable, setIdAvailable] = useState<boolean | null>(null)
 
     const [formData, setFormData] = useState({
         userId: "",
@@ -24,7 +26,31 @@ export function SignUpScreen() {
         targetCertification: "",
     })
 
-    // ✅ 1) 이메일 인증 전송 (회원가입 단계)
+    // 디바운싱용
+    useEffect(() => {
+        const delay = setTimeout(async () => {
+            if (formData.userId.trim().length >= 4) {
+                try {
+                    setIsCheckingId(true)
+                    const res = await axios.get(`account/check-username`, {
+                        params: { username: formData.userId },
+                    })
+                    setIdAvailable(res.data.available)
+                } catch (err) {
+                    console.error("중복 확인 오류:", err)
+                    setIdAvailable(null)
+                } finally {
+                    setIsCheckingId(false)
+                }
+            } else {
+                setIdAvailable(null)
+            }
+        }, 600) // 0.6초 동안 입력 멈추면 실행
+
+        return () => clearTimeout(delay)
+    }, [formData.userId])
+
+    // 1) 이메일 인증 전송 (회원가입 단계)
     const handleSendVerification = async () => {
         if (!formData.userId || !formData.password || !formData.email) {
             alert("아이디, 비밀번호, 이메일을 모두 입력하세요.")
@@ -48,14 +74,14 @@ export function SignUpScreen() {
         }
     }
 
-    // ✅ 2) 다음 버튼 로직 (Step1 → Step2 or 완료)
+    // 2) 다음 버튼 로직 (Step1 → Step2 or 완료)
     const handleNext = async () => {
         if (step === 1) {
             setStep(2)
         } else {
             try {
                 setLoading(true)
-                await axios.post(`http://localhost:8080/api/account/verify-email`, {
+                await axios.post(`api/account/verify-email`, {
                     email: formData.email,
                     code: formData.verificationCode,
                     nickname: formData.nickname,
@@ -74,7 +100,7 @@ export function SignUpScreen() {
 
     async function handleRegister() {
         try {
-            const res = await axios.post(`http://localhost:8080/api/account/register`, {
+            const res = await axios.post(`api/account/register`, {
                 username: formData.userId,
                 password: formData.password,
                 email: formData.email
@@ -88,7 +114,7 @@ export function SignUpScreen() {
 
     async function handleVerifyEmail() {
         try {
-            const res = await axios.post("http://localhost:8080/api/account/verify-email", {
+            const res = await axios.post("api/account/verify-email", {
                 email: formData.email,
                 code: formData.verificationCode
             })
@@ -99,7 +125,7 @@ export function SignUpScreen() {
         }
     }
 
-    // ✅ 3) 뒤로가기
+    // 3) 뒤로가기
     const handleBack = () => {
         if (step === 1) {
             navigate("/login")
@@ -119,7 +145,7 @@ export function SignUpScreen() {
 
     const isStep2Valid = formData.nickname && formData.targetCertification
 
-    // ✅ 이 아래부터는 UI 완전 동일 (너가줬던거 그대로 유지)
+    // 이 아래부터는 UI 완전 동일 (너가줬던거 그대로 유지)
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 overflow-auto">
             {/* Header */}
@@ -206,19 +232,42 @@ export function SignUpScreen() {
                                 <div className="space-y-5">
                                     {/* 아이디 */}
                                     <div>
-                                        <label className="text-sm text-gray-700 mb-2 block flex items-center gap-2">
-                                            <User className="w-4 h-4 text-purple-600" />
-                                            아이디
-                                        </label>
+                                        {/* 아이디 라벨 + 상태문구 한 줄 */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm text-gray-700 flex items-center gap-2">
+                                                <User className="w-4 h-4 text-purple-600" />
+                                                아이디
+                                            </label>
+
+                                            {formData.userId && (
+                                                // 글씨 크기 변경
+                                                <div className="text-[10px]">
+                                                    {isCheckingId ? (
+                                                        <p className="text-gray-500">⏳ 확인 중</p>
+                                                    ) : idAvailable === true ? (
+                                                        <p className="text-green-600">✅ 사용 가능한 아이디입니다</p>
+                                                    ) : idAvailable === false ? (
+                                                        <p className="text-red-600">❌ 이미 사용 중인 아이디에요</p>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* 중복 시 border 색 변경 */}
                                         <Input
                                             type="text"
                                             placeholder="사용할 아이디를 입력하세요"
                                             value={formData.userId}
                                             onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                                            className="bg-white border-purple-200 focus:border-purple-400"
+                                            className={`bg-white focus:border-purple-400 ${idAvailable === false
+                                                    ? "border-red-400 text-red-700 placeholder-red-300"
+                                                    : "border-purple-200"
+                                                }`}
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">영문, 숫자 조합 4-20자</p>
+                                        <p className="text-xs text-gray-500 mt-1">영문, 숫자 조합 10-20자</p>
                                     </div>
+
+
 
                                     {/* 비밀번호 */}
                                     <div>
