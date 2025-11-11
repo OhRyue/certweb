@@ -13,6 +13,7 @@ import {
   Flame,
   Award,
   ShoppingBag,
+  Users
 } from "lucide-react"
 
 interface NavigationProps {
@@ -35,10 +36,11 @@ export function Navigation({ userProfile, userPoints = 0 }: NavigationProps) {
     { id: "home", label: "홈", icon: Home, path: "/" },
     { id: "main", label: "메인학습", icon: BookOpen, path: "/learning" },
     { id: "solo", label: "보조학습", icon: Dumbbell, path: "/solo" },
-    { id: "report", label: "학습 리포트", icon: BarChart3, path: "/report" },
-    { id: "certinfo", label: "자격증 정보", icon: Award, path: "/certinfo" },
     { id: "battle", label: "대전/이벤트", icon: Swords, path: "/battle" },
-    { id: "community", label: "커뮤니티", icon: Trophy, path: "/community" },
+    { id: "report", label: "학습 리포트", icon: BarChart3, path: "/report" },
+    { id: "community", label: "커뮤니티", icon: Users, path: "/community" },
+    { id: "rankBadge", label: "랭킹 & 뱃지", icon: Trophy, path: "/rankBadge" },
+    { id: "certinfo", label: "자격증 정보", icon: Award, path: "/certinfo" },
     { id: "settings", label: "설정", icon: Settings, path: "/settings" },
   ]
 
@@ -72,9 +74,8 @@ export function Navigation({ userProfile, userPoints = 0 }: NavigationProps) {
             <div
               className="h-full bg-gradient-to-r from-blue-300 to-cyan-300"
               style={{
-                width: `${
-                  (userProfile.xp / ((userProfile.level + 1) * 500)) * 100
-                }%`,
+                width: `${(userProfile.xp / ((userProfile.level + 1) * 500)) * 100
+                  }%`,
               }}
             />
           </div>
@@ -89,9 +90,8 @@ export function Navigation({ userProfile, userPoints = 0 }: NavigationProps) {
         {/* Shop Button */}
         <Button
           onClick={() => navigate("/shop")}
-          className={`w-full mt-3 justify-start bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0 ${
-            isActive("/shop") ? "ring-2 ring-white" : ""
-          }`}
+          className={`w-full mt-3 justify-start bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0 ${isActive("/shop") ? "ring-2 ring-white" : ""
+            }`}
         >
           <ShoppingBag className="w-4 h-4 mr-2" />
           <span className="flex-1 text-left">상점</span>
@@ -113,9 +113,8 @@ export function Navigation({ userProfile, userPoints = 0 }: NavigationProps) {
               key={item.id}
               onClick={() => navigate(item.path)}
               variant="ghost"
-              className={`w-full justify-start text-white hover:bg-white/20 ${
-                isActive(item.path) ? "bg-white/30" : ""
-              }`}
+              className={`w-full justify-start text-white hover:bg-white/20 ${isActive(item.path) ? "bg-white/30" : ""
+                }`}
             >
               <Icon className="w-5 h-5 mr-3" />
               <span className="flex-1 text-left">{item.label}</span>

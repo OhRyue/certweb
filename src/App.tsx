@@ -31,10 +31,16 @@ import { TournamentBracket } from "./components/Battle/TournamentBracket"
 import { GoldenBell } from "./components/Battle/GoldenBell"
 import { GoldenBellGame } from "./components/Battle/GoldenBellGame"
 
+// Community
+import { CommunityDashboard } from "./components/Community/CommunityDashboard"
+import { CommunityDetailModal } from "./components/Community/CommunityDetailModal"
+
+// Rank & Badge
+import { RankBadgeDashboard } from "./components/RankBadge/RankBadgeDashboard"
+
 // Others
 import { ReportDashboard } from "./components/Report/ReportDashboard"
 import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
-import { CommunityDashboard } from "./components/Community/CommunityDashboard"
 import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
 import { ShopDashboard } from "./components/Shop/ShopDashboard"
 import { LevelUpScreen } from "./components/LevelUpScreen"
@@ -146,18 +152,24 @@ function InnerApp({
           <Route path="/battle" element={<BattleDashboard />} />
           <Route path="/battle/onevsone" element={<OneVsOneBattle />} />
           <Route path="/battle/onevsone/matching" element={<OneVsOneMatching />} />
-         <Route path="/battle/start" element={<BattleFlow />} />
+          <Route path="/battle/start" element={<BattleFlow />} />
           <Route path="/battle/result" element={<BattleResult />} />
           <Route path="/battle/tournament" element={<Tournament />} />
           <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
           <Route path="/battle/goldenbell" element={<GoldenBell />} />
           <Route path="/battle/goldenbell/game" element={<GoldenBellGame />} />
 
+          {/* 커뮤니티 */}
+          <Route path="/community" element={<CommunityDashboard />}>
+            <Route path=":postId" element={<CommunityDetailModal />} />
+          </Route>
+
+          {/* 랭크 & 뱃지 */}
+          <Route path="/rankBadge" element={<RankBadgeDashboard />} />
 
           {/* 기타 그대로 */}
           <Route path="/report" element={<ReportDashboard />} />
           <Route path="/certinfo" element={<CertInfoDashboard />} />
-          <Route path="/community" element={<CommunityDashboard />} />
           <Route path="/settings" element={<SettingsDashboard userProfile={userProfile} userSettings={userSettings} onUpdateProfile={setUserProfile} onUpdateSettings={setUserSettings} />} />
           <Route path="/shop" element={<ShopDashboard shopItems={shopItems} userPoints={userPoints} onPurchase={(id, price) => {
             setUserPoints(prev => prev - price)
