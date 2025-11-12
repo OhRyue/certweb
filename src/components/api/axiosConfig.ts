@@ -23,19 +23,24 @@ instance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // 만료 (401 Unauthorized) 시
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url.includes("/account/refresh")
+    ) {
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem("refreshToken");
-        const res = await axios.post("/api/account/refresh", { refreshToken });
+        const res = await instance.post("/account/refresh", { refreshToken });
 
-        localStorage.setItem("accessToken", res.data.accessToken);
+        const newAccessToken = res.data.accessToken;
+        localStorage.setItem("accessToken", newAccessToken);
 
-        originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return instance(originalRequest);
       } catch (refreshError) {
         console.error("토큰 갱신 실패:", refreshError);
+        localStorage.clear();
         window.location.href = "/login";
       }
     }

@@ -4,24 +4,43 @@ import { Navigation } from "./components/Navigation"
 import { Toaster } from "./components/ui/sonner"
 
 // 화면들 import
+
 import { HomeDashboard } from "./components/HomeDashboard"
+
+// main Learning
 import { MainLearningDashboard } from "./components/MainLearning/MainLearningDashboard"
 import { MicroFlowPage } from "./components/MainLearning/MicroFlowPage"
 import { ReviewFlowPage } from "./components/MainLearning/ReviewFlowPage"
 import { ReviewFlowPracticalPage } from "./components/MainLearning/ReviewFlowPracticalPage"
+
+// solo Pracitce
 import { SoloPracticeDashboard } from "./components/SoloPractice/SoloPracticeDashboard"
 import { CategoryQuiz } from "./components/SoloPractice/CategoryQuiz"
 import { QuizFlowPage } from "./components/SoloPractice/QuizFlowPage"
 import { DifficultyQuiz } from "./components/SoloPractice/DifficultyQuiz"
 import { WeaknessQuiz } from "./components/SoloPractice/WeaknessQuiz"
-import { ReportDashboard } from "./components/Report/ReportDashboard"
-import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
-import { CommunityDashboard } from "./components/Community/CommunityDashboard"
-import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
-import { ShopDashboard } from "./components/Shop/ShopDashboard"
+
+// battle
 import { BattleDashboard } from "./components/Battle/BattleDashboard"
 import { OneVsOneBattle } from "./components/Battle/OneVsOneBattle"
+
+// report
+import { ReportDashboard } from "./components/Report/ReportDashboard"
+
+// cert info
+import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
+
+// community
+import { CommunityDashboard } from "./components/Community/CommunityDashboard"
+
+// setting
+import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
+// shop
+import { ShopDashboard } from "./components/Shop/ShopDashboard"
+
+//etc
 import { LevelUpScreen } from "./components/LevelUpScreen"
+import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
 
 import { useState } from "react"
 import { userProfile as initialProfile, userSettings as initialSettings, shopItems as initialShopItems } from "./data/mockData"
