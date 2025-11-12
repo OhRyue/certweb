@@ -338,8 +338,8 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                               }
                             }}
                             className={`text-white ${false
-                                ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                                : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                              : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                               }`}
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
@@ -361,8 +361,8 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                           <div
                             key={subTopic.id}
                             className={`flex items-center justify-between p-3 rounded-lg border transition-all ${subTopic.completed
-                                ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-                                : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
+                              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+                              : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
                               }`}
                           >
                             <div className="flex items-center gap-3">
@@ -386,8 +386,10 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                             </div>
                             <Button
                               size="sm"
-                              onClick={() =>
+                              onClick={() => {
+                                console.log(subTopic.id)
                                 navigate(`/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}`)
+                              }
                               }
                               className={
                                 subTopic.completed
@@ -409,6 +411,6 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
           ))}
         </div>
       </div>
-    </div>
+    </div >
   )
 }

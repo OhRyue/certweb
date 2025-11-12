@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react"
-import axios from "axios"
+import { useState } from "react"
 import { motion } from "motion/react"
 import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
-import { Star } from "lucide-react"
 import { BookOpen, ArrowRight, Lightbulb } from "lucide-react"
 
 interface Block {
@@ -32,38 +30,21 @@ interface ConceptResponse {
   sections: Section[]
 }
 
-export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext: () => void }) {
-  const [data, setData] = useState<ConceptResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function ConceptView({
+  data,
+  onNext
+}: {
+  data: ConceptResponse
+  onNext: () => void
+}) {
   const [currentIndex, setCurrentIndex] = useState(0)
-
-  useEffect(() => {
-    const fetchConcepts = async () => {
-      try {
-        const res = await axios.get(`/api/study/concept/${subtopicId}`)
-        setData(res.data)
-      } catch (err) {
-        setError("데이터를 불러오는 중 오류가 발생했습니다.")
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchConcepts()
-  }, [subtopicId])
-
-  if (loading) return <div className="flex justify-center items-center h-screen text-gray-500">불러오는 중...</div>
-  if (error) return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>
-  if (!data) return null
 
   const section = data.sections[currentIndex]
   const isLast = currentIndex === data.sections.length - 1
 
   const handleNext = () => {
     if (!isLast) setCurrentIndex((prev) => prev + 1)
-    else onNext() // 모든 섹션을 다 보면 다음 단계로
+    else onNext()
   }
 
   return (
@@ -77,14 +58,16 @@ export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext
         >
           {/* Header */}
           <div className="mb-6">
-            <Badge className="bg-purple-500 text-white mb-3">{data.title}</Badge>
+            <Badge className="bg-purple-500 text-white mb-3">
+              {data.title}
+            </Badge>
             <div className="flex items-center gap-3 mb-2">
               <BookOpen className="w-8 h-8 text-purple-600" />
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-purple-900">{section.title}</h1>
-                <span className="text-xl">
-                  {"⭐".repeat(section.importance)}
-                </span>
+                <h1 className="text-2xl font-bold text-purple-900">
+                  {section.title}
+                </h1>
+                <span className="text-xl">{"⭐".repeat(section.importance)}</span>
               </div>
             </div>
             <p className="text-gray-600">
@@ -103,13 +86,13 @@ export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext
                 className="mb-1"
               >
                 {block.type === "heading" && (
-                  <h2 className="text-lg font-semibold text-purple-800 mb-2">{block.text}</h2>
+                  <h2 className="text-lg font-semibold text-purple-800 mb-2">
+                    {block.text}
+                  </h2>
                 )}
-
                 {block.type === "paragraph" && (
                   <p className="text-gray-800 leading-relaxed">{block.text}</p>
                 )}
-
                 {block.type === "list" && (
                   <ul className="list-disc list-inside text-gray-800 space-y-2 pl-3">
                     {block.items.map((item, idx) => (
@@ -117,7 +100,6 @@ export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext
                     ))}
                   </ul>
                 )}
-
                 {block.type === "table" && (
                   <div className="overflow-x-auto mt-4">
                     <table className="min-w-full border border-purple-200 text-sm">
@@ -142,10 +124,13 @@ export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext
                         ))}
                       </tbody>
                     </table>
-                    {block.caption && <p className="text-sm text-gray-500 mt-2">{block.caption}</p>}
+                    {block.caption && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        {block.caption}
+                      </p>
+                    )}
                   </div>
                 )}
-
                 {block.type === "image" && block.url && (
                   <div className="text-center mt-4">
                     <img
@@ -154,7 +139,9 @@ export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext
                       className="rounded-lg shadow-md inline-block max-h-80"
                     />
                     {block.caption && (
-                      <p className="text-sm text-gray-500 mt-2">{block.caption}</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {block.caption}
+                      </p>
                     )}
                   </div>
                 )}
@@ -162,14 +149,16 @@ export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext
             ))}
           </Card>
 
-          {/* Tip Card */}
+          {/* Tip */}
           <Card className="p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 mb-6">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-yellow-400 rounded-lg">
                 <Lightbulb className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h3 className="text-yellow-900 font-semibold mb-2">학습 팁</h3>
+                <h3 className="text-yellow-900 font-semibold mb-2">
+                  학습 팁
+                </h3>
                 <p className="text-gray-700">
                   이 개념을 이해했다면 다음으로 넘어가서 계속 이어서 학습해봐.
                 </p>
@@ -189,7 +178,7 @@ export function ConceptView({ subtopicId, onNext }: { subtopicId: number; onNext
             </Button>
           </div>
         </motion.div>
-      </div >
-    </div >
+      </div>
+    </div>
   )
 }
