@@ -61,14 +61,15 @@ export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
     { name: "법률", icon: "⚖️", count: "600+ 문제" }
   ];
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
-      const response = await axios.post("/account/login", {
-        username,
-        password,
-      })
+      const response = await axios.post("/account/login", { username, password },
+        {
+          headers: { "Content-Type": "application/json" }
+        })
 
       console.log("로그인 성공:", response.data)
 
@@ -78,8 +79,8 @@ export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
       localStorage.setItem("userId", response.data.userId)
       localStorage.setItem("username", response.data.username)
 
-      // 이후 메인 화면으로 이동
-      onLogin()
+      // ✅ 로그인 성공 시 홈 화면으로 이동
+      navigate("/")
     } catch (error: any) {
       console.error("로그인 실패:", error)
       alert("아이디 또는 비밀번호가 올바르지 않습니다")
@@ -264,13 +265,18 @@ export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
                     <input type="checkbox" className="rounded border-blue-300" />
                     로그인 유지
                   </label>
-                  <button type="button" className="text-blue-600 hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/forgotPassword")}
+                    className="text-blue-600 hover:underline"
+                  >
                     비밀번호 찾기
                   </button>
                 </div>
 
                 <Button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmit}
                   className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white py-6"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
