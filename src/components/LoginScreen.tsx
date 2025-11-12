@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "./api/axiosConfig"
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -22,7 +23,7 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate()
 
@@ -60,11 +61,30 @@ export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
     { name: "법률", icon: "⚖️", count: "600+ 문제" }
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // 실제로는 여기서 인증 로직을 처리합니다
-    onLogin();
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      const response = await axios.post("/account/login", {
+        username,
+        password,
+      })
+
+      console.log("로그인 성공:", response.data)
+
+      // 토큰 저장
+      localStorage.setItem("accessToken", response.data.accessToken)
+      localStorage.setItem("refreshToken", response.data.refreshToken)
+      localStorage.setItem("userId", response.data.userId)
+      localStorage.setItem("username", response.data.username)
+
+      // 이후 메인 화면으로 이동
+      onLogin()
+    } catch (error: any) {
+      console.error("로그인 실패:", error)
+      alert("아이디 또는 비밀번호가 올바르지 않습니다")
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 overflow-auto">
@@ -216,12 +236,12 @@ export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm text-gray-700 mb-2 block">이메일</label>
+                  <label className="text-sm text-gray-700 mb-2 block">아이디</label>
                   <Input
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    placeholder="아이디를 입력하세요"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="bg-white border-blue-200 focus:border-blue-400"
                     required
                   />

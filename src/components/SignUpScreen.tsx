@@ -18,6 +18,14 @@ export function SignUpScreen() {
     const [isIdInvalid, setIsIdInvalid] = useState(false);      // 8~20글자, 영어/숫자 포함 조건 확인
     const [isPasswordInvalid, setIsPasswordInvalid] = useState(false);      // 비밀번호 조건
 
+    // 예시: Step2 자격증 선택용 mock 데이터
+    const categories = [
+        { id: "정보처리기사", name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
+        { id: "컴퓨터활용능력", name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
+        { id: "SQLD", name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
+        { id: "리눅스마스터", name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
+    ]
+
     // 아이디 유효성 정규식 (영문+숫자, 8~20자)
     const idRegex = /^[A-Za-z0-9]{8,20}$/;
     // 비밀번호 정규식: 영문 + 숫자 + 특수문자 최소 1개씩 포함, 8자 이상
@@ -154,7 +162,7 @@ export function SignUpScreen() {
             });
 
             alert("이메일 인증 및 회원가입이 완료되었습니다!");
-            navigate("/login");
+            setStep(2); // 다음 단계(프로필 설정)으로 전환
         } catch (err: any) {
             alert(err.response?.data?.message || "인증 실패. 인증번호를 확인해주세요.");
             console.error("인증 실패:", err);
