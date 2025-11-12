@@ -3,9 +3,10 @@ import { useState } from "react"
 import { Card } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import { Crown, Medal, Trophy, TrendingUp } from "lucide-react"
-import { getRankColor, getRankIcon } from "../hooks/useRankingData"
+import { mockRankings, getRankColor, getRankIcon } from "../hooks/useRankingData"
 
-export function GlobalRanking({ data }: { data: any[] }) {
+export function GlobalRanking() {
+  const data = mockRankings.overall 
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
   const totalPages = Math.ceil(data.length / itemsPerPage)

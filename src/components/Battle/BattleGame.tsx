@@ -4,7 +4,7 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { Swords, Clock, Zap, X } from "lucide-react"
-import { Question } from "../../types"
+import type { Question } from "../../types"
 
 interface BattleGameProps {
   questions: Question[]

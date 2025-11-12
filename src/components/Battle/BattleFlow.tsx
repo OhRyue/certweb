@@ -6,7 +6,7 @@ import { BattleGamePractical } from "./BattleGamePractical"
 import { BattleResult } from "./BattleResult"
 import { LevelUpScreen } from "../../components/LevelUpScreen" // 경로 맞춰야 함
 import { questions as allQuestions } from "../../data/mockData"
-import { Question } from "../../types"
+import type { Question } from "../../types"
 
 type ExamType = "written" | "practical"
 

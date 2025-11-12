@@ -2,13 +2,10 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Bell, Users, Clock, Award, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-interface GoldenBellProps {
-  onJoin: (sessionId: string) => void;
-  onBack: () => void;
-}
-
-export function GoldenBell({ onJoin, onBack }: GoldenBellProps) {
+export function GoldenBell() {
+  const navigate = useNavigate()
   const activeSessions = [
     {
       id: "g1",
@@ -97,13 +94,12 @@ export function GoldenBell({ onJoin, onBack }: GoldenBellProps) {
             {myRecords.map((record, index) => (
               <Card
                 key={index}
-                className={`p-6 border-2 ${
-                  record.rank === 1
-                    ? "bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300"
-                    : record.rank <= 3
+                className={`p-6 border-2 ${record.rank === 1
+                  ? "bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300"
+                  : record.rank <= 3
                     ? "bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200"
                     : "border-gray-200"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <Badge
@@ -112,8 +108,8 @@ export function GoldenBell({ onJoin, onBack }: GoldenBellProps) {
                       record.rank === 1
                         ? "bg-yellow-100 text-yellow-700"
                         : record.rank <= 3
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-700"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-gray-100 text-gray-700"
                     }
                   >
                     {record.rank}위
@@ -141,11 +137,10 @@ export function GoldenBell({ onJoin, onBack }: GoldenBellProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-6 flex-1">
                     <div
-                      className={`w-20 h-20 rounded-full flex items-center justify-center ${
-                        session.status === "모집중"
-                          ? "bg-gradient-to-br from-blue-400 to-cyan-400"
-                          : "bg-gradient-to-br from-green-400 to-emerald-400"
-                      }`}
+                      className={`w-20 h-20 rounded-full flex items-center justify-center ${session.status === "모집중"
+                        ? "bg-gradient-to-br from-blue-400 to-cyan-400"
+                        : "bg-gradient-to-br from-green-400 to-emerald-400"
+                        }`}
                     >
                       <Bell className="w-10 h-10 text-white" />
                     </div>
@@ -203,7 +198,7 @@ export function GoldenBell({ onJoin, onBack }: GoldenBellProps) {
 
                   <div className="ml-6">
                     <Button
-                      onClick={() => onJoin(session.id)}
+                      onClick={() => navigate(`/battle/goldenbell/game/${session.id}`)}
                       disabled={session.status !== "모집중"}
                       size="lg"
                       className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white disabled:opacity-50"
@@ -242,7 +237,7 @@ export function GoldenBell({ onJoin, onBack }: GoldenBellProps) {
 
         {/* Back Button */}
         <div className="mt-8 flex justify-center">
-          <Button onClick={onBack} variant="outline" className="border-2">
+          <Button onClick={() => navigate("/battle")} variant="outline" className="border-2">
             뒤로 가기
           </Button>
         </div>

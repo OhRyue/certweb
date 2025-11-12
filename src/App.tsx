@@ -24,12 +24,12 @@ import { WeaknessQuiz } from "./components/SoloPractice/WeaknessQuiz"
 import { BattleDashboard } from "./components/Battle/BattleDashboard"
 import { OneVsOneBattle } from "./components/Battle/OneVsOneBattle"
 import { OneVsOneMatching } from "./components/Battle/OneVsOneMatching"
-import { BattleGame } from "./components/Battle/BattleGame"
 import { BattleResult } from "./components/Battle/BattleResult"
-import { Tournament } from "./components/Battle/Tournament"
-import { TournamentBracket } from "./components/Battle/TournamentBracket"
+// import { Tournament } from "./components/Battle/Tournament"
+// import { TournamentBracket } from "./components/Battle/TournamentBracket"
 import { GoldenBell } from "./components/Battle/GoldenBell"
 import { GoldenBellGame } from "./components/Battle/GoldenBellGame"
+import { GoldenBellGameWrapper } from "./components/Battle/GoldenBellGameWrapper"
 
 // Community
 import { CommunityDashboard } from "./components/Community/CommunityDashboard"
@@ -39,7 +39,7 @@ import { CommunityDetailModal } from "./components/Community/CommunityDetailModa
 import { RankBadgeDashboard } from "./components/RankBadge/RankBadgeDashboard"
 import { GlobalRanking } from "./components/RankBadge/ranking/GlobalRanking"
 import { WeeklyRanking } from "./components/RankBadge/ranking/WeeklyRanking"
-import { HallOfFame } from "./components/RankBadge/ranking/HallOfFame"
+import { HallOfFame } from "./components/RankBadge/ranking/HallofFame"
 
 // Others
 import { ReportDashboard } from "./components/Report/ReportDashboard"
@@ -48,7 +48,7 @@ import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
 import { ShopDashboard } from "./components/Shop/ShopDashboard"
 import { LevelUpScreen } from "./components/LevelUpScreen"
 import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
-import { subjects, userProfile, userSettings, shopItems, questions } from "./data/mockData"
+import { subjects } from "./data/mockData"
 
 import { useState } from "react"
 import {
@@ -157,32 +157,13 @@ function InnerApp({
           <Route path="/battle/onevsone/matching" element={<OneVsOneMatching />} />
           <Route path="/battle/start" element={<BattleFlow />} />
           <Route path="/battle/result" element={<BattleResult />} />
-          <Route path="/battle/tournament" element={<Tournament />} />
-          <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
-          <Route
-            path="/battle/goldenbell"
-            element={
-              <GoldenBell
-                onJoin={(sessionId) => navigate(`/battle/goldenbell/game/${sessionId}`)}
-                onBack={() => navigate(-1)}
-              />
-            }
-          />
+          {/* <Route path="/battle/tournament" element={<Tournament />} /> */}
+          {/* <Route path="/battle/tournament/bracket" element={<TournamentBracket />} /> */}
+          <Route path="/battle/goldenbell" element={<GoldenBell />} />
           <Route
             path="/battle/goldenbell/game/:sessionId"
-            element={
-              <GoldenBellGame
-                sessionId="g1" // 임시값
-                onComplete={(survived, rank) => {
-                  console.log("결과:", survived, rank)
-                  navigate("/battle/goldenbell") // 다시 목록으로
-                }}
-                onExit={() => navigate("/battle/goldenbell")}
-              />
-            }
+            element={<GoldenBellGameWrapper />}
           />
-
-          <Route path="/battle/goldenbell/game" element={<GoldenBellGame />} />
 
           {/* 커뮤니티 */}
           <Route path="/community" element={<CommunityDashboard />}>
@@ -203,7 +184,18 @@ function InnerApp({
             setUserPoints(prev => prev - price)
             setShopItems(prev => prev.map(item => item.id === id ? { ...item, isPurchased: true } : item))
           }} />} />
-          <Route path="/levelUp" element={<LevelUpScreen />} />
+          <Route
+            path="/levelUp"
+            element={
+              <LevelUpScreen
+                currentLevel={1}
+                currentExp={50}
+                earnedExp={30}
+                expPerLevel={100}
+                onComplete={() => console.log("레벨업 완료")}
+              />
+            }
+          />
           <Route path="/levelUp-d" element={<LevelUpScreenDemo />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />

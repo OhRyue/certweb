@@ -2,22 +2,19 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Trophy, TrendingUp, Award, RotateCcw, Home } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-interface BattleResultProps {
-  myScore: number;
-  opponentScore: number;
-  opponentName: string;
-  onRematch: () => void;
-  onBackToDashboard: () => void;
-}
+export function BattleResult() {
+  const navigate = useNavigate()
+  const location = useLocation() as {
+    state: {
+      myScore: number
+      opponentScore: number
+      opponentName: string
+    }
+  }
 
-export function BattleResult({
-  myScore,
-  opponentScore,
-  opponentName,
-  onRematch,
-  onBackToDashboard,
-}: BattleResultProps) {
+  const { myScore, opponentScore, opponentName } = location.state
   const isWin = myScore > opponentScore;
   const isDraw = myScore === opponentScore;
   const xpGained = isWin ? 100 : isDraw ? 50 : 30;
@@ -148,7 +145,7 @@ export function BattleResult({
         {/* Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Button
-            onClick={onRematch}
+            onClick={() => navigate("/battle/start")}
             variant="outline"
             className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
           >
@@ -156,7 +153,7 @@ export function BattleResult({
             재대결
           </Button>
           <Button
-            onClick={onBackToDashboard}
+            onClick={() => navigate("/battle")}
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
           >
             <Home className="w-4 h-4 mr-2" />

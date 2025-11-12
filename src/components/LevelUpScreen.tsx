@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Progress } from "./ui/progress";
-import { Sparkles, Trophy, Star, Award, Crown } from "lucide-react";
+import { Sparkles, Star } from "lucide-react";
 
 interface LevelUpScreenProps {
   currentLevel: number;

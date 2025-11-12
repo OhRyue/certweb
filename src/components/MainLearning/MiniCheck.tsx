@@ -5,7 +5,7 @@ import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight } from "lucide-react";
-import { Question } from "../../types";
+import type { Question } from "../../types";
 
 interface MiniCheckProps {
   questions: Question[];

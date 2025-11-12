@@ -4,7 +4,7 @@ import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react"
-import { Subject, MainTopic, SubTopic } from "../../types"
+import type { Subject, MainTopic } from "../../types"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 

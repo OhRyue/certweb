@@ -5,11 +5,6 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { 
   Sparkles, 
-  BookOpen, 
-  Trophy, 
-  Users, 
-  TrendingUp,
-  Target,
   Zap,
   CheckCircle2
 } from "lucide-react";

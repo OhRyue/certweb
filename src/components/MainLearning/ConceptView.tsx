@@ -4,7 +4,7 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { motion } from "motion/react"
 import { BookOpen, ArrowRight, Lightbulb } from "lucide-react"
-import { Concept } from "../../types"
+import type { Concept } from "../../types"
 
 interface ConceptViewProps {
   concepts: Concept[] // ✅ 여러 개의 개념 받기

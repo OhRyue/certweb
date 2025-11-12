@@ -3,13 +3,7 @@ import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Users } from "lucide-react";
 import { motion } from "motion/react";
-import { useNavigate } from "react-router-dom";
-
-interface BattleMatchingProps {
-  topicName: string;
-  difficulty: string;
-  onMatchFound: (opponentId: string, opponentName: string) => void;
-}
+import { useLocation, useNavigate } from "react-router-dom";
 
 // 가능한 상대 목록 (Mock)
 const potentialOpponents = [
@@ -23,11 +17,13 @@ const potentialOpponents = [
   { id: "opp8", name: "파이썬러버", level: 14, avatar: "🐍", winRate: 85 },
 ];
 
-export function OneVsOneMatching({ topicName, difficulty, onMatchFound }: BattleMatchingProps) {
+export function OneVsOneMatching() {
   const [matchingProgress, setMatchingProgress] = useState(0);
   const [step, setStep] = useState<"matching" | "matched">("matching");
   const [matchedOpponent, setMatchedOpponent] = useState<any>(null);
   const navigate = useNavigate();
+  const location = useLocation() as any   // 임시
+  const { topicName, difficulty } = location.state || { topicName: "미정", difficulty: "medium" }
 
   const getDifficultyColor = (diff: string) => {
     switch (diff) {

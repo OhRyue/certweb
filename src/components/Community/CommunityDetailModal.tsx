@@ -4,9 +4,7 @@ import { mockPosts, mockComments } from "./community.mocks"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Textarea } from "../ui/textarea"
-import { Label } from "../ui/label"
-import { Switch } from "../ui/switch"
-import { X, Heart, MessageCircle, Eye, Clock, Send, ThumbsUp, Pin, Share2 } from "lucide-react"
+import { X, Heart, MessageCircle, Eye, Send, ThumbsUp, Share2 } from "lucide-react"
 
 export function CommunityDetailModal() {
   const navigate = useNavigate()

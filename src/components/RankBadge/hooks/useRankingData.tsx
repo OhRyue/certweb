@@ -1,4 +1,4 @@
-import { ReactElement } from "react"
+import type { ReactElement } from "react"
 import { Crown, Medal, Trophy } from "lucide-react"
 
 export const mockRankings = {

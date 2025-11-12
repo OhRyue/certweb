@@ -2,12 +2,14 @@ import { motion } from "motion/react"
 import { Card } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import { Star, Sparkles, Medal, Crown } from "lucide-react"
-import { getRankColor } from "../hooks/useRankingData"
+import { mockRankings, getRankColor } from "../hooks/useRankingData"
 
-export function HallOfFame({ data }: { data: any[] }) {
+export function HallOfFame() {
+  const data = mockRankings.hallOfFame
+
   return (
     <div className="space-y-6">
-      <Card className="p-6 border-2 border-yellow-300 bg-gradient-to-br from-yellow-100 via-amber-100 to-orange-100">
+      <Card className="p-6 border-2 border-yelloaw-300 bg-gradient-to-br from-yellow-100 via-amber-100 to-orange-100">
         <div className="text-center mb-6">
           <div className="text-6xl mb-3">🏛️</div>
           <h2 className="text-amber-900 mb-2">명예의 전당</h2>

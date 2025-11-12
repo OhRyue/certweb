@@ -1,4 +1,4 @@
-import { Topic, Question, Concept, UserProfile, UserSettings, UserStats, ExamSchedule, ShopItem } from "../types";
+import type { Topic, Question, Concept, UserProfile, UserSettings, UserStats, ExamSchedule, ShopItem } from "../types";
 
 export const topics: Topic[] = [
   {

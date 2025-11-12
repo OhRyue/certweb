@@ -1,12 +1,9 @@
-// ✅ 변경 포함: 상대방 나감 오버레이 통합 버전
-
 import { useState, useEffect } from "react";
 import { Card } from "../ui/card";
-import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
-import { Swords, Clock, Zap, X, Sparkles, Target } from "lucide-react";
-import { Question } from "../../types";
+import { Swords, Clock, Sparkles, Target } from "lucide-react";
+import type { Question } from "../../types";
 import { OpponentLeftOverlay } from "./OpponentLeftOverlay"; // ✅ 추가
 
 interface BattleGameWrittenProps {

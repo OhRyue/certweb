@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, Outlet, useParams } from "react-router-dom"
+import { useNavigate, Outlet } from "react-router-dom"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs"
 import { MessageSquare } from "lucide-react"
 import { AnimatePresence } from "motion/react"

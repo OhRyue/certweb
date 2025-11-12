@@ -6,12 +6,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
 import { Label } from "../ui/label"
 import { useNavigate } from "react-router-dom"
 
-interface DifficultyQuizProps {
-  onStart: (difficulty: string, count: number, examType: "written" | "practical") => void
-  onBack: () => void
-}
-
-export function DifficultyQuiz({ onStart, onBack }: DifficultyQuizProps) {
+export function DifficultyQuiz() {
   const [difficulty, setDifficulty] = useState("easy")      // 난이도 상태
   const [questionCount, setQuestionCount] = useState("20")  // 문제 수 상태
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")  // 필기 / 실기 토글
@@ -31,9 +26,6 @@ export function DifficultyQuiz({ onStart, onBack }: DifficultyQuizProps) {
   }
 
   // 퀴즈 시작
-  const handleStart = () => {
-    onStart(difficulty, parseInt(questionCount), selectedExamType)
-  }
   const navigate = useNavigate()
 
   return (

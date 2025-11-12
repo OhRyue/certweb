@@ -1,35 +1,20 @@
 import { useState } from "react"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
 import { Label } from "../ui/label"
-import { Swords, ArrowLeft, Target, ChevronRight, ChevronDown } from "lucide-react"
+import { Swords, Target, ChevronRight, ChevronDown } from "lucide-react"
 import { subjects } from "../../data/mockData"
 import { useNavigate } from "react-router-dom"
-
-interface OneVsOneBattleProps {
-  onStartMatching: (
-    subTopicId: number,
-    subTopicName: string,
-    difficulty: string,
-    examType: "written" | "practical"
-  ) => void
-  onBack: () => void
-}
 
 export function OneVsOneBattle() {
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
-  const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
-
   // SubTopic 선택 (Detail 선택 제거)
   const [selectedSubTopicId, setSelectedSubTopicId] = useState<number | null>(null)
   const [selectedSubTopicName, setSelectedSubTopicName] = useState<string>("")
-
   const [difficulty, setDifficulty] = useState("medium")
-
   const currentSubjects = subjects.filter(s => s.examType === selectedExamType)
 
   const getDifficultyColor = (diff: string) => {

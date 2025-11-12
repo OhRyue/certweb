@@ -22,6 +22,7 @@ export interface SubTopic {
   id: number;
   name: string;
   details: Detail[];
+  completed?: boolean 
 }
 
 export interface MainTopic {
