@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Button } from "../ui/button";
-import { Card } from "../ui/card";
-import { Input } from "../ui/input";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
+import { Button } from "../../ui/button";
+import { Card } from "../../ui/card";
+import { Input } from "../../ui/input";
+import { Badge } from "../../ui/badge";
+import { Progress } from "../../ui/progress";
 import { Bell, Trophy, Clock, Users } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import type { GoldenBellCharacter, CanvasEffect } from "../../types";
+import type { GoldenBellCharacter, CanvasEffect } from "../../../types";
 import { CharacterGrid } from "./CharacterGrid";
 import { EffectCanvas } from "./EffectCanvas";
 

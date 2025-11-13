@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import type { GoldenBellCharacter } from "../../types";
+import type { GoldenBellCharacter } from "../../../types";
 
 interface CharacterGridProps {
   characters: GoldenBellCharacter[];

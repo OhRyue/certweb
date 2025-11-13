@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react"
-import { Card } from "../ui/card"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
-import { Progress } from "../ui/progress"
+import { Card } from "../../../ui/card"
+import { Button } from "../../../ui/button"
+import { Badge } from "../../../ui/badge"
+import { Progress } from "../../../ui/progress"
 import { Swords, Clock, Zap, X } from "lucide-react"
-import type { Question } from "../../types"
+import type { Question } from "../../../../types"
 
 interface BattleGameProps {
   questions: Question[]
@@ -25,6 +25,16 @@ export function BattleGame({ questions, opponentName, onComplete, onExit }: Batt
   const totalQuestions = questions.length
   const question = questions[currentQuestion]
 
+  // Timer
+  useEffect(() => {
+    if (timeLeft === 0 && !isAnswered) {
+      handleAnswer(null)
+      return
+    }
+    const timer = setInterval(() => setTimeLeft(prev => Math.max(0, prev - 1)), 1000)
+    return () => clearInterval(timer)
+  }, [timeLeft, isAnswered])
+
   // questions가 비었거나 로딩 중이면 예외처리
   // 질문 데이터 안정성 체크
   if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -37,15 +47,6 @@ export function BattleGame({ questions, opponentName, onComplete, onExit }: Batt
   }
   if (!question) return null
 
-  // Timer
-  useEffect(() => {
-    if (timeLeft === 0 && !isAnswered) {
-      handleAnswer(null)
-      return
-    }
-    const timer = setInterval(() => setTimeLeft(prev => Math.max(0, prev - 1)), 1000)
-    return () => clearInterval(timer)
-  }, [timeLeft, isAnswered])
 
   // 정답 판별 함수
   const isCorrectAnswer = (answer: string | null) => {

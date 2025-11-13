@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Card } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
+import { Card } from "../../../ui/card";
+import { Badge } from "../../../ui/badge";
+import { Progress } from "../../../ui/progress";
 import { Swords, Clock, Sparkles, Target } from "lucide-react";
-import type { Question } from "../../types";
-import { OpponentLeftOverlay } from "./OpponentLeftOverlay"; // ✅ 추가
+import type { Question } from "../../../../types";
+import { OpponentLeftOverlay } from "../../OpponentLeftOverlay"; // ✅ 추가
 
 interface BattleGameWrittenProps {
     questions: Question[];

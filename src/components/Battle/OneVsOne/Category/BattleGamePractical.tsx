@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
-import { Input } from "../ui/input";
+import { Card } from "../../../ui/card";
+import { Button } from "../../../ui/button";
+import { Badge } from "../../../ui/badge";
+import { Progress } from "../../../ui/progress";
+import { Input } from "../../../ui/input";
 import { Swords, Clock, Zap, Sparkles, Target } from "lucide-react";
-import type { Question } from "../../types";
-import { OpponentLeftOverlay } from "./OpponentLeftOverlay"; // ✅ 추가
+import type { Question } from "../../../../types";
+import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
 
 interface BattleGamePracticalProps {
   questions: Question[];

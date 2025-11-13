@@ -286,11 +286,11 @@ export function SignUpScreen() {
                                             {formData.userId && (
                                                 <div className="text-[10px]">
                                                     {isCheckingId ? (
-                                                        <p className="text-gray-500">⏳ 확인 중</p>
+                                                        <p className="text-xs text-gray-500 flex items-center gap-1">⏳ 확인 중</p>
                                                     ) : idAvailable === true ? (
-                                                        <p className="text-green-600">✅ 사용 가능한 아이디입니다</p>
+                                                        <p className="text-xs text-green-600 flex items-center gap-1"> <CheckCircle2 className="w-3 h-3" /> 사용 가능한 아이디입니다</p>
                                                     ) : idAvailable === false ? (
-                                                        <p className="text-red-600">❌ 이미 사용 중인 아이디에요</p>
+                                                        <p className="text-xs text-red-600 flex items-center gap-1">❌ 이미 사용 중인 아이디에요</p>
                                                     ) : null}
                                                 </div>
                                             )}
@@ -463,7 +463,7 @@ export function SignUpScreen() {
                                     disabled={!isStep1Valid}
                                     className="w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-6 disabled:opacity-50"
                                 >
-                                    다음 단계
+                                    회원가입 완료
                                     <ArrowRight className="w-4 h-4 ml-2" />
                                 </Button>
                             </Card>

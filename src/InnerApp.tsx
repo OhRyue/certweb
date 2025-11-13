@@ -23,14 +23,25 @@ import { WeaknessQuiz } from "./components/SoloPractice/WeaknessQuiz"
 
 // Battle
 import { BattleDashboard } from "./components/Battle/BattleDashboard"
-import { OneVsOneBattle } from "./components/Battle/OneVsOneBattle"
-import { OneVsOneMatching } from "./components/Battle/OneVsOneMatching"
-import { BattleResult } from "./components/Battle/BattleResult"
+// 1대1 배틀
+import { OneVsOneDashboard } from "./components/Battle/OneVsOne/OneVsOneDashboard"
+// 카테고리
+import { CategoryBattleSelect } from "./components/Battle/OneVsOne/Category/CategoryBattleSelect"
+import { BattleFlow } from "./components/Battle/OneVsOne/Category/BattleFlow"
+import { CategoryMatching} from "./components/Battle/OneVsOne/Category/CategoryMatching"
+// 난이도
+import { DifficultyBattleSelect } from "./components/Battle/OneVsOne/Difficulty/DifficultyBattleSelect"
+import { DifficultyBattleFlow } from "./components/Battle/OneVsOne/Difficulty/DifficultyBattleFlow"
+import { DifficultyMatching } from "./components/Battle/OneVsOne/Difficulty/DifficultyMatching"
+//기타
+import { BattleResult } from "./components/Battle/OneVsOne/Category/BattleResult"
+// 토너먼트
 // import { Tournament } from "./components/Battle/Tournament"
 // import { TournamentBracket } from "./components/Battle/TournamentBracket"
-import { GoldenBell } from "./components/Battle/GoldenBell"
-import { GoldenBellGameWrapper } from "./components/Battle/GoldenBellGameWrapper"
-import { BattleFlow } from "./components/Battle/BattleFlow"
+// 골든벨
+import { GoldenBell } from "./components/Battle/Goldenbell/GoldenBell"
+import { GoldenBellGameWrapper } from "./components/Battle/Goldenbell/GoldenBellGameWrapper"
+
 
 // Community
 import { CommunityDashboard } from "./components/Community/CommunityDashboard"
@@ -104,10 +115,14 @@ export default function InnerApp() {
 
           {/* 배틀 */}
           <Route path="/battle" element={<BattleDashboard />} />
-          <Route path="/battle/onevsone" element={<OneVsOneBattle />} />
-          <Route path="/battle/onevsone/matching" element={<OneVsOneMatching />} />
-          <Route path="/battle/start" element={<BattleFlow />} />
+          <Route path="/battle/onevsone/dashboard" element={<OneVsOneDashboard/>}/>
+          <Route path="battle/onevsone/category/select" element={<CategoryBattleSelect/>}/>
+          <Route path="/battle/onevsone/category/matching" element={<CategoryMatching />} />
+          <Route path="/battle/onevsone/difficulty/start" element={<DifficultyBattleFlow/>}/>
+          <Route path="/battle/onevsone/category/start" element={<BattleFlow />} />
           <Route path="/battle/result" element={<BattleResult />} />
+          <Route path="battle/onevsone/difficulty/select" element={<DifficultyBattleSelect/>}/>
+          <Route path="battle/onevsone/difficulty/matching" element={<DifficultyMatching/>}/>
           {/* <Route path="/battle/tournament" element={<Tournament />} /> */}
           {/* <Route path="/battle/tournament/bracket" element={<TournamentBracket />} /> */}
           <Route path="/battle/goldenbell" element={<GoldenBell />} />
@@ -115,6 +130,7 @@ export default function InnerApp() {
             path="/battle/goldenbell/game/:sessionId"
             element={<GoldenBellGameWrapper />}
           />
+
 
           {/* 커뮤니티 */}
           <Route path="/community" element={<CommunityDashboard />}>

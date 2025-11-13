@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Card } from "../ui/card";
-import { Badge } from "../ui/badge";
+import { Card } from "../../../ui/card";
+import { Badge } from "../../../ui/badge";
 import { Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -17,7 +17,7 @@ const potentialOpponents = [
   { id: "opp8", name: "파이썬러버", level: 14, avatar: "🐍", winRate: 85 },
 ];
 
-export function OneVsOneMatching() {
+export function CategoryMatching() {
   const [matchingProgress, setMatchingProgress] = useState(0);
   const [step, setStep] = useState<"matching" | "matched">("matching");
   const [matchedOpponent, setMatchedOpponent] = useState<any>(null);
@@ -66,7 +66,7 @@ export function OneVsOneMatching() {
 
       // 1.5초 후 자동으로 게임 시작
       setTimeout(() => {
-        navigate("/battle/start", {
+        navigate("/battle/onevsone/category/start", {
           state: {
             opponentName: randomOpponent.name,
             topicName: topicName,   // topicId 대신 topicName 사용
