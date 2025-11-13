@@ -3,12 +3,8 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { BarChart3, TrendingUp, TrendingDown, Clock, Target, Sparkles, FileText, Code } from "lucide-react";
-
-interface ReportDashboardProps {
-  onViewDetails: (resultId: string) => void;
-}
 
 // Mock data - 필기
 const tagStatsWritten = [
@@ -35,7 +31,7 @@ const recentResults = [
   { id: "r4", type: "Micro", topic: "객체지향", date: "2025-10-19", score: 67, total: 9 },
 ];
 
-export function ReportDashboard({ onViewDetails }: ReportDashboardProps) {
+export function ReportDashboard() {
   const [examType, setExamType] = useState<"written" | "practical">("written");
   const tagStats = examType === "written" ? tagStatsWritten : tagStatsPractical;
 
@@ -194,7 +190,6 @@ export function ReportDashboard({ onViewDetails }: ReportDashboardProps) {
                   <div
                     key={result.id}
                     className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                    onClick={() => onViewDetails(result.id)}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <Badge

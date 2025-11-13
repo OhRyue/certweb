@@ -6,8 +6,6 @@ import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { Slider } from "../ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Avatar } from "../ui/avatar";
-import { Badge } from "../ui/badge";
 import { Settings, User, Bell, Database, Save, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 

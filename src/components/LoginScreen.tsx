@@ -3,13 +3,8 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import {
-  Sparkles,
-  BookOpen,
-  Trophy,
-  Users,
-  TrendingUp,
-  Target,
+import { 
+  Sparkles, 
   Zap,
   CheckCircle2
 } from "lucide-react";

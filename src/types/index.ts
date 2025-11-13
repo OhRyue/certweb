@@ -139,3 +139,21 @@ export interface ShopItem {
   rarity: "common" | "rare" | "epic" | "legendary"
   isPurchased: boolean
 }
+
+// Golden Bell Game Types
+export interface GoldenBellCharacter {
+  id: number;
+  name: string;
+  status: "normal" | "correct" | "wrong" | "eliminated";
+  gridPosition: { row: number; col: number };
+  answer?: string; // Character's answer
+  showAnswer?: boolean; // Show answer bubble
+}
+
+export interface CanvasEffect {
+  id: string;
+  type: "radial-light" | "particles" | "spotlight";
+  timestamp: number;
+  position?: { x: number; y: number };
+  data?: any;
+}

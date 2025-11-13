@@ -12,11 +12,10 @@ import {
   Flame,
   Star,
   Award,
-  Sparkles,
   ChevronRight
 } from "lucide-react";
 import { examSchedules, mockRankingData, categoryProgress } from "../data/mockData";
-import { UserProfile } from "../types";
+import type { UserProfile } from "../types";
 
 interface HomeDashboardProps {
   userProfile: UserProfile;

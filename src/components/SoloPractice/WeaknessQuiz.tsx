@@ -3,18 +3,13 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { Label } from "../ui/label";
-import { Heart, TrendingDown, Sparkles, Play, AlertCircle, FileText, Code } from "lucide-react";
+import { Heart, TrendingDown, Play, FileText, Code } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-interface WeaknessQuizProps {
-  onStart: (weakTags: string[], count: number, examType: "written" | "practical") => void;
-  onBack: () => void;
-}
-
-export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
+export function WeaknessQuiz() {
   const [questionCount, setQuestionCount] = useState("20");
   const [examType, setExamType] = useState<"written" | "practical">("written");
 
@@ -37,13 +32,6 @@ export function WeaknessQuiz({ onStart, onBack }: WeaknessQuizProps) {
   ];
 
   const weaknessTags = examType === "written" ? weaknessTagsWritten : weaknessTagsPractical;
-
-  const handleStart = () => {
-    const weakTags = weaknessTags
-      .filter(t => t.weaknessLevel >= 70)
-      .map(t => t.tag);
-    onStart(weakTags, parseInt(questionCount), examType);
-  };
   const navigate = useNavigate()
 
   return (

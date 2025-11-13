@@ -3,7 +3,7 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { ShopItem } from "../../types";
+import type { ShopItem } from "../../types";
 import { 
   ShoppingBag, 
   Sparkles, 

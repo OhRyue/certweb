@@ -1,16 +1,26 @@
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import axios from "axios"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
-import { BookOpen, CheckCircle2, ListChecks, Sparkles, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react"
-import { Subject, MainTopic, SubTopic, Detail } from "../../types"
-import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import axios from "axios"
+import {
+  BookOpen,
+  CheckCircle2,
+  ListChecks,
+  Sparkles,
+  ChevronRight,
+  ChevronDown,
+  FileText,
+  Keyboard,
+} from "lucide-react"
+import type { Subject, MainTopic, SubTopic } from "../../types"
 
-// 추가 백엔드 토픽 타입과 트리 빌더
+// 백엔드 토픽 타입
 type ExamMode = "WRITTEN" | "PRACTICAL"
+
 interface RawTopic {
   id: number
   parentId: number | null
@@ -20,65 +30,73 @@ interface RawTopic {
   children?: RawTopic[]
 }
 
+// 트리 빌더
 function buildTree(data: RawTopic[]) {
   const map = new Map<number, RawTopic>()
   const roots: RawTopic[] = []
-  data.forEach(it => map.set(it.id, { ...it, children: [] }))
-  data.forEach(it => {
-    if (it.parentId === null) roots.push(map.get(it.id)!)
-    else {
-      const p = map.get(it.parentId)
-      if (p) p.children!.push(map.get(it.id)!)
+
+  data.forEach(item => {
+    map.set(item.id, { ...item, children: [] })
+  })
+
+  data.forEach(item => {
+    if (item.parentId === null) {
+      roots.push(map.get(item.id)!)
+    } else {
+      const parent = map.get(item.parentId)
+      if (parent && parent.children) {
+        parent.children.push(map.get(item.id)!)
+      }
     }
   })
-  const sortRec = (arr?: RawTopic[]) => {
-    if (!arr) return
-    arr.sort((a, b) => a.code.localeCompare(b.code))
-    arr.forEach(n => sortRec(n.children))
+
+  const sortRec = (nodes?: RawTopic[]) => {
+    if (!nodes) return
+    nodes.sort((a, b) => a.code.localeCompare(b.code))
+    nodes.forEach(n => sortRec(n.children))
   }
+
   sortRec(roots)
   return roots
 }
 
-// 트리 → 기존 Subject 구조 어댑트
+function mapExamMode(mode: ExamMode): "written" | "practical" {
+  return mode === "WRITTEN" ? "written" : "practical"
+}
+
+// 백엔드 트리 → 기존 Subject 구조로 어댑트
 function toSubjectsTree(roots: RawTopic[], targetCertification: string): Subject[] {
-  // UI 유지용 기본값
   const fallbackColor = "#8b5cf6"
   const subjectIcon = "📘"
   const mainIcon = "📂"
 
-  const mapExam = (m: ExamMode): "written" | "practical" =>
-    m === "WRITTEN" ? "written" : "practical"
-
-  // roots는 subject 레벨
   const subjects: Subject[] = roots.map(root => {
-    const mainTopics: MainTopic[] =
-      (root.children || []).map(mt => {
-        const subTopics: SubTopic[] =
-          (mt.children || []).map(st => ({
-            id: st.id,
-            name: st.title,
-            completed: false, // 백엔드에 없으니 기본 false
-          }))
+    const mainTopics: MainTopic[] = (root.children || []).map(mt => {
+      const subTopics: SubTopic[] = (mt.children || []).map(st => ({
+        id: st.id,
+        name: st.title,
+        completed: false,
+        details: [], // UI에서 안 쓸 거라 비워둠
+      }))
 
-        return {
-          id: mt.id,
-          name: mt.title,
-          color: fallbackColor,
-          icon: mainIcon,
-          reviewCompleted: false, // 백엔드에 없으니 기본 false
-          subTopics,
-        }
-      })
+      return {
+        id: mt.id,
+        name: mt.title,
+        subTopics,
+        icon: mainIcon,
+        color: fallbackColor,
+        reviewCompleted: false,
+      }
+    })
 
     return {
       id: root.id,
-      category: targetCertification, // 기존 필터를 위해 주입
-      examType: mapExam(root.examMode),
       name: root.title,
-      color: fallbackColor,
-      icon: subjectIcon,
+      category: targetCertification,
+      examType: mapExamMode(root.examMode),
       mainTopics,
+      icon: subjectIcon,
+      color: fallbackColor,
     }
   })
 
@@ -87,47 +105,49 @@ function toSubjectsTree(roots: RawTopic[], targetCertification: string): Subject
 
 interface MainLearningDashboardProps {
   targetCertification: string
-  onStartMicro: (detailId: number, detailName: string, examType: "written" | "practical") => void
-  onStartReview: (mainTopicId: number, mainTopicName: string, examType: "written" | "practical") => void
 }
 
-export function MainLearningDashboard({ targetCertification, onStartMicro, onStartReview }: MainLearningDashboardProps) {
+export function MainLearningDashboard({ targetCertification }: MainLearningDashboardProps) {
   const navigate = useNavigate()
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
-  const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
 
-  // 백엔드에서 데이터 불러오기
+  // 백엔드에서 트리 데이터 불러오기
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        // 변경점 api 경로와 어댑트
-        const res = await axios.get(`/api/study/topics`)
-        const tree = buildTree(res.data as RawTopic[])
+        const res = await axios.get<RawTopic[]>("/api/study/topics")
+        const tree = buildTree(res.data)
         const adapted = toSubjectsTree(tree, targetCertification)
         setSubjects(adapted)
       } catch (err) {
-        console.log(err)
+        console.error(err)
         setError("데이터를 불러오는 중 오류가 발생했습니다")
       } finally {
         setLoading(false)
       }
     }
+
     fetchSubjects()
   }, [targetCertification])
 
-  if (loading) return <div className="p-8 text-center text-gray-500">불러오는 중...</div>
-  if (error) return <div className="p-8 text-center text-red-500">{error}</div>
+  if (loading) {
+    return <div className="p-8 text-center text-gray-500">불러오는 중...</div>
+  }
 
-  // 기존 필터 그대로 유지
+  if (error) {
+    return <div className="p-8 text-center text-red-500">{error}</div>
+  }
+
+  // 필기/실기 필터
   const currentSubjects = subjects.filter(
-    s => s.category === targetCertification && s.examType === selectedExamType
+    s => s.category === targetCertification && s.examType === selectedExamType,
   )
 
-  // 진행률 계산 그대로 유지
+  // 진행률 계산 (subTopic 기준)
   const calculateProgress = () => {
     let totalSubTopics = 0
     let completedSubTopics = 0
@@ -141,12 +161,13 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
       })
     })
 
-    const progress = totalSubTopics > 0 ? Math.round((completedSubTopics / totalSubTopics) * 100) : 0
+    const progress =
+      totalSubTopics > 0 ? Math.round((completedSubTopics / totalSubTopics) * 100) : 0
     return { progress, completedSubTopics, totalSubTopics }
   }
 
   const isMainTopicCompleted = (mainTopic: MainTopic) => {
-    return mainTopic.subTopics.every(sub => sub.completed)
+    return mainTopic.subTopics.length > 0 && mainTopic.subTopics.every(sub => sub.completed)
   }
 
   const { progress, completedSubTopics, totalSubTopics } = calculateProgress()
@@ -161,7 +182,6 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
     )
   }
 
-  // 아래부터는 네 UI 그대로 유지
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
@@ -210,14 +230,28 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
               </div>
               <div className="flex-1">
                 <h3 className="text-blue-900 mb-2">Micro 학습</h3>
-                <p className="text-gray-700 text-sm mb-3">개념 학습 → OX 미니체크 → 문제풀이</p>
+                <p className="text-gray-700 text-sm mb-3">
+                  개념 학습 → OX 미니체크 → 문제풀이
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="bg-white/60">개념 보기</Badge>
-                  <Badge variant="secondary" className="bg-white/60">OX 4문항</Badge>
-                  <Badge variant="secondary" className="bg-white/60">문제 5문항</Badge>
-                  {selectedExamType === "practical"
-                    ? <Badge variant="secondary" className="bg-orange-100 text-orange-700">AI 채점 + AI 해설</Badge>
-                    : <Badge variant="secondary" className="bg-blue-100 text-blue-700">AI 해설</Badge>}
+                  <Badge variant="secondary" className="bg-white/60">
+                    개념 보기
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white/60">
+                    OX 4문항
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white/60">
+                    문제 5문항
+                  </Badge>
+                  {selectedExamType === "practical" ? (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                      AI 채점 + AI 해설
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                      AI 해설
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -232,12 +266,24 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                 <h3 className="text-blue-900 mb-2">Review 총정리</h3>
                 <p className="text-gray-700 text-sm mb-3">종합 문제 풀이와 AI 요약</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedExamType === "practical"
-                    ? <Badge variant="secondary" className="bg-white/60">문제 10문항</Badge>
-                    : <Badge variant="secondary" className="bg-white/60">문제 20문항</Badge>}
-                  {selectedExamType === "practical"
-                    ? <Badge variant="secondary" className="bg-orange-100 text-orange-700">AI 채점 + AI 해설</Badge>
-                    : <Badge variant="secondary" className="bg-blue-100 text-blue-700">AI 해설</Badge>}
+                  {selectedExamType === "practical" ? (
+                    <Badge variant="secondary" className="bg-white/60">
+                      문제 10문항
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-white/60">
+                      문제 20문항
+                    </Badge>
+                  )}
+                  {selectedExamType === "practical" ? (
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                      AI 채점 + AI 해설
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                      AI 해설
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -256,7 +302,11 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
             <div className="flex items-center gap-2">
               <Badge
                 variant="secondary"
-                className={selectedExamType === "written" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}
+                className={
+                  selectedExamType === "written"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-orange-100 text-orange-700"
+                }
               >
                 {completedSubTopics} / {totalSubTopics} 완료
               </Badge>
@@ -265,7 +315,9 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
           </div>
           <Progress value={progress} className="h-3 bg-white/60" />
           <style>
-            {`.bg-white\\/60 > div {background-color: ${selectedExamType === "written" ? "#3B82F6" : "#F59E0B"} !important;}`}
+            {`.bg-white\\/60 > div {background-color: ${
+              selectedExamType === "written" ? "#3B82F6" : "#F59E0B"
+            } !important;}`}
           </style>
         </Card>
 
@@ -276,7 +328,10 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
               {/* Subject Header */}
               <div className="mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg text-3xl" style={{ backgroundColor: subject.color + "20" }}>
+                  <div
+                    className="p-3 rounded-lg text-3xl"
+                    style={{ backgroundColor: subject.color + "20" }}
+                  >
                     {subject.icon}
                   </div>
                   <div>
@@ -284,12 +339,18 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                       <h2 className="text-purple-900">{subject.name}</h2>
                       <Badge
                         variant="secondary"
-                        className={selectedExamType === "written" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}
+                        className={
+                          selectedExamType === "written"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-orange-100 text-orange-700"
+                        }
                       >
                         {selectedExamType === "written" ? "📝 필기" : "⌨️ 실기"}
                       </Badge>
                     </div>
-                    <p className="text-gray-600 text-sm">{subject.mainTopics.length}개 학습 주제</p>
+                    <p className="text-gray-600 text-sm">
+                      {subject.mainTopics.length}개 학습 주제
+                    </p>
                   </div>
                 </div>
               </div>
@@ -297,34 +358,44 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
               {/* Main Topics */}
               <div className="space-y-4">
                 {subject.mainTopics.map(mainTopic => (
-                  <Card key={mainTopic.id} className="overflow-hidden border-2 hover:border-purple-300 transition-all">
+                  <Card
+                    key={mainTopic.id}
+                    className="overflow-hidden border-2 hover:border-purple-300 transition-all"
+                  >
                     <div
                       className="p-5 cursor-pointer bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all"
                       onClick={() =>
-                        setExpandedMainTopic(expandedMainTopic === mainTopic.id ? null : mainTopic.id)
+                        setExpandedMainTopic(
+                          expandedMainTopic === mainTopic.id ? null : mainTopic.id,
+                        )
                       }
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
                           <div
                             className="p-3 rounded-lg text-2xl"
-                            style={{ backgroundColor: mainTopic.color + "30" }}
+                            style={{ backgroundColor: (mainTopic.color || "#a855f7") + "30" }}
                           >
-                            {mainTopic.icon}
+                            {mainTopic.icon || "📂"}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-3">
                               <h3 className="text-purple-900">{mainTopic.name}</h3>
-                              <Badge variant="secondary" className="git text-purple-700">
+                              <Badge variant="secondary" className="text-purple-700">
                                 {mainTopic.subTopics.length}개 세부 주제
                               </Badge>
-                              {mainTopic.subTopics.every(s => s.completed) && (
-                                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                              {isMainTopicCompleted(mainTopic) && (
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-green-100 text-green-700"
+                                >
                                   완료
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">클릭하여 학습 내용 보기</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              클릭하여 학습 내용 보기
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -337,10 +408,11 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                                 navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
                               }
                             }}
-                            className={`text-white ${false
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                              : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-                              }`}
+                            className={`text-white ${
+                              mainTopic.reviewCompleted
+                                ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                                : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                            }`}
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
                             Review 총정리
@@ -360,10 +432,11 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                         {mainTopic.subTopics.map((subTopic, idx) => (
                           <div
                             key={subTopic.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${subTopic.completed
-                              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-                              : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
-                              }`}
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                              subTopic.completed
+                                ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+                                : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
+                            }`}
                           >
                             <div className="flex items-center gap-3">
                               {subTopic.completed ? (
@@ -378,7 +451,10 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                               <div>
                                 <span className="text-gray-800">{subTopic.name}</span>
                                 {subTopic.completed && (
-                                  <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">
+                                  <Badge
+                                    variant="secondary"
+                                    className="ml-2 bg-green-100 text-green-700"
+                                  >
                                     완료
                                   </Badge>
                                 )}
@@ -386,10 +462,10 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
                             </div>
                             <Button
                               size="sm"
-                              onClick={() => {
-                                console.log(subTopic.id)
-                                navigate(`/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}`)
-                              }
+                              onClick={() =>
+                                navigate(
+                                  `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}`,
+                                )
                               }
                               className={
                                 subTopic.completed
@@ -411,6 +487,6 @@ export function MainLearningDashboard({ targetCertification, onStartMicro, onSta
           ))}
         </div>
       </div>
-    </div >
+    </div>
   )
 }
