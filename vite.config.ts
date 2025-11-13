@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
-      'react-hook-form@7.55.0': 'react-hook-form',
       '@': path.resolve(__dirname, './src'),
     },
   },
@@ -16,7 +15,19 @@ export default defineConfig({
     outDir: 'build',
   },
   server: {
+    host: "0.0.0.0",
     port: 3000,
     open: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+    hmr: {
+      host: "localhost",
+      protocol: "ws",
+    },
   },
 });

@@ -1,92 +1,164 @@
 import { useState } from "react"
-import { Card } from "../ui/card"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
 import { motion } from "motion/react"
+import { Card } from "../ui/card"
+import { Badge } from "../ui/badge"
+import { Button } from "../ui/button"
 import { BookOpen, ArrowRight, Lightbulb } from "lucide-react"
-import type { Concept } from "../../types"
 
-interface ConceptViewProps {
-  concepts: Concept[] // ✅ 여러 개의 개념 받기
-  topicName: string
-  onNext: () => void
+interface Block {
+  type: string
+  text: string | null
+  items: string[]
+  url: string | null
+  alt: string | null
+  caption: string | null
+  headers: string[]
+  rows: string[][]
 }
 
-export function ConceptView({ concepts, topicName, onNext }: ConceptViewProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const concept = concepts[currentIndex]
-  const isLast = currentIndex === concepts.length - 1
+interface Section {
+  orderNo: number
+  subCode: string
+  title: string
+  importance: number
+  blocks: Block[]
+}
 
-  const handleNextConcept = () => {
-    if (!isLast) {
-      setCurrentIndex((prev) => prev + 1)
-    } else {
-      onNext() // 마지막 개념이면 다음 단계로 이동
-    }
+interface ConceptResponse {
+  topicId: number
+  title: string
+  sections: Section[]
+}
+
+export function ConceptView({
+  data,
+  onNext
+}: {
+  data: ConceptResponse
+  onNext: () => void
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  const section = data.sections[currentIndex]
+  const isLast = currentIndex === data.sections.length - 1
+
+  const handleNext = () => {
+    if (!isLast) setCurrentIndex((prev) => prev + 1)
+    else onNext()
   }
 
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <motion.div
-          key={concept.id} // ✅ 개념 전환 시 애니메이션 새로 적용
+          key={section.subCode}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           {/* Header */}
           <div className="mb-6">
-            <Badge className="bg-purple-500 text-white mb-3">{topicName}</Badge>
+            <Badge className="bg-purple-500 text-white mb-3">
+              {data.title}
+            </Badge>
             <div className="flex items-center gap-3 mb-2">
               <BookOpen className="w-8 h-8 text-purple-600" />
-              <h1 className="text-purple-900">{concept.title}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-purple-900">
+                  {section.title}
+                </h1>
+                <span className="text-xl">{"⭐".repeat(section.importance)}</span>
+              </div>
             </div>
             <p className="text-gray-600">
-              {concepts.length > 1
-                ? `(${currentIndex + 1}/${concepts.length})`
-                : "개념을 차근차근 학습해보세요!"}
+              ({currentIndex + 1}/{data.sections.length})
             </p>
           </div>
 
-          {/* Main Content */}
-          <Card className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="p-3 bg-purple-500 rounded-lg flex-shrink-0">
-                <Lightbulb className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-purple-900 mb-4">핵심 개념</h2>
-                <p className="text-gray-800 leading-relaxed">{concept.content}</p>
-              </div>
-            </div>
-
-            <div className="border-t-2 border-purple-200 pt-6">
-              <h3 className="text-purple-900 mb-4">주요 포인트</h3>
-              <div className="space-y-3">
-                {concept.keyPoints.map((point, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 + 0.3 }}
-                    className="flex items-start gap-3 p-4 bg-white/60 rounded-lg"
-                  >
-                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-full flex items-center justify-center">
-                      {index + 1}
-                    </div>
-                    <p className="text-gray-800 pt-1">{point}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+          {/* Content */}
+          <Card className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-8">
+            {section.blocks.map((block, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="mb-1"
+              >
+                {block.type === "heading" && (
+                  <h2 className="text-lg font-semibold text-purple-800 mb-2">
+                    {block.text}
+                  </h2>
+                )}
+                {block.type === "paragraph" && (
+                  <p className="text-gray-800 leading-relaxed">{block.text}</p>
+                )}
+                {block.type === "list" && (
+                  <ul className="list-disc list-inside text-gray-800 space-y-2 pl-3">
+                    {block.items.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+                {block.type === "table" && (
+                  <div className="overflow-x-auto mt-4">
+                    <table className="min-w-full border border-purple-200 text-sm">
+                      <thead className="bg-purple-100 text-purple-900">
+                        <tr>
+                          {block.headers.map((h, idx) => (
+                            <th key={idx} className="border px-3 py-2 text-left">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {block.rows.map((row, rIdx) => (
+                          <tr key={rIdx}>
+                            {row.map((cell, cIdx) => (
+                              <td key={cIdx} className="border px-3 py-2">
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {block.caption && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        {block.caption}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {block.type === "image" && block.url && (
+                  <div className="text-center mt-4">
+                    <img
+                      src={block.url}
+                      alt={block.alt || ""}
+                      className="rounded-lg shadow-md inline-block max-h-80"
+                    />
+                    {block.caption && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        {block.caption}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            ))}
           </Card>
 
-          {/* Tips */}
+          {/* Tip */}
           <Card className="p-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 mb-6">
             <div className="flex items-start gap-3">
-              <div className="text-2xl">💡</div>
+              <div className="p-2 bg-yellow-400 rounded-lg">
+                <Lightbulb className="w-5 h-5 text-white" />
+              </div>
               <div>
-                <h3 className="text-yellow-900 mb-2">학습 팁</h3>
+                <h3 className="text-yellow-900 font-semibold mb-2">
+                  학습 팁
+                </h3>
                 <p className="text-gray-700">
                   개념을 이해했다면 다음 단계로 넘어가 미니체크로 확인해보세요!  
                   O/X 문제를 통해 핵심 내용을 빠르게 점검할 수 있습니다.
@@ -95,10 +167,10 @@ export function ConceptView({ concepts, topicName, onNext }: ConceptViewProps) {
             </div>
           </Card>
 
-          {/* Action Button */}
+          {/* Next Button */}
           <div className="flex justify-end">
             <Button
-              onClick={handleNextConcept}
+              onClick={handleNext}
               size="lg"
               className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8"
             >

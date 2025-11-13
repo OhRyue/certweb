@@ -1,207 +1,42 @@
+// App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { Toaster } from "./components/ui/sonner"
-import { Navigation } from "./components/Navigation"
+import { useEffect, useState } from "react"
 import { LoginScreen } from "./components/LoginScreen"
-import { useNavigate } from "react-router-dom"
-
-// Home
-import { HomeDashboard } from "./components/HomeDashboard"
-
-// Main Learning
-import { MainLearningDashboard } from "./components/MainLearning/MainLearningDashboard"
-import { MicroFlowPage } from "./components/MainLearning/MicroFlowPage"
-import { ReviewFlowPage } from "./components/MainLearning/ReviewFlowPage"
-import { ReviewFlowPracticalPage } from "./components/MainLearning/ReviewFlowPracticalPage"
-
-// Solo Practice
-import { SoloPracticeDashboard } from "./components/SoloPractice/SoloPracticeDashboard"
-import { CategoryQuiz } from "./components/SoloPractice/CategoryQuiz"
-import { QuizFlowPage } from "./components/SoloPractice/QuizFlowPage"
-import { DifficultyQuiz } from "./components/SoloPractice/DifficultyQuiz"
-import { WeaknessQuiz } from "./components/SoloPractice/WeaknessQuiz"
-
-// Battle
-import { BattleDashboard } from "./components/Battle/BattleDashboard"
-import { OneVsOneBattle } from "./components/Battle/OneVsOneBattle"
-import { OneVsOneMatching } from "./components/Battle/OneVsOneMatching"
-import { BattleResult } from "./components/Battle/BattleResult"
-// import { Tournament } from "./components/Battle/Tournament"
-// import { TournamentBracket } from "./components/Battle/TournamentBracket"
-import { GoldenBell } from "./components/Battle/GoldenBell"
-import { GoldenBellGame } from "./components/Battle/GoldenBellGame"
-import { GoldenBellGameWrapper } from "./components/Battle/GoldenBellGameWrapper"
-
-// Community
-import { CommunityDashboard } from "./components/Community/CommunityDashboard"
-import { CommunityDetailModal } from "./components/Community/CommunityDetailModal"
-
-// Rank & Badge
-import { RankBadgeDashboard } from "./components/RankBadge/RankBadgeDashboard"
-import { GlobalRanking } from "./components/RankBadge/ranking/GlobalRanking"
-import { WeeklyRanking } from "./components/RankBadge/ranking/WeeklyRanking"
-import { HallOfFame } from "./components/RankBadge/ranking/HallofFame"
-
-// Others
-import { ReportDashboard } from "./components/Report/ReportDashboard"
-import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
-import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
-import { ShopDashboard } from "./components/Shop/ShopDashboard"
-import { LevelUpScreen } from "./components/LevelUpScreen"
-import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
-import { subjects } from "./data/mockData"
-
-import { useState } from "react"
-import {
-  userProfile as initialProfile,
-  userSettings as initialSettings,
-  shopItems as initialShopItems,
-} from "./data/mockData"
-import { BattleFlow } from "./components/Battle/BattleFlow"
+import { SignUpScreen } from "./components/SignUpScreen"
+import { ForgotPasswordScreen } from "./components/ForgotPasswordScreen"
+import InnerApp from "./InnerApp"
+import { Toaster } from "./components/ui/sonner"
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [userProfile, setUserProfile] = useState(initialProfile)
-  const [userSettings, setUserSettings] = useState(initialSettings)
-  const [userPoints, setUserPoints] = useState(5000)
-  const [shopItems, setShopItems] = useState(initialShopItems)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("accessToken"))
 
-  if (!isLoggedIn) {
-    return (
-      <>
-        <LoginScreen onLogin={() => setIsLoggedIn(true)} />
-        <Toaster />
-      </>
-    )
-  }
+  useEffect(() => {
+    // accessToken 존재 여부로 로그인 유지
+    const token = localStorage.getItem("accessToken")
+    if (token) setIsLoggedIn(true)
+  }, [])
 
   return (
-    // 여기서부터 BrowserRouter 안으로 navigate 이동
     <BrowserRouter>
-      <InnerApp
-        userProfile={userProfile}
-        setUserProfile={setUserProfile}
-        userSettings={userSettings}
-        setUserSettings={setUserSettings}
-        userPoints={userPoints}
-        setUserPoints={setUserPoints}
-        shopItems={shopItems}
-        setShopItems={setShopItems}
-      />
-    </BrowserRouter>
-  )
-}
+      <Routes>
+        {/* 로그인 안 해도 접근 가능한 페이지 */}
+        <Route path="/login" element={<LoginScreen onLogin={() => setIsLoggedIn(true)} />} />
+        <Route path="/signup" element={<SignUpScreen />} />
+        <Route path="/forgotPassword" element={<ForgotPasswordScreen />} />
 
-// 이건 내부 Router 영역
-function InnerApp({
-  userProfile,
-  setUserProfile,
-  userSettings,
-  setUserSettings,
-  userPoints,
-  setUserPoints,
-  shopItems,
-  setShopItems,
-}) {
-  const navigate = useNavigate()
-
-  return (
-    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50">
-      <Navigation userProfile={userProfile} userPoints={userPoints} />
-      <main className="ml-64 flex-1">
-        <Routes>
-          {/* 메인 학습 */}
-          <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
-          <Route
-            path="/learning"
-            element={
-              <MainLearningDashboard
-                subjects={subjects}
-                targetCertification={userProfile.targetCertification || "정보처리기사"}
-                onStartMicro={(id, name, type) => console.log("Micro 학습 시작:", id, name, type)}
-                onStartReview={(id, name, type) => console.log("Review 총정리:", id, name, type)}
-              />
-            }
-          />
-          <Route path="/learning/micro" element={<MicroFlowPage />} />
-          <Route path="/learning/review-written" element={<ReviewFlowPage />} />
-          <Route path="/learning/review-practical" element={<ReviewFlowPracticalPage />} />
-
-          {/* 보조 학습 */}
-          <Route
-            path="/solo"
-            element={
-              <SoloPracticeDashboard
-                onStartCategoryQuiz={() => navigate("/solo/category")}
-                onStartDifficultyQuiz={() => navigate("/solo/difficulty")}
-                onStartWeaknessQuiz={() => navigate("/solo/weakness")}
-              />
-            }
-          />
-          <Route
-            path="/solo/category"
-            element={
-              <CategoryQuiz
-                targetCertification="정보처리기사"
-                onStart={(detailIds, count) => console.log(detailIds, count)}
-                onBack={() => navigate("/solo")}
-              />
-            }
-          />
-          <Route path="/solo/play" element={<QuizFlowPage />} />
-          <Route path="/solo/difficulty" element={<DifficultyQuiz />} />
-          <Route path="/solo/weakness" element={<WeaknessQuiz />} />
-
-          {/* 배틀 */}
-          <Route path="/battle" element={<BattleDashboard />} />
-          <Route path="/battle/onevsone" element={<OneVsOneBattle />} />
-          <Route path="/battle/onevsone/matching" element={<OneVsOneMatching />} />
-          <Route path="/battle/start" element={<BattleFlow />} />
-          <Route path="/battle/result" element={<BattleResult />} />
-          {/* <Route path="/battle/tournament" element={<Tournament />} /> */}
-          {/* <Route path="/battle/tournament/bracket" element={<TournamentBracket />} /> */}
-          <Route path="/battle/goldenbell" element={<GoldenBell />} />
-          <Route
-            path="/battle/goldenbell/game/:sessionId"
-            element={<GoldenBellGameWrapper />}
-          />
-
-          {/* 커뮤니티 */}
-          <Route path="/community" element={<CommunityDashboard />}>
-            <Route path=":postId" element={<CommunityDetailModal />} />
-          </Route>
-
-          {/* 랭크 & 뱃지 */}
-          <Route path="/rankBadge" element={<RankBadgeDashboard />} />
-          <Route path="/rankBadge/global" element={<GlobalRanking />} />
-          <Route path="/rankBadge/weekly" element={<WeeklyRanking />} />
-          <Route path="/rankBadge/hall" element={<HallOfFame />} />
-
-          {/* 기타 그대로 */}
-          <Route path="/report" element={<ReportDashboard />} />
-          <Route path="/certinfo" element={<CertInfoDashboard />} />
-          <Route path="/settings" element={<SettingsDashboard userProfile={userProfile} userSettings={userSettings} onUpdateProfile={setUserProfile} onUpdateSettings={setUserSettings} />} />
-          <Route path="/shop" element={<ShopDashboard shopItems={shopItems} userPoints={userPoints} onPurchase={(id, price) => {
-            setUserPoints(prev => prev - price)
-            setShopItems(prev => prev.map(item => item.id === id ? { ...item, isPurchased: true } : item))
-          }} />} />
-          <Route
-            path="/levelUp"
-            element={
-              <LevelUpScreen
-                currentLevel={1}
-                currentExp={50}
-                earnedExp={30}
-                expPerLevel={100}
-                onComplete={() => console.log("레벨업 완료")}
-              />
-            }
-          />
-          <Route path="/levelUp-d" element={<LevelUpScreenDemo />} />
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+        {/* 로그인 필요 → 안 되어 있으면 자동으로 /login */}
+        <Route
+          path="/*"
+          element={
+            isLoggedIn ? (
+              <InnerApp />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+      </Routes>
       <Toaster />
-    </div>
+    </BrowserRouter>
   )
 }

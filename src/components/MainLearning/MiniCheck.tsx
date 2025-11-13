@@ -5,45 +5,63 @@ import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight } from "lucide-react";
-import type { Question } from "../../types";
+import axios from "axios";
+
+interface MiniQuestion {
+  questionId: number;
+  text: string;
+}
 
 interface MiniCheckProps {
-  questions: Question[];
+  questions: MiniQuestion[];
   topicName: string;
+  userId: string;
+  topicId: number;
   onComplete: (score: number) => void;
 }
 
-export function MiniCheck({ questions, topicName, onComplete }: MiniCheckProps) {
+export function MiniCheck({ questions, topicName, userId, topicId, onComplete }: MiniCheckProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [showResult, setShowResult] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<"O" | "X" | null>(null);
+  const [result, setResult] = useState<{ correct: boolean; explanation: string } | null>(null);
   const [score, setScore] = useState(0);
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
 
-  const handleAnswer = (answerIndex: number) => {
-    if (showResult) return;
-    
-    setSelectedAnswer(answerIndex);
-    setShowResult(true);
+  // 즉시 채점 (문제 하나씩 서버로 요청)
+  const handleAnswer = async (answer: "O" | "X") => {
+    if (result) return; // 이미 채점된 상태면 중복 방지
 
-    if (answerIndex === currentQuestion.correctAnswer) {
-      setScore(score + 1);
+    setSelectedAnswer(answer);
+
+    try {
+      const res = await axios.post(`/api/study/written/mini/grade-one`, {
+        userId,
+        topicId,
+        questionId: currentQuestion.questionId,
+        answer: answer === "O" // true = O, false = X
+      });
+
+      setResult(res.data); // { correct, explanation }
+
+      if (res.data.correct) {
+        setScore((prev) => prev + 1);
+      }
+    } catch (err) {
+      console.error("채점 API 에러", err);
     }
   };
 
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      setCurrentIndex((prev) => prev + 1);
       setSelectedAnswer(null);
-      setShowResult(false);
+      setResult(null);
     } else {
-      onComplete(score);
+      onComplete(score); // 전체 점수 전달
     }
   };
-
-  const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
 
   return (
     <div className="p-8">
@@ -52,105 +70,70 @@ export function MiniCheck({ questions, topicName, onComplete }: MiniCheckProps) 
         <div className="mb-6">
           <Badge className="bg-purple-500 text-white mb-3">{topicName}</Badge>
           <h1 className="text-purple-900 mb-2">미니체크 (O/X)</h1>
-          <p className="text-gray-600">개념을 제대로 이해했는지 확인해보세요!</p>
+          <p className="text-gray-600">바로 채점하고 다음 문제로 넘어가는 방식</p>
         </div>
 
         {/* Progress */}
         <Card className="p-4 mb-6 bg-white border-2 border-purple-200">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600">
-              문제 {currentIndex + 1} / {questions.length}
-            </span>
-            <span className="text-purple-600">
-              정답: {score} / {currentIndex + (showResult ? 1 : 0)}
-            </span>
+            <span>문제 {currentIndex + 1} / {questions.length}</span>
+            <span className="text-purple-600">정답: {score}</span>
           </div>
           <Progress value={progress} className="h-2" />
         </Card>
 
         {/* Question */}
-        <motion.div
-          key={currentIndex}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-        >
+        <motion.div key={currentIndex} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Card className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-6">
-            <h2 className="text-purple-900 mb-6">{currentQuestion.question}</h2>
+            <h2 className="text-purple-900 mb-6">{currentQuestion.text}</h2>
 
             <div className="grid grid-cols-2 gap-4">
-              {currentQuestion.options.map((option, index) => {
-                const isSelected = selectedAnswer === index;
-                const isCorrectAnswer = index === currentQuestion.correctAnswer;
+              {["O", "X"].map((option) => {
+                const isSelected = selectedAnswer === option;
+                const isCorrectAnswer = result?.correct && option === selectedAnswer;
 
                 let buttonClass = "p-8 text-center border-2 transition-all text-2xl";
-
-                if (!showResult) {
-                  buttonClass += " hover:border-purple-400 hover:bg-white/60 cursor-pointer";
-                } else if (isCorrectAnswer) {
-                  buttonClass += " border-green-400 bg-green-50";
-                } else if (isSelected && !isCorrect) {
-                  buttonClass += " border-red-400 bg-red-50";
-                } else {
-                  buttonClass += " opacity-50";
+                if (result === null && !isSelected) {
+                  buttonClass += " hover:border-purple-400 hover:bg-white/60";
+                } else if (result && isCorrectAnswer) {
+                  buttonClass += " border-green-400 bg-green-100";
+                } else if (result && isSelected && !result.correct) {
+                  buttonClass += " border-red-400 bg-red-100";
                 }
 
                 return (
                   <motion.button
-                    key={index}
-                    onClick={() => handleAnswer(index)}
+                    key={option}
+                    onClick={() => handleAnswer(option as "O" | "X")}
+                    disabled={!!result}
                     className={buttonClass}
-                    disabled={showResult}
-                    whileHover={!showResult ? { scale: 1.05 } : {}}
-                    whileTap={!showResult ? { scale: 0.95 } : {}}
+                    whileHover={!result ? { scale: 1.05 } : {}}
                   >
-                    <div className="mb-2">{option === "O" ? "⭕" : "❌"}</div>
-                    <div className="text-gray-800">{option}</div>
+                    {option === "O" ? "⭕" : "❌"}
                   </motion.button>
                 );
               })}
             </div>
           </Card>
 
-          {/* Explanation */}
-          {showResult && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <Card
-                className={`p-6 mb-6 border-2 ${
-                  isCorrect
-                    ? "bg-green-50 border-green-300"
-                    : "bg-red-50 border-red-300"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {isCorrect ? (
-                    <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
-                  )}
-                  <div>
-                    <h3 className={isCorrect ? "text-green-900" : "text-red-900"}>
-                      {isCorrect ? "정답이에요! 🎉" : "틀렸어요! 💪"}
-                    </h3>
-                    <p className="text-gray-700 mt-2">{currentQuestion.explanation}</p>
-                  </div>
-                </div>
-              </Card>
+          {/* 정답/해설 출력 */}
+          {result && (
+            <Card className={`p-6 mb-6 ${result.correct ? "bg-green-50" : "bg-red-50"} border-2`}>
+              <p className="font-semibold">
+                {result.correct ? "정답입니다 ✅" : "틀렸습니다 ❌"}
+              </p>
+              <p className="mt-2 text-gray-700">{result.explanation}</p>
+            </Card>
+          )}
 
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleNext}
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                >
-                  {currentIndex < questions.length - 1 ? "다음 문제" : "문제 풀이로"}
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </div>
-            </motion.div>
+          {/* 다음 버튼 */}
+          {result && (
+            <div className="flex justify-end">
+              <Button onClick={handleNext} className="bg-purple-500 text-white">
+                {currentIndex < questions.length - 1 ? "다음 문제" : "결과 보기"}
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </div>
           )}
         </motion.div>
       </div>
