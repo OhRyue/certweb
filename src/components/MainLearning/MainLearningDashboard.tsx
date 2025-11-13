@@ -18,7 +18,9 @@ import {
 } from "lucide-react"
 import type { Subject, MainTopic, SubTopic } from "../../types"
 
-// 백엔드 토픽 타입
+// -------------------------------
+// 백엔드 RawTopic 타입
+// -------------------------------
 type ExamMode = "WRITTEN" | "PRACTICAL"
 
 interface RawTopic {
@@ -30,7 +32,9 @@ interface RawTopic {
   children?: RawTopic[]
 }
 
+// -------------------------------
 // 트리 빌더
+// -------------------------------
 function buildTree(data: RawTopic[]) {
   const map = new Map<number, RawTopic>()
   const roots: RawTopic[] = []
@@ -44,9 +48,7 @@ function buildTree(data: RawTopic[]) {
       roots.push(map.get(item.id)!)
     } else {
       const parent = map.get(item.parentId)
-      if (parent && parent.children) {
-        parent.children.push(map.get(item.id)!)
-      }
+      if (parent && parent.children) parent.children.push(map.get(item.id)!)
     }
   })
 
@@ -60,23 +62,28 @@ function buildTree(data: RawTopic[]) {
   return roots
 }
 
+// -------------------------------
+// 필기/실기 맵핑
+// -------------------------------
 function mapExamMode(mode: ExamMode): "written" | "practical" {
   return mode === "WRITTEN" ? "written" : "practical"
 }
 
-// 백엔드 트리 → 기존 Subject 구조로 어댑트
-function toSubjectsTree(roots: RawTopic[], targetCertification: string): Subject[] {
+// -------------------------------
+// RawTopic 트리 → Subject 구조로 변환 (UI 유지용)
+// -------------------------------
+function toSubjectsTree(roots: RawTopic[]): Subject[] {
   const fallbackColor = "#8b5cf6"
   const subjectIcon = "📘"
   const mainIcon = "📂"
 
-  const subjects: Subject[] = roots.map(root => {
+  return roots.map(root => {
     const mainTopics: MainTopic[] = (root.children || []).map(mt => {
       const subTopics: SubTopic[] = (mt.children || []).map(st => ({
         id: st.id,
         name: st.title,
         completed: false,
-        details: [], // UI에서 안 쓸 거라 비워둠
+        details: [],
       }))
 
       return {
@@ -92,36 +99,36 @@ function toSubjectsTree(roots: RawTopic[], targetCertification: string): Subject
     return {
       id: root.id,
       name: root.title,
-      category: targetCertification,
+      category: "정보처리기사", // 필요하면 나중에 백엔드에서 받을 수도 있음
       examType: mapExamMode(root.examMode),
       mainTopics,
       icon: subjectIcon,
       color: fallbackColor,
     }
   })
-
-  return subjects
 }
 
-interface MainLearningDashboardProps {
-  targetCertification: string
-}
-
-export function MainLearningDashboard({ targetCertification }: MainLearningDashboardProps) {
+// -------------------------------
+// MainLearningDashboard 본체
+// -------------------------------
+export function MainLearningDashboard() {
   const navigate = useNavigate()
+
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
 
-  // 백엔드에서 트리 데이터 불러오기
+  // -------------------------------
+  // 백엔드에서 트리 구조 가져오기
+  // -------------------------------
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
         const res = await axios.get<RawTopic[]>("/api/study/topics")
         const tree = buildTree(res.data)
-        const adapted = toSubjectsTree(tree, targetCertification)
+        const adapted = toSubjectsTree(tree)
         setSubjects(adapted)
       } catch (err) {
         console.error(err)
@@ -132,7 +139,7 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
     }
 
     fetchSubjects()
-  }, [targetCertification])
+  }, [])
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">불러오는 중...</div>
@@ -142,42 +149,43 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
     return <div className="p-8 text-center text-red-500">{error}</div>
   }
 
-  // 필기/실기 필터
-  const currentSubjects = subjects.filter(
-    s => s.category === targetCertification && s.examType === selectedExamType,
-  )
+  // -------------------------------
+  // 현재 선택된 시험 타입만 필터링
+  // -------------------------------
+  const currentSubjects = subjects.filter(s => s.examType === selectedExamType)
 
-  // 진행률 계산 (subTopic 기준)
+  // -------------------------------
+  // 진행률 계산
+  // -------------------------------
   const calculateProgress = () => {
-    let totalSubTopics = 0
-    let completedSubTopics = 0
+    let total = 0
+    let completed = 0
 
     currentSubjects.forEach(subject => {
-      subject.mainTopics.forEach(mainTopic => {
-        mainTopic.subTopics.forEach(subTopic => {
-          totalSubTopics++
-          if (subTopic.completed) completedSubTopics++
+      subject.mainTopics.forEach(mt => {
+        mt.subTopics.forEach(st => {
+          total++
+          if (st.completed) completed++
         })
       })
     })
 
-    const progress =
-      totalSubTopics > 0 ? Math.round((completedSubTopics / totalSubTopics) * 100) : 0
-    return { progress, completedSubTopics, totalSubTopics }
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0
+    return { total, completed, percent }
   }
 
-  const isMainTopicCompleted = (mainTopic: MainTopic) => {
-    return mainTopic.subTopics.length > 0 && mainTopic.subTopics.every(sub => sub.completed)
-  }
+  const { total, completed, percent } = calculateProgress()
 
-  const { progress, completedSubTopics, totalSubTopics } = calculateProgress()
+  const isMainTopicCompleted = (mainTopic: MainTopic) =>
+    mainTopic.subTopics.length > 0 && mainTopic.subTopics.every(s => s.completed)
 
+  // -------------------------------
+  // UI 렌더링 (develop 완벽 복원)
+  // -------------------------------
   if (currentSubjects.length === 0) {
     return (
-      <div className="p-8">
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-gray-600">선택된 자격증에 대한 학습 자료가 없습니다</p>
-        </div>
+      <div className="p-8 text-center text-gray-600">
+        선택된 시험 유형에 대한 학습 자료가 없습니다
       </div>
     )
   }
@@ -185,7 +193,8 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
+
+        {/* HEADER */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -196,25 +205,19 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
               <p className="text-gray-600">체계적으로 개념을 학습하고 문제를 풀어보세요</p>
             </div>
 
-            {/* Exam Type Toggle */}
-            <Tabs
-              value={selectedExamType}
-              onValueChange={value => setSelectedExamType(value as "written" | "practical")}
-            >
+            <Tabs value={selectedExamType} onValueChange={v => setSelectedExamType(v as any)}>
               <TabsList className="bg-gradient-to-r from-purple-100 to-pink-100 p-1">
                 <TabsTrigger
                   value="written"
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-sky-500 data-[state=active]:text-white"
                 >
-                  <FileText className="w-4 h-4 mr-2" />
-                  필기
+                  <FileText className="w-4 h-4 mr-2" /> 필기
                 </TabsTrigger>
                 <TabsTrigger
                   value="practical"
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
                 >
-                  <Keyboard className="w-4 h-4 mr-2" />
-                  실기
+                  <Keyboard className="w-4 h-4 mr-2" /> 실기
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -290,7 +293,7 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
           </Card>
         </div>
 
-        {/* 전체 진행률 */}
+        {/* PROGRESS */}
         <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-8">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -308,20 +311,15 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
                     : "bg-orange-100 text-orange-700"
                 }
               >
-                {completedSubTopics} / {totalSubTopics} 완료
+                {completed} / {total} 완료
               </Badge>
-              <span className="text-purple-900">{progress}%</span>
+              <span className="text-purple-900">{percent}%</span>
             </div>
           </div>
-          <Progress value={progress} className="h-3 bg-white/60" />
-          <style>
-            {`.bg-white\\/60 > div {background-color: ${
-              selectedExamType === "written" ? "#3B82F6" : "#F59E0B"
-            } !important;}`}
-          </style>
+          <Progress value={percent} className="h-3 bg-white/60" />
         </Card>
 
-        {/* 과목 리스트 */}
+        {/* SUBJECT LIST */}
         <div className="space-y-8">
           {currentSubjects.map(subject => (
             <div key={subject.id}>
@@ -408,11 +406,10 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
                                 navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
                               }
                             }}
-                            className={`text-white ${
-                              mainTopic.reviewCompleted
+                            className={`text-white ${mainTopic.reviewCompleted
                                 ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                                 : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-                            }`}
+                              }`}
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
                             Review 총정리
@@ -432,11 +429,10 @@ export function MainLearningDashboard({ targetCertification }: MainLearningDashb
                         {mainTopic.subTopics.map((subTopic, idx) => (
                           <div
                             key={subTopic.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                              subTopic.completed
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${subTopic.completed
                                 ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
                                 : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-3">
                               {subTopic.completed ? (

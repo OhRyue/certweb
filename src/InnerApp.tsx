@@ -2,9 +2,10 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom"
 import { Navigation } from "./components/Navigation"
 import { Toaster } from "./components/ui/sonner"
+import { useState } from "react"
+import { userProfile as initialProfile, userSettings as initialSettings, shopItems as initialShopItems } from "./data/mockData"
 
-// 화면들 import
-
+// Home
 import { HomeDashboard } from "./components/HomeDashboard"
 
 // main Learning
@@ -20,9 +21,26 @@ import { QuizFlowPage } from "./components/SoloPractice/QuizFlowPage"
 import { DifficultyQuiz } from "./components/SoloPractice/DifficultyQuiz"
 import { WeaknessQuiz } from "./components/SoloPractice/WeaknessQuiz"
 
-// battle
+// Battle
 import { BattleDashboard } from "./components/Battle/BattleDashboard"
 import { OneVsOneBattle } from "./components/Battle/OneVsOneBattle"
+import { OneVsOneMatching } from "./components/Battle/OneVsOneMatching"
+import { BattleResult } from "./components/Battle/BattleResult"
+// import { Tournament } from "./components/Battle/Tournament"
+// import { TournamentBracket } from "./components/Battle/TournamentBracket"
+import { GoldenBell } from "./components/Battle/GoldenBell"
+import { GoldenBellGameWrapper } from "./components/Battle/GoldenBellGameWrapper"
+import { BattleFlow } from "./components/Battle/BattleFlow"
+
+// Community
+import { CommunityDashboard } from "./components/Community/CommunityDashboard"
+import { CommunityDetailModal } from "./components/Community/CommunityDetailModal"
+
+// Rank & Badge
+import { RankBadgeDashboard } from "./components/RankBadge/RankBadgeDashboard"
+import { GlobalRanking } from "./components/RankBadge/ranking/GlobalRanking"
+import { WeeklyRanking } from "./components/RankBadge/ranking/WeeklyRanking"
+import { HallOfFame } from "./components/RankBadge/ranking/HallofFame"
 
 // report
 import { ReportDashboard } from "./components/Report/ReportDashboard"
@@ -30,20 +48,15 @@ import { ReportDashboard } from "./components/Report/ReportDashboard"
 // cert info
 import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
 
-// community
-import { CommunityDashboard } from "./components/Community/CommunityDashboard"
-
 // setting
 import { SettingsDashboard } from "./components/Settings/SettingsDashboard"
+
 // shop
 import { ShopDashboard } from "./components/Shop/ShopDashboard"
 
 //etc
 import { LevelUpScreen } from "./components/LevelUpScreen"
 import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
-
-import { useState } from "react"
-import { userProfile as initialProfile, userSettings as initialSettings, shopItems as initialShopItems } from "./data/mockData"
 
 export default function InnerApp() {
   const navigate = useNavigate()
@@ -57,26 +70,14 @@ export default function InnerApp() {
       <Navigation userProfile={userProfile} userPoints={userPoints} />
       <main className="ml-64 flex-1">
         <Routes>
-          {/* 메인 홈 */}
-          <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
-
           {/* 메인 학습 */}
-          <Route
-            path="/learning"
-            element={
-              <MainLearningDashboard
-                subjects={[]} // 실제 데이터 연결하면 여기에 교체
-                targetCertification={userProfile.targetCertification || "정보처리기사"}
-                onStartMicro={(id, name, type) => console.log(id, name, type)}
-                onStartReview={(id, name, type) => console.log(id, name, type)}
-              />
-            }
-          />
+          <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
+          <Route path="/learning" element={<MainLearningDashboard />}/>
           <Route path="/learning/micro" element={<MicroFlowPage />} />
           <Route path="/learning/review-written" element={<ReviewFlowPage />} />
           <Route path="/learning/review-practical" element={<ReviewFlowPracticalPage />} />
 
-          {/* 혼자풀기 */}
+          {/* 보조 학습 */}
           <Route
             path="/solo"
             element={
@@ -87,21 +88,65 @@ export default function InnerApp() {
               />
             }
           />
-          <Route path="/solo/category" element={<CategoryQuiz onBack={() => navigate("/solo")} />} />
+          <Route
+            path="/solo/category"
+            element={
+              <CategoryQuiz
+                targetCertification="정보처리기사"
+                onStart={(detailIds, count) => console.log(detailIds, count)}
+                onBack={() => navigate("/solo")}
+              />
+            }
+          />
           <Route path="/solo/play" element={<QuizFlowPage />} />
           <Route path="/solo/difficulty" element={<DifficultyQuiz />} />
           <Route path="/solo/weakness" element={<WeaknessQuiz />} />
 
-          {/* 기타 */}
+          {/* 배틀 */}
+          <Route path="/battle" element={<BattleDashboard />} />
+          <Route path="/battle/onevsone" element={<OneVsOneBattle />} />
+          <Route path="/battle/onevsone/matching" element={<OneVsOneMatching />} />
+          <Route path="/battle/start" element={<BattleFlow />} />
+          <Route path="/battle/result" element={<BattleResult />} />
+          {/* <Route path="/battle/tournament" element={<Tournament />} /> */}
+          {/* <Route path="/battle/tournament/bracket" element={<TournamentBracket />} /> */}
+          <Route path="/battle/goldenbell" element={<GoldenBell />} />
+          <Route
+            path="/battle/goldenbell/game/:sessionId"
+            element={<GoldenBellGameWrapper />}
+          />
+
+          {/* 커뮤니티 */}
+          <Route path="/community" element={<CommunityDashboard />}>
+            <Route path=":postId" element={<CommunityDetailModal />} />
+          </Route>
+
+          {/* 랭크 & 뱃지 */}
+          <Route path="/rankBadge" element={<RankBadgeDashboard />} />
+          <Route path="/rankBadge/global" element={<GlobalRanking />} />
+          <Route path="/rankBadge/weekly" element={<WeeklyRanking />} />
+          <Route path="/rankBadge/hall" element={<HallOfFame />} />
+
+          {/* 기타 그대로 */}
           <Route path="/report" element={<ReportDashboard />} />
           <Route path="/certinfo" element={<CertInfoDashboard />} />
-          <Route path="/community" element={<CommunityDashboard />} />
           <Route path="/settings" element={<SettingsDashboard userProfile={userProfile} userSettings={userSettings} onUpdateProfile={setUserProfile} onUpdateSettings={setUserSettings} />} />
           <Route path="/shop" element={<ShopDashboard shopItems={shopItems} userPoints={userPoints} onPurchase={(id, price) => {
-            setUserPoints((prev) => prev - price)
-            setShopItems((prev) => prev.map(item => item.id === id ? { ...item, isPurchased: true } : item))
+            setUserPoints(prev => prev - price)
+            setShopItems(prev => prev.map(item => item.id === id ? { ...item, isPurchased: true } : item))
           }} />} />
-          <Route path="/levelUp" element={<LevelUpScreen />} />
+          <Route
+            path="/levelUp"
+            element={
+              <LevelUpScreen
+                currentLevel={1}
+                currentExp={50}
+                earnedExp={30}
+                expPerLevel={100}
+                onComplete={() => console.log("레벨업 완료")}
+              />
+            }
+          />
           <Route path="/levelUp-d" element={<LevelUpScreenDemo />} />
 
           {/* 없는 주소 → 홈으로 */}
