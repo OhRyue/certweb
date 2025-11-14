@@ -66,7 +66,7 @@ export function DifficultyMatching() {
 
       // 1.5초 후 자동으로 게임 시작
       setTimeout(() => {
-        navigate("/battle/onevsone/category/start", {
+        navigate("/battle/onevsone/difficulty/start", {
           state: {
             opponentName: randomOpponent.name,
             topicName: topicName,   // topicId 대신 topicName 사용

@@ -11,6 +11,7 @@ type ExamType = "written" | "practical"
 
 export function BattleFlow() {
   const navigate = useNavigate()
+
   const { state } = useLocation() as {
     state?: {
       opponentName?: string
@@ -30,14 +31,15 @@ export function BattleFlow() {
     }
   }, [state, topicKey, navigate])
 
-  // 🔥 난이도 조건 제거 → topic만 기준으로 필터링
+  // topic 기준으로 필터링
   const filtered = useMemo<Question[]>(() => {
     const base = allQuestions.filter(q => q.topicId === topicKey)
     if (base.length > 0) return base
     return allQuestions.slice(0, 5)
   }, [topicKey])
 
-  const [step, setStep] = useState<"game" | "result" | "levelUp">("game")
+  // game → levelUp → result
+  const [step, setStep] = useState<"game" | "levelUp" | "result">("game")
   const [myScore, setMyScore] = useState(0)
   const [opponentScore, setOpponentScore] = useState(0)
 
@@ -47,31 +49,46 @@ export function BattleFlow() {
   const earnedExp = myScore * 7
 
   if (step === "game") {
-    return examType === "practical" ? (
-      <BattleGamePractical
+    const GameComponent =
+      examType === "practical" ? BattleGamePractical : BattleGameWritten
+
+    return (
+      <GameComponent
         questions={filtered}
         opponentName={opponentName}
         onComplete={(me, opp) => {
           setMyScore(me)
           setOpponentScore(opp)
-          setStep("result")
-        }}
-        onExit={() => navigate("/battle")}
-      />
-    ) : (
-      <BattleGameWritten
-        questions={filtered}
-        opponentName={opponentName}
-        onComplete={(me, opp) => {
-          setMyScore(me)
-          setOpponentScore(opp)
-          setStep("result")
+          setStep("levelUp")    // 게임 끝남녀 레벨업으로
         }}
         onExit={() => navigate("/battle")}
       />
     )
   }
+  if (step === "levelUp") {
+    return (
+      <LevelUpScreen
+        currentLevel={currentLevel}
+        currentExp={currentExp}
+        earnedExp={earnedExp}
+        expPerLevel={expPerLevel}
+        onComplete={() => {
+          // 경험치, 레벨 반영
+          setCurrentExp(prev => {
+            const total = prev + earnedExp
+            const newLevel = currentLevel + Math.floor(total / expPerLevel)
+            const newExpInLevel = total % expPerLevel
+            setCurrentLevel(newLevel)
+            return newExpInLevel
+          })
+          // 레벨업 모달 닫으면 -> 결과 화면
+          setStep("result")
+        }}
+      />
+    )
+  }
 
+  // 결과 화면
   if (step === "result") {
     return (
       <BattleResult
@@ -79,27 +96,8 @@ export function BattleFlow() {
         opponentScore={opponentScore}
         opponentName={opponentName}
         onRematch={() => navigate("/battle/onevsone/matching")}
-        onBackToDashboard={() => setStep("levelUp")}
+        onBackToDashboard={() => navigate("/battle")}
       />
     )
   }
-
-  return (
-    <LevelUpScreen
-      currentLevel={currentLevel}
-      currentExp={currentExp}
-      earnedExp={earnedExp}
-      expPerLevel={expPerLevel}
-      onComplete={() => {
-        setCurrentExp(prev => {
-          const total = prev + earnedExp
-          const newLevel = currentLevel + Math.floor(total / expPerLevel)
-          const newExpInLevel = total % expPerLevel
-          setCurrentLevel(newLevel)
-          return newExpInLevel
-        })
-        navigate("/battle")
-      }}
-    />
-  )
 }

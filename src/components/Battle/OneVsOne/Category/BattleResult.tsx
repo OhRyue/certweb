@@ -2,19 +2,14 @@ import { Card } from "../../../ui/card";
 import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
 import { Trophy, TrendingUp, Award, RotateCcw, Home } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
 
-export function BattleResult() {
-  const navigate = useNavigate()
-  const location = useLocation() as {
-    state: {
-      myScore: number
-      opponentScore: number
-      opponentName: string
-    }
-  }
-
-  const { myScore, opponentScore, opponentName } = location.state
+export function BattleResult({
+  myScore,
+  opponentScore,
+  opponentName,
+  onRematch,
+  onBackToDashboard
+}) {
   const isWin = myScore > opponentScore;
   const isDraw = myScore === opponentScore;
   const xpGained = isWin ? 100 : isDraw ? 50 : 30;
@@ -27,17 +22,17 @@ export function BattleResult() {
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-4 bg-gradient-to-br from-purple-400 to-pink-400">
             <Trophy className="w-12 h-12 text-white" />
           </div>
-          <h1 className={`mb-2 ${
-            isWin ? "text-green-600" : isDraw ? "text-yellow-600" : "text-gray-600"
-          }`}>
+
+          <h1 className={`mb-2 ${isWin ? "text-green-600" : isDraw ? "text-yellow-600" : "text-gray-600"
+            }`}>
             {isWin ? "승리!" : isDraw ? "무승부" : "패배"}
           </h1>
           <p className="text-gray-600">
             {isWin
               ? "축하합니다! 멋진 승리입니다! 🎉"
               : isDraw
-              ? "막상막하의 대결이었습니다!"
-              : "다음엔 더 잘할 수 있을 거예요!"}
+                ? "막상막하의 대결이었습니다!"
+                : "다음엔 더 잘할 수 있을 거예요!"}
           </p>
         </div>
 
@@ -48,9 +43,8 @@ export function BattleResult() {
             <div className="text-center">
               <div className="text-4xl mb-3">👨‍💻</div>
               <p className="text-sm text-gray-600 mb-2">나</p>
-              <div className={`text-4xl mb-2 ${
-                isWin ? "text-green-600" : "text-gray-800"
-              }`}>
+              <div className={`text-4xl mb-2 ${isWin ? "text-green-600" : "text-gray-800"
+                }`}>
                 {myScore}
               </div>
               {isWin && (
@@ -65,9 +59,8 @@ export function BattleResult() {
             <div className="text-center">
               <div className="text-4xl mb-3">🤖</div>
               <p className="text-sm text-gray-600 mb-2">{opponentName}</p>
-              <div className={`text-4xl mb-2 ${
-                !isWin && !isDraw ? "text-red-600" : "text-gray-800"
-              }`}>
+              <div className={`text-4xl mb-2 ${!isWin && !isDraw ? "text-red-600" : "text-gray-800"
+                }`}>
                 {opponentScore}
               </div>
               {!isWin && !isDraw && (
@@ -145,7 +138,7 @@ export function BattleResult() {
         {/* Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Button
-            onClick={() => navigate("/battle/start")}
+            onClick={onRematch}
             variant="outline"
             className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
           >
@@ -153,7 +146,7 @@ export function BattleResult() {
             재대결
           </Button>
           <Button
-            onClick={() => navigate("/battle")}
+            onClick={onBackToDashboard}
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
           >
             <Home className="w-4 h-4 mr-2" />
