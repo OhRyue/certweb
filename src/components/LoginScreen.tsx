@@ -11,8 +11,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "./api/axiosConfig"
 
-export function LoginScreen() {
-  const [username, setUsername] = useState("");
+export function LoginScreen({onLogin}) {
+  // const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate()
 
@@ -55,7 +56,8 @@ export function LoginScreen() {
     e.preventDefault()
 
     try {
-      const response = await axios.post("/account/login", { username, password },
+      const response = await axios.post("/account/login", { email, password },
+      // const response = await axios.post("/account/login", { username, password },
         {
           headers: { "Content-Type": "application/json" }
         })
@@ -66,9 +68,11 @@ export function LoginScreen() {
       localStorage.setItem("accessToken", response.data.accessToken)
       localStorage.setItem("refreshToken", response.data.refreshToken)
       localStorage.setItem("userId", response.data.userId)
-      localStorage.setItem("username", response.data.username)
+      // localStorage.setItem("username", response.data.username)
+      localStorage.setItem("email", response.data.email)
 
       // 로그인 성공 시 홈 화면으로 이동
+      onLogin()
       navigate("/")
     } catch (error: any) {
       console.error("로그인 실패:", error)
@@ -230,8 +234,10 @@ export function LoginScreen() {
                   <Input
                     type="text"
                     placeholder="아이디를 입력하세요"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    // value={username}
+                    value={email}
+                    // onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="bg-white border-blue-200 focus:border-blue-400"
                     required
                   />
@@ -264,8 +270,7 @@ export function LoginScreen() {
                 </div>
 
                 <Button
-                  type="button"
-                  onClick={handleSubmit}
+                  type="submit"
                   className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white py-6"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
