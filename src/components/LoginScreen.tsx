@@ -6,18 +6,12 @@ import { Badge } from "./ui/badge";
 import { 
   Sparkles, 
   Zap,
-  CheckCircle2
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "./api/axiosConfig"
 
-interface LoginScreenProps {
-  onLogin: () => void;
-  onSignUp?: () => void;
-}
-
-export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
+export function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate()
@@ -74,7 +68,7 @@ export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
       localStorage.setItem("userId", response.data.userId)
       localStorage.setItem("username", response.data.username)
 
-      // ✅ 로그인 성공 시 홈 화면으로 이동
+      // 로그인 성공 시 홈 화면으로 이동
       navigate("/")
     } catch (error: any) {
       console.error("로그인 실패:", error)
@@ -344,7 +338,6 @@ export function LoginScreen({ onLogin, onSignUp }: LoginScreenProps) {
               className="mt-4 text-center"
             >
               <Button
-                onClick={onLogin}
                 variant="ghost"
                 className="text-blue-600 hover:bg-blue-50"
               >

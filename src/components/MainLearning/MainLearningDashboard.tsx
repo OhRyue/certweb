@@ -20,50 +20,62 @@ import type { Subject, MainTopic, SubTopic } from "../../types"
 
 // -------------------------------
 // 백엔드 RawTopic 타입
+// - 백엔드에서 내려주는 topic 한 줄에 대한 원본 타입
+// - 이걸 기반으로 트리 구조를 만들고 프론트에서 사용하는 Subject 구조로 변환
 // -------------------------------
 type ExamMode = "WRITTEN" | "PRACTICAL"
 
 interface RawTopic {
-  id: number
-  parentId: number | null
-  code: string
-  title: string
-  examMode: ExamMode
-  children?: RawTopic[]
+  id: number                    // PK
+  parentId: number | null       // 상위 토픽 id, 최상위 과목인 경우 null
+  certId: number                // 어떤 자격증에 속하는지
+  code: string                  // 정렬이나 추가 규칙에 사용할 수 있는 코드값
+  title: string                 // 화면에 보여줄 이름
+  emoji?: string | null         // 이 토픽을 대표하는 이모지
+  orderNo: number               // 같은 parent 안에서의 표시 순서
+  examMode: ExamMode            // 필기 실기 구분
+  children?: RawTopic[]         // 프론트에서 트리로 만들기 위해 추가
 }
 
 // -------------------------------
 // 트리 빌더
+// - flat한 RawTopic 배열을 parentId 기준으로 트리 구조로 변환
 // -------------------------------
 function buildTree(data: RawTopic[]) {
-  const map = new Map<number, RawTopic>()
-  const roots: RawTopic[] = []
+  const map = new Map<number, RawTopic>()     // 각 id를 key로 해서 RawTopic을 저장하는 맵
+  const roots: RawTopic[] = []                // parentId가 null인 루트 노드들
 
+  // 1. 모든 RawTopic을 맵에 등록하면서 children 배열을 초기화
   data.forEach(item => {
     map.set(item.id, { ...item, children: [] })
   })
 
+  // 2. ParentId를 보고 부모의 children에 현재 노드를 추가
   data.forEach(item => {
     if (item.parentId === null) {
+      // parentId가 null이면 루트 과목
       roots.push(map.get(item.id)!)
     } else {
+      // parentId가 있으면 해당 parent의 childrent에 push
       const parent = map.get(item.parentId)
       if (parent && parent.children) parent.children.push(map.get(item.id)!)
     }
   })
 
+  // 재귀적으로 트리 전체를 정렬하는 함수
   const sortRec = (nodes?: RawTopic[]) => {
     if (!nodes) return
-    nodes.sort((a, b) => a.code.localeCompare(b.code))
-    nodes.forEach(n => sortRec(n.children))
+    nodes.sort((a, b) => a.orderNo - b.orderNo)     // 같은 깊이에서는 orderNo로 정렬
+    nodes.forEach(n => sortRec(n.children))         // 각 노드의 childrent에 대해서도 재귀적으로 정렬
   }
 
-  sortRec(roots)
+  sortRec(roots) // 전체 트리 정렬 
   return roots
 }
 
 // -------------------------------
 // 필기/실기 맵핑
+// - 백엔드 enum을 프론트에서 쓰는 문자열 값으로 변환
 // -------------------------------
 function mapExamMode(mode: ExamMode): "written" | "practical" {
   return mode === "WRITTEN" ? "written" : "practical"
@@ -71,18 +83,22 @@ function mapExamMode(mode: ExamMode): "written" | "practical" {
 
 // -------------------------------
 // RawTopic 트리 → Subject 구조로 변환 (UI 유지용)
+//  - Subject - MainTopic - SubTopic 구조로 백엔드 트리를 어댑팅
 // -------------------------------
 function toSubjectsTree(roots: RawTopic[]): Subject[] {
-  const fallbackColor = "#8b5cf6"
+  const fallbackColor = "#8b5cf6"     // 색상은 일단 공통값
   const subjectIcon = "📘"
   const mainIcon = "📂"
 
+  // 루트 노드 하나가 Subject 하나로 변환됨
   return roots.map(root => {
+    // 루트의 children이 MainTopic 역할
     const mainTopics: MainTopic[] = (root.children || []).map(mt => {
+      // 그 아래 children이 SubTopic 역할
       const subTopics: SubTopic[] = (mt.children || []).map(st => ({
         id: st.id,
         name: st.title,
-        completed: false,
+        completed: false,   // 아직 백엔드 진행률 연동 전이므로 기본값은 미완료
         details: [],
       }))
 
@@ -90,19 +106,19 @@ function toSubjectsTree(roots: RawTopic[]): Subject[] {
         id: mt.id,
         name: mt.title,
         subTopics,
-        icon: mainIcon,
+        icon: mt.emoji || mainIcon,     // 백엔드에서 내려준 emoji 우선 사용
         color: fallbackColor,
-        reviewCompleted: false,
+        reviewCompleted: false,         // MainTopic의 Review 총정리를 다했는지 여부
       }
     })
 
     return {
       id: root.id,
       name: root.title,
-      category: "정보처리기사", // 필요하면 나중에 백엔드에서 받을 수도 있음
-      examType: mapExamMode(root.examMode),
+      category: "정보처리기사",                 // 정보처리기사 고정
+      examType: mapExamMode(root.examMode),   // 필기 실기 구분
       mainTopics,
-      icon: subjectIcon,
+      icon: root.emoji || subjectIcon,
       color: fallbackColor,
     }
   })
@@ -110,24 +126,33 @@ function toSubjectsTree(roots: RawTopic[]): Subject[] {
 
 // -------------------------------
 // MainLearningDashboard 본체
+//  - 메인 학습 화면
+//  - 필기 실기 탭 전환
+//  - 전체 진행률
+//  - 과목별 MainTopic SubTopic 리스트
 // -------------------------------
 export function MainLearningDashboard() {
   const navigate = useNavigate()
 
-  const [subjects, setSubjects] = useState<Subject[]>([])
-  const [loading, setLoading] = useState(true)
+  const [subjects, setSubjects] = useState<Subject[]>([])     // 백엔드에서 가져온 데이터를 Subject 구조로 변환하여 저장
+  const [loading, setLoading] = useState(true)                // 초기 로딩 상태
   const [error, setError] = useState<string | null>(null)
-  const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
-  const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
+  const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)     // 어떤 MainTopic이 펼쳐져 있는지 표시
+  const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")    // 현재 선택된 시험 유형(필기/실기)
 
   // -------------------------------
   // 백엔드에서 트리 구조 가져오기
+  //  - 최초 마운트 시 한 번 호출
+  //  - GET study/topics(추후 cert로 변경 예정)
+  //  - 응답을 트리로 만들고 UI로 변환
   // -------------------------------
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const res = await axios.get<RawTopic[]>("/api/study/topics")
+        const res = await axios.get<RawTopic[]>("/study/topics")
+        // parentId 기반 트리로 변환
         const tree = buildTree(res.data)
+        // UI에서 쓰는 Subject 구조로 어댑트
         const adapted = toSubjectsTree(tree)
         setSubjects(adapted)
       } catch (err) {
@@ -141,21 +166,25 @@ export function MainLearningDashboard() {
     fetchSubjects()
   }, [])
 
+  // 로딩 주 상태 표시
   if (loading) {
     return <div className="p-8 text-center text-gray-500">불러오는 중...</div>
   }
 
+  // 에러 발생 시 메시지 표시
   if (error) {
     return <div className="p-8 text-center text-red-500">{error}</div>
   }
 
   // -------------------------------
   // 현재 선택된 시험 타입만 필터링
+  //  - 필기 탭이면 필기 과목만, 실기 탭이면 실기 과목만
   // -------------------------------
   const currentSubjects = subjects.filter(s => s.examType === selectedExamType)
 
   // -------------------------------
   // 진행률 계산
+  //  - 전체 SubTopic 개수 대비 completed된 SubTopic 개수
   // -------------------------------
   const calculateProgress = () => {
     let total = 0
@@ -176,11 +205,12 @@ export function MainLearningDashboard() {
 
   const { total, completed, percent } = calculateProgress()
 
+  // MainTopic 단위 완료 여부: 그 아래 SubTopic들이 모두 completed이면 완료로 표시
   const isMainTopicCompleted = (mainTopic: MainTopic) =>
     mainTopic.subTopics.length > 0 && mainTopic.subTopics.every(s => s.completed)
 
   // -------------------------------
-  // UI 렌더링 (develop 완벽 복원)
+  // UI 렌더링
   // -------------------------------
   if (currentSubjects.length === 0) {
     return (
@@ -194,7 +224,10 @@ export function MainLearningDashboard() {
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
 
-        {/* HEADER */}
+        {/* HEADER
+          - 메인 타이틀
+          - 필기 실기 탭 전환
+           */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -205,7 +238,8 @@ export function MainLearningDashboard() {
               <p className="text-gray-600">체계적으로 개념을 학습하고 문제를 풀어보세요</p>
             </div>
 
-            <Tabs value={selectedExamType} onValueChange={v => setSelectedExamType(v as any)}>
+            {/* 필기 실기 탭 */}
+            <Tabs value={selectedExamType} onValueChange={v => setSelectedExamType(v as "written" | "practical")}>
               <TabsList className="bg-gradient-to-r from-purple-100 to-pink-100 p-1">
                 <TabsTrigger
                   value="written"
@@ -293,7 +327,7 @@ export function MainLearningDashboard() {
           </Card>
         </div>
 
-        {/* PROGRESS */}
+        {/* 전체 진행률 카드 */}
         <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-8">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -360,6 +394,7 @@ export function MainLearningDashboard() {
                     key={mainTopic.id}
                     className="overflow-hidden border-2 hover:border-purple-300 transition-all"
                   >
+                    {/* MainTopic 헤더: 클릭시 SubTopic 목록 토글 */}
                     <div
                       className="p-5 cursor-pointer bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all"
                       onClick={() =>
@@ -397,8 +432,12 @@ export function MainLearningDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
+                          {/* Reivew 총정리 진입 버튼
+                              - 필기 실기 구분해서 다른 경로로 이동 
+                          */}
                           <Button
                             onClick={e => {
+                              // MainTopic 펼치기 토글 클릭과 구분하기 위해 이벤트 전파 중단
                               e.stopPropagation()
                               if (selectedExamType === "written") {
                                 navigate(`/learning/review-written?mainTopicId=${mainTopic.id}`)
@@ -407,8 +446,8 @@ export function MainLearningDashboard() {
                               }
                             }}
                             className={`text-white ${mainTopic.reviewCompleted
-                                ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                                : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                              : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                               }`}
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
@@ -423,17 +462,23 @@ export function MainLearningDashboard() {
                       </div>
                     </div>
 
-                    {/* SubTopics */}
+                    {/* SubTopics 
+                        - MainTopic이 펼쳐졌을 때만 렌더링
+                      */}
                     {expandedMainTopic === mainTopic.id && (
                       <div className="p-5 bg-white space-y-4">
                         {mainTopic.subTopics.map((subTopic, idx) => (
                           <div
                             key={subTopic.id}
                             className={`flex items-center justify-between p-3 rounded-lg border transition-all ${subTopic.completed
-                                ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-                                : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
+                              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+                              : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
                               }`}
                           >
+                            {/* SubTopic 상태 표시 
+                              - 완료면 체크 아이콘
+                              - 미완료면 순번 표시 
+                            */}
                             <div className="flex items-center gap-3">
                               {subTopic.completed ? (
                                 <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
@@ -456,6 +501,10 @@ export function MainLearningDashboard() {
                                 )}
                               </div>
                             </div>
+                            {/* Micro 학습 진입 버튼
+                                - 필기 실기 둘 다 동일한 경로 사용
+                                - type 파라미터로 모드 구분
+                             */}
                             <Button
                               size="sm"
                               onClick={() =>
