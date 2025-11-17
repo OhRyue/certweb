@@ -7,14 +7,27 @@ const instance = axios.create({
 
 // 요청 인터셉터
 instance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  config => {
+    const skipAuth =
+      config.url?.includes("account/login") ||
+      config.url?.includes("account/send-verification") ||
+      config.url?.includes("account/verify-email") ||
+      config.url?.includes("account/check-userId") ||
+      config.url?.includes("account/forgot-password") ||
+      config.url?.includes("account/forgot-password/verify") ||
+      config.url?.includes("account/forgot-password/reset") ||
+      config.url?.includes("account/refresh")
+
+    if (!skipAuth) {
+      const token = localStorage.getItem("accessToken")
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
     }
-    return config;
+
+    return config
   },
-  (error) => Promise.reject(error)
+  error => Promise.reject(error)
 );
 
 // 응답 인터셉터 (토큰 만료 시 재발급)

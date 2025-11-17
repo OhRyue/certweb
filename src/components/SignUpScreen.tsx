@@ -75,8 +75,8 @@ export function SignUpScreen() {
 
             try {
                 setIsCheckingId(true);
-                const res = await axios.get(`account/check-username`, {
-                    params: { username: trimmedId },
+                const res = await axios.get(`account/check-userId`, {
+                    params: { userId: trimmedId },
                 });
                 setIdAvailable(res.data.available);
             } catch (err) {
@@ -100,9 +100,9 @@ export function SignUpScreen() {
         try {
             setLoading(true)
             await axios.post(`/account/send-verification`, {
-                username: formData.userId,
-                password: formData.password,
+                userId: formData.userId,
                 email: formData.email,
+                password: formData.password,
             })
 
             alert("인증코드가 이메일로 전송되었습니다.")
@@ -121,7 +121,7 @@ export function SignUpScreen() {
         } else {
             try {
                 setLoading(true)
-                await axios.post(`api/account/verify-email`, {
+                await axios.post(`/account/verify-email`, {
                     email: formData.email,
                     code: formData.verificationCode,
                     nickname: formData.nickname,
@@ -140,7 +140,7 @@ export function SignUpScreen() {
 
     async function handleRegister() {
         try {
-            const res = await axios.post(`api/account/register`, {
+            const res = await axios.post(`/account/register`, {
                 username: formData.userId,
                 password: formData.password,
                 email: formData.email
@@ -190,7 +190,7 @@ export function SignUpScreen() {
 
     const isStep2Valid = formData.nickname && formData.targetCertification
 
-    // 이 아래부터는 UI 완전 동일 (너가줬던거 그대로 유지)
+    // 이 아래부터는 UI 완전 동일
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 overflow-auto">
             {/* Header */}
