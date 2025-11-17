@@ -17,13 +17,14 @@ export function SignUpScreen() {
     const [idAvailable, setIdAvailable] = useState<boolean | null>(null)        // 중복 여부
     const [isIdInvalid, setIsIdInvalid] = useState(false);      // 8~20글자, 영어/숫자 포함 조건 확인
     const [isPasswordInvalid, setIsPasswordInvalid] = useState(false);      // 비밀번호 조건
+    const [isVerifiedDone, setIsVerifiedDone] = useState(false)
 
     // 예시: Step2 자격증 선택용 mock 데이터
     const categories = [
-        { id: "정보처리기사", name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
-        { id: "컴퓨터활용능력", name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
-        { id: "SQLD", name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
-        { id: "리눅스마스터", name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
+        { certId: 1, name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
+        { certId: 2, name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
+        { certId: 3, name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
+        { certId: 4, name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
     ]
 
     // 아이디 유효성 정규식 (영문+숫자, 8~20자)
@@ -39,7 +40,7 @@ export function SignUpScreen() {
         email: "",
         verificationCode: "",
         nickname: "",
-        targetCertification: "",
+        targetCertification: 0,
     })
 
     // 아이디 입력 blur 시 유효성 체크
@@ -136,20 +137,7 @@ export function SignUpScreen() {
                 setLoading(false)
             }
         }
-    }
-
-    async function handleRegister() {
-        try {
-            const res = await axios.post(`/account/register`, {
-                username: formData.userId,
-                password: formData.password,
-                email: formData.email
-            })
-            console.log(res.data) // userId, username 등 확인
-            navigate("/login")
-        } catch (err) {
-            console.error(err)
-        }
+    
     }
 
     async function handleVerifyEmail() {
@@ -157,15 +145,89 @@ export function SignUpScreen() {
             const res = await axios.post("/account/verify-email", {
                 email: formData.email,
                 code: formData.verificationCode,
-                username: formData.userId,   // 추가
-                password: formData.password  // 추가
-            });
+                userId: formData.userId,
+                password: formData.password
+            })
 
-            alert("이메일 인증 및 회원가입이 완료되었습니다!");
-            setStep(2); // 다음 단계(프로필 설정)으로 전환
+            const { accessToken, refreshToken, userId, email, role } = res.data
+
+            localStorage.setItem("accessToken", accessToken)
+            localStorage.setItem("refreshToken", refreshToken)
+            localStorage.setItem("userId", userId)
+            localStorage.setItem("email", email)
+            localStorage.setItem("role", role)
+
+            alert("회원가입이 완료되었습니다")
+
+            setIsVerifiedDone(true)   // 인증 완료 처리
         } catch (err: any) {
-            alert(err.response?.data?.message || "인증 실패. 인증번호를 확인해주세요.");
-            console.error("인증 실패:", err);
+            alert(err.response?.data?.message || "인증 실패. 인증번호를 확인해주세요")
+            console.error(err)
+        }
+    }
+
+    async function handleCompleteProfile() {
+        try {
+            // 토큰이 있는지 확인
+            const token = localStorage.getItem("accessToken")
+            if (!token) {
+                alert("인증 토큰이 없습니다. 다시 로그인해주세요.")
+                navigate("/login")
+                return
+            }
+
+            // 디버깅: 토큰 정보 확인
+            console.log("토큰 확인:", token)
+            try {
+                const tokenParts = token.split('.')
+                if (tokenParts.length === 3) {
+                    const payload = JSON.parse(atob(tokenParts[1]))
+                    console.log("토큰 페이로드:", payload)
+                    const now = Math.floor(Date.now() / 1000)
+                    console.log("현재 시간:", now)
+                    console.log("토큰 만료 시간:", payload.exp)
+                    console.log("토큰 만료 여부:", now >= payload.exp)
+                }
+            } catch (e) {
+                console.error("토큰 파싱 오류:", e)
+            }
+
+            // axios 인터셉터가 자동으로 토큰 갱신 및 재시도를 처리함
+            console.log("프로필 설정 API 호출 시작...");
+            const res = await axios.post("/account/onboarding/profile", {
+                nickname: formData.nickname,
+                certId: formData.targetCertification,
+                avatarUrl: "",
+                timezone: "Asia/Seoul",
+                lang: "ko-KR",
+                targetExamMode: "WRITTEN",
+                targetRoundId: 0
+            })
+            console.log("프로필 설정 성공:", res.data);
+
+            alert("프로필 설정 완료")
+            navigate("/")
+        } catch (err: any) {
+            console.error("프로필 설정 오류:", err)
+            console.error("응답 데이터:", err.response?.data)
+            console.error("응답 헤더:", err.response?.headers)
+            
+            // 인터셉터가 이미 토큰 갱신을 시도했지만 실패한 경우
+            // 또는 토큰 갱신 후에도 여전히 401이 반환되는 경우
+            if (err.response?.status === 401) {
+                // 백엔드에서 반환한 상세 오류 메시지 확인
+                const errorDesc = err.response?.headers?.['www-authenticate'] || err.response?.data?.error_description || "토큰 검증 실패"
+                console.error("인증 오류 상세:", errorDesc)
+                console.error("⚠️ 백엔드 문제 가능성: refresh로 받은 새 토큰도 검증에 실패했습니다.")
+                console.error("백엔드에서 확인 필요: JWT Secret Key 일치 여부, 토큰 검증 로직")
+                
+                // 인터셉터가 이미 재시도를 했는데도 실패했다면, 백엔드 문제
+                alert("토큰 검증에 실패했습니다. 서버 측 문제일 수 있습니다. 잠시 후 다시 시도해주세요.")
+                localStorage.clear()
+                navigate("/login")
+            } else {
+                alert(err.response?.data?.message || "설정 실패")
+            }
         }
     }
 
@@ -459,11 +521,17 @@ export function SignUpScreen() {
                                 </div>
 
                                 <Button
-                                    onClick={handleNext}
-                                    disabled={!isStep1Valid}
-                                    className="w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-6 disabled:opacity-50"
+                                    onClick={() => {
+                                        if (isVerifiedDone) setStep(2)
+                                    }}
+                                    disabled={!isVerifiedDone}
+                                    className={`w-full mt-6 text-white py-6 
+                                        ${isVerifiedDone
+                                            ? "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                                            : "bg-gray-300 cursor-not-allowed"
+                                        }`}
                                 >
-                                    회원가입 완료
+                                    프로필 설정하기
                                     <ArrowRight className="w-4 h-4 ml-2" />
                                 </Button>
                             </Card>
@@ -514,25 +582,30 @@ export function SignUpScreen() {
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {categories.map((category) => (
                                                 <button
-                                                    key={category.id}
-                                                    onClick={() => setFormData({ ...formData, targetCertification: category.id })}
-                                                    className={`p-5 rounded-xl border-2 transition-all transform hover:scale-105 ${formData.targetCertification === category.id
-                                                        ? `border-purple-500 bg-gradient-to-br ${category.color} shadow-lg`
-                                                        : 'border-gray-200 bg-white hover:border-purple-300'
+                                                    key={category.certId}
+                                                    onClick={() => setFormData({ ...formData, targetCertification: category.certId })}
+                                                    className={`p-5 rounded-xl border-2 transition-all transform hover:scale-105 ${formData.targetCertification === category.certId
+                                                            ? `border-purple-500 bg-gradient-to-br ${category.color} shadow-lg`
+                                                            : 'border-gray-200 bg-white hover:border-purple-300'
                                                         }`}
                                                 >
                                                     <div className="flex flex-col items-center gap-2">
-                                                        <div className={`text-4xl transition-transform ${formData.targetCertification === category.id ? 'scale-110' : ''
-                                                            }`}>
+                                                        <div
+                                                            className={`text-4xl transition-transform ${formData.targetCertification === category.certId ? 'scale-110' : ''
+                                                                }`}
+                                                        >
                                                             {category.icon}
                                                         </div>
-                                                        <div className={`transition-colors ${formData.targetCertification === category.id
-                                                            ? 'text-white'
-                                                            : 'text-gray-900'
-                                                            }`}>
+                                                        <div
+                                                            className={`transition-colors ${formData.targetCertification === category.certId
+                                                                    ? 'text-white'
+                                                                    : 'text-gray-900'
+                                                                }`}
+                                                        >
                                                             {category.name}
                                                         </div>
-                                                        {formData.targetCertification === category.id && (
+
+                                                        {formData.targetCertification === category.certId && (
                                                             <motion.div
                                                                 initial={{ scale: 0 }}
                                                                 animate={{ scale: 1 }}
@@ -580,15 +653,7 @@ export function SignUpScreen() {
 
                                 <div className="flex gap-3 mt-6">
                                     <Button
-                                        onClick={() => setStep(1)}
-                                        variant="outline"
-                                        className="flex-1 border-2 border-purple-200 hover:bg-purple-50"
-                                    >
-                                        <ArrowLeft className="w-4 h-4 mr-2" />
-                                        이전
-                                    </Button>
-                                    <Button
-                                        onClick={handleVerifyEmail}
+                                        onClick={handleCompleteProfile}
                                         disabled={!isStep2Valid}
                                         className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-6 disabled:opacity-50"
                                     >
