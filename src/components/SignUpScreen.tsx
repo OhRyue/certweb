@@ -362,6 +362,7 @@ export function SignUpScreen() {
                                             type="text"
                                             placeholder="사용할 아이디를 입력하세요"
                                             value={formData.userId}
+                                            disabled={isVerificationSent}
                                             onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                                             onBlur={handleIdBlur} // ← 포커스 해제 시 유효성 검사
                                             className={`bg-white focus:border-purple-400 transition-all ${isIdInvalid || idAvailable === false
@@ -388,6 +389,7 @@ export function SignUpScreen() {
                                             type="password"
                                             placeholder="••••••••"
                                             value={formData.password}
+                                            disabled={isVerificationSent}   
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                             onBlur={handlePasswordBlur}
                                             className={`bg-white focus:border-purple-400 transition-all ${isPasswordInvalid ? "border-red-400 text-red-700 placeholder-red-300" : "border-purple-200"
@@ -412,6 +414,7 @@ export function SignUpScreen() {
                                             type="password"
                                             placeholder="••••••••"
                                             value={formData.passwordConfirm}
+                                            disabled={isVerificationSent}   
                                             onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
                                             className="bg-white border-purple-200 focus:border-purple-400"
                                         />
@@ -439,6 +442,7 @@ export function SignUpScreen() {
                                                 type="email"
                                                 placeholder="your@email.com"
                                                 value={formData.email}
+                                                disabled={isVerificationSent} 
                                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                                 className="flex-1 bg-white border-purple-200 focus:border-purple-400"
                                             />
@@ -497,7 +501,8 @@ export function SignUpScreen() {
                                                 />
                                                 <Button
                                                     type="button"
-                                                    onClick={handleVerifyEmail} // 여기만 추가하면 됨 (백엔드 연결용 함수)
+                                                    onClick={handleVerifyEmail}
+                                                    disabled={isVerifiedDone} 
                                                     className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                                                 >
                                                     인증 확인
