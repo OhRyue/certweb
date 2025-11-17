@@ -6,7 +6,7 @@ import { Card } from "./ui/card"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Progress } from "./ui/progress"
-import { ArrowLeft, ArrowRight, CheckCircle2, Mail, Lock, User, Sparkles, Shield, Zap } from "lucide-react"
+import { ArrowLeft, ArrowRight, CheckCircle2, Mail, Lock, User, Sparkles, Shield } from "lucide-react"
 
 export function SignUpScreen() {
     const navigate = useNavigate()
@@ -115,31 +115,6 @@ export function SignUpScreen() {
         }
     }
 
-    // 2) 다음 버튼 로직 (Step1 → Step2 or 완료)
-    const handleNext = async () => {
-        if (step === 1) {
-            setStep(2)
-        } else {
-            try {
-                setLoading(true)
-                await axios.post(`/account/verify-email`, {
-                    email: formData.email,
-                    code: formData.verificationCode,
-                    nickname: formData.nickname,
-                    targetCertification: formData.targetCertification,
-                })
-
-                alert("회원가입 완료! 로그인 해주세요.")
-                navigate("/login")
-            } catch (error: any) {
-                alert(error.response?.data?.message || "인증 실패. 인증번호를 확인해주세요.")
-            } finally {
-                setLoading(false)
-            }
-        }
-    
-    }
-
     async function handleVerifyEmail() {
         try {
             const res = await axios.post("/account/verify-email", {
@@ -211,7 +186,7 @@ export function SignUpScreen() {
             console.error("프로필 설정 오류:", err)
             console.error("응답 데이터:", err.response?.data)
             console.error("응답 헤더:", err.response?.headers)
-            
+
             // 인터셉터가 이미 토큰 갱신을 시도했지만 실패한 경우
             // 또는 토큰 갱신 후에도 여전히 401이 반환되는 경우
             if (err.response?.status === 401) {
@@ -220,7 +195,7 @@ export function SignUpScreen() {
                 console.error("인증 오류 상세:", errorDesc)
                 console.error("⚠️ 백엔드 문제 가능성: refresh로 받은 새 토큰도 검증에 실패했습니다.")
                 console.error("백엔드에서 확인 필요: JWT Secret Key 일치 여부, 토큰 검증 로직")
-                
+
                 // 인터셉터가 이미 재시도를 했는데도 실패했다면, 백엔드 문제
                 alert("토큰 검증에 실패했습니다. 서버 측 문제일 수 있습니다. 잠시 후 다시 시도해주세요.")
                 localStorage.clear()
@@ -240,15 +215,6 @@ export function SignUpScreen() {
             setStep(1)
         }
     }
-
-    // 유효성 검사
-    const isStep1Valid =
-        formData.userId &&
-        formData.password &&
-        formData.passwordConfirm &&
-        formData.password === formData.passwordConfirm &&
-        formData.email &&
-        formData.verificationCode
 
     const isStep2Valid = formData.nickname && formData.targetCertification
 
@@ -389,7 +355,7 @@ export function SignUpScreen() {
                                             type="password"
                                             placeholder="••••••••"
                                             value={formData.password}
-                                            disabled={isVerificationSent}   
+                                            disabled={isVerificationSent}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                             onBlur={handlePasswordBlur}
                                             className={`bg-white focus:border-purple-400 transition-all ${isPasswordInvalid ? "border-red-400 text-red-700 placeholder-red-300" : "border-purple-200"
@@ -414,7 +380,7 @@ export function SignUpScreen() {
                                             type="password"
                                             placeholder="••••••••"
                                             value={formData.passwordConfirm}
-                                            disabled={isVerificationSent}   
+                                            disabled={isVerificationSent}
                                             onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
                                             className="bg-white border-purple-200 focus:border-purple-400"
                                         />
@@ -442,7 +408,7 @@ export function SignUpScreen() {
                                                 type="email"
                                                 placeholder="your@email.com"
                                                 value={formData.email}
-                                                disabled={isVerificationSent} 
+                                                disabled={isVerificationSent}
                                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                                 className="flex-1 bg-white border-purple-200 focus:border-purple-400"
                                             />
@@ -502,7 +468,7 @@ export function SignUpScreen() {
                                                 <Button
                                                     type="button"
                                                     onClick={handleVerifyEmail}
-                                                    disabled={isVerifiedDone} 
+                                                    disabled={isVerifiedDone}
                                                     className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                                                 >
                                                     인증 확인
@@ -590,8 +556,8 @@ export function SignUpScreen() {
                                                     key={category.certId}
                                                     onClick={() => setFormData({ ...formData, targetCertification: category.certId })}
                                                     className={`p-5 rounded-xl border-2 transition-all transform hover:scale-105 ${formData.targetCertification === category.certId
-                                                            ? `border-purple-500 bg-gradient-to-br ${category.color} shadow-lg`
-                                                            : 'border-gray-200 bg-white hover:border-purple-300'
+                                                        ? `border-purple-500 bg-gradient-to-br ${category.color} shadow-lg`
+                                                        : 'border-gray-200 bg-white hover:border-purple-300'
                                                         }`}
                                                 >
                                                     <div className="flex flex-col items-center gap-2">
@@ -603,8 +569,8 @@ export function SignUpScreen() {
                                                         </div>
                                                         <div
                                                             className={`transition-colors ${formData.targetCertification === category.certId
-                                                                    ? 'text-white'
-                                                                    : 'text-gray-900'
+                                                                ? 'text-white'
+                                                                : 'text-gray-900'
                                                                 }`}
                                                         >
                                                             {category.name}
