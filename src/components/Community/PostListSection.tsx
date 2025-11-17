@@ -5,7 +5,7 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Input } from "../ui/input"
 import { motion } from "motion/react"
-import { Search, TrendingUp, Eye, Heart, MessageCircle, Pin } from "lucide-react"
+import { Search, TrendingUp, Eye, Heart, MessageCircle } from "lucide-react"
 
 export function PostListSection({
   activeTab,
@@ -54,16 +54,37 @@ export function PostListSection({
       if (activeTab !== "all") params.category = activeTab
       if (searchQuery) params.keyword = searchQuery
 
+      // 1차: 기본 posts 불러오기
       const res = await axios.get("/community/posts", { params })
+      const basePosts = res.data.items || []
 
-      setPosts(res.data.items || [])
+      // 2차: metrics 병렬 호출
+      const metricsResponses = await Promise.all(
+        basePosts.map(post =>
+          axios.get(`/community/posts/${post.id}/metrics`)
+            .then(r => ({ postId: post.id, ...r.data }))
+            .catch(() => ({ postId: post.id })) // 실패해도 전체 중단 X
+        )
+      )
+
+      // 3차: basePosts에 metrics merge
+      const merged = basePosts.map(post => {
+        const metrics = metricsResponses.find(m => m.postId === post.id) || {}
+        return {
+          ...post,
+          likeCount: metrics.likeCount ?? post.likeCount ?? 0,
+          commentCount: metrics.commentCount ?? post.commentCount ?? 0,
+          viewCount: metrics.viewCount ?? post.viewCount ?? 0,
+        }
+      })
+
+      setPosts(merged)
       setTotalPages(res.data.page?.totalPages || 1)
 
     } catch (err) {
       console.error("게시글 목록 불러오기 실패", err)
     }
   }
-
 
   const getCategoryColor = (category: string) => {
     switch (category) {
