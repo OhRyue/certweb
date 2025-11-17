@@ -3,17 +3,16 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { 
-  Sparkles, 
+import {
+  Sparkles,
   Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "./api/axiosConfig"
 
-export function LoginScreen({onLogin}) {
-  // const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
+export function LoginScreen({ onLogin }) {
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate()
 
@@ -56,11 +55,10 @@ export function LoginScreen({onLogin}) {
     e.preventDefault()
 
     try {
-      const response = await axios.post("/account/login", { email, password },
-      // const response = await axios.post("/account/login", { username, password },
-        {
-          headers: { "Content-Type": "application/json" }
-        })
+      const response = await axios.post("/account/login", {
+        userId,
+        password
+      })
 
       console.log("로그인 성공:", response.data)
 
@@ -68,8 +66,6 @@ export function LoginScreen({onLogin}) {
       localStorage.setItem("accessToken", response.data.accessToken)
       localStorage.setItem("refreshToken", response.data.refreshToken)
       localStorage.setItem("userId", response.data.userId)
-      // localStorage.setItem("username", response.data.username)
-      localStorage.setItem("email", response.data.email)
 
       // 로그인 성공 시 홈 화면으로 이동
       onLogin()
@@ -234,10 +230,8 @@ export function LoginScreen({onLogin}) {
                   <Input
                     type="text"
                     placeholder="아이디를 입력하세요"
-                    // value={username}
-                    value={email}
-                    // onChange={(e) => setUsername(e.target.value)}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
                     className="bg-white border-blue-200 focus:border-blue-400"
                     required
                   />

@@ -19,10 +19,16 @@ export default defineConfig({
     port: 3000,
     open: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
+      "/api": {
+        target: "http://localhost:8080",
         changeOrigin: true,
         secure: false,
+        ws: true,
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            console.log("Proxy error:", err);
+          });
+        },
       },
     },
     hmr: {
