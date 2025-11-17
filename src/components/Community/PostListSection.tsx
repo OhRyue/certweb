@@ -45,6 +45,10 @@ export function PostListSection({
       const params: any = {
         page: currentPage - 1,
         size: 10,
+        sort: "LATEST",
+        today: false,
+        anonymousOnly: false,
+        mine: false
       }
 
       if (activeTab !== "all") params.category = activeTab
@@ -53,12 +57,13 @@ export function PostListSection({
       const res = await axios.get("/community/posts", { params })
 
       setPosts(res.data.items || [])
-      setTotalPages(res.data.page.totalPages || 1)
+      setTotalPages(res.data.page?.totalPages || 1)
 
     } catch (err) {
       console.error("게시글 목록 불러오기 실패", err)
     }
   }
+
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -83,11 +88,10 @@ export function PostListSection({
                 setActiveTab("all")
                 setCurrentPage(1)
               }}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                activeTab === "all"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-              }`}
+              className={`px-4 py-2 rounded-lg transition-all ${activeTab === "all"
+                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                }`}
             >
               전체
             </button>
@@ -99,11 +103,10 @@ export function PostListSection({
                   setActiveTab(cat.code)
                   setCurrentPage(1)
                 }}
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  activeTab === cat.code
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                }`}
+                className={`px-4 py-2 rounded-lg transition-all ${activeTab === cat.code
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  }`}
               >
                 {cat.name}
               </button>
@@ -159,11 +162,10 @@ export function PostListSection({
         {posts.map(post => (
           <motion.div key={post.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ scale: 1.01 }}>
             <Card
-              className={`p-6 border-2 cursor-pointer transition-all hover:shadow-lg ${
-                false
-                  ? "border-red-200 bg-gradient-to-r from-red-50 to-pink-50"
-                  : "border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
-              }`}
+              className={`p-6 border-2 cursor-pointer transition-all hover:shadow-lg ${false
+                ? "border-red-200 bg-gradient-to-r from-red-50 to-pink-50"
+                : "border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
+                }`}
               onClick={() => onPostClick(post.id)}
             >
               <div className="flex items-start justify-between gap-4">
