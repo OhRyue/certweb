@@ -2,8 +2,10 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom"
 import { Navigation } from "./components/Navigation"
 import { Toaster } from "./components/ui/sonner"
-import { useState } from "react"
 import { userProfile as initialProfile, userSettings as initialSettings, shopItems as initialShopItems } from "./data/mockData"
+import { useEffect, useState } from "react"
+import axios from "./components/api/axiosConfig"
+import { CERT_MAP } from "./constants/certMap"
 
 // Home
 import { HomeDashboard } from "./components/HomeDashboard"
@@ -28,7 +30,7 @@ import { OneVsOneDashboard } from "./components/Battle/OneVsOne/OneVsOneDashboar
 // 카테고리
 import { CategoryBattleSelect } from "./components/Battle/OneVsOne/Category/CategoryBattleSelect"
 import { BattleFlow } from "./components/Battle/OneVsOne/Category/BattleFlow"
-import { CategoryMatching} from "./components/Battle/OneVsOne/Category/CategoryMatching"
+import { CategoryMatching } from "./components/Battle/OneVsOne/Category/CategoryMatching"
 // 난이도
 import { DifficultyBattleSelect } from "./components/Battle/OneVsOne/Difficulty/DifficultyBattleSelect"
 import { DifficultyBattleFlow } from "./components/Battle/OneVsOne/Difficulty/DifficultyBattleFlow"
@@ -71,10 +73,43 @@ import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
 
 export default function InnerApp() {
   const navigate = useNavigate()
-  const [userProfile, setUserProfile] = useState(initialProfile)
   const [userSettings, setUserSettings] = useState(initialSettings)
   const [userPoints, setUserPoints] = useState(5000)
   const [shopItems, setShopItems] = useState(initialShopItems)
+
+  // 유저 프로필 
+  const [userProfile, setUserProfile] = useState({
+    name: "",
+    avatar: "🙂",
+    level: 1,
+    xp: 120,
+    studyStreak: 3,
+    targetCertificationId: 0,
+    targetCertification: ""
+  })
+
+   useEffect(() => {
+    async function fetchProfile() {
+      try {
+        // 1. 기본 프로필 설정(userId, nickname, avatarUrl, timezone, lang)
+        const profileRes = await axios.get("/account/profile")
+        
+        // 2. 목표 자격증 호출(id, userId, certId, targetExamMode, targetRoundId, ddayCached)
+        const goalRes = await axios.get("/account/goal") 
+
+        setUserProfile(prev => ({
+          ...prev,
+          name: profileRes.data.nickname,          // 닉네임 넣기
+          avatar: profileRes.data.avatarUrl || prev.avatar,
+          targetCertificationId: goalRes.data.certId,
+          targetCertification: CERT_MAP[goalRes.data.certId]
+        }))
+      } catch (err) {
+        console.error("유저 프로필 불러오기 실패", err)
+      }
+    }
+    fetchProfile()
+  }, [])
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50">
@@ -83,7 +118,7 @@ export default function InnerApp() {
         <Routes>
           {/* 메인 학습 */}
           <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
-          <Route path="/learning" element={<MainLearningDashboard />}/>
+          <Route path="/learning" element={<MainLearningDashboard />} />
           <Route path="/learning/micro" element={<MicroFlowPage />} />
           <Route path="/learning/review-written" element={<ReviewFlowPage />} />
           <Route path="/learning/review-practical" element={<ReviewFlowPracticalPage />} />
@@ -115,14 +150,14 @@ export default function InnerApp() {
 
           {/* 배틀 */}
           <Route path="/battle" element={<BattleDashboard />} />
-          <Route path="/battle/onevsone/dashboard" element={<OneVsOneDashboard/>}/>
-          <Route path="battle/onevsone/category/select" element={<CategoryBattleSelect/>}/>
+          <Route path="/battle/onevsone/dashboard" element={<OneVsOneDashboard />} />
+          <Route path="battle/onevsone/category/select" element={<CategoryBattleSelect />} />
           <Route path="/battle/onevsone/category/matching" element={<CategoryMatching />} />
-          <Route path="/battle/onevsone/difficulty/start" element={<DifficultyBattleFlow/>}/>
+          <Route path="/battle/onevsone/difficulty/start" element={<DifficultyBattleFlow />} />
           <Route path="/battle/onevsone/category/start" element={<BattleFlow />} />
           <Route path="/battle/result" element={<BattleResult />} />
-          <Route path="battle/onevsone/difficulty/select" element={<DifficultyBattleSelect/>}/>
-          <Route path="battle/onevsone/difficulty/matching" element={<DifficultyMatching/>}/>
+          <Route path="battle/onevsone/difficulty/select" element={<DifficultyBattleSelect />} />
+          <Route path="battle/onevsone/difficulty/matching" element={<DifficultyMatching />} />
           {/* <Route path="/battle/tournament" element={<Tournament />} /> */}
           {/* <Route path="/battle/tournament/bracket" element={<TournamentBracket />} /> */}
           <Route path="/battle/goldenbell" element={<GoldenBell />} />
