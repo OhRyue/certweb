@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import axios from "axios"
+import axios from "../api/axiosConfig"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
@@ -149,11 +149,20 @@ export function MainLearningDashboard() {
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const res = await axios.get<RawTopic[]>("/study/topics")
-        // parentId 기반 트리로 변환
-        const tree = buildTree(res.data)
-        // UI에서 쓰는 Subject 구조로 어댑트
+        const res = await axios.get("/cert/topics", {
+          params: {
+            certId: 1,
+            mode: selectedExamType.toUpperCase(),
+            parentId: null
+          }
+        })
+
+        const rawTopics: RawTopic[] = res.data.topics
+
+        const tree = buildTree(rawTopics)
+
         const adapted = toSubjectsTree(tree)
+
         setSubjects(adapted)
       } catch (err) {
         console.error(err)
@@ -164,7 +173,8 @@ export function MainLearningDashboard() {
     }
 
     fetchSubjects()
-  }, [])
+  }, [selectedExamType])
+
 
   // 로딩 주 상태 표시
   if (loading) {

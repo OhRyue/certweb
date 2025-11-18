@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { motion } from "motion/react"
 import { Card } from "../ui/card"
-import { Badge } from "../ui/badge"
 import { Button } from "../ui/button"
 import { BookOpen, ArrowRight, Lightbulb } from "lucide-react"
 
@@ -26,7 +25,6 @@ interface Section {
 
 interface ConceptResponse {
   topicId: number
-  title: string
   sections: Section[]
 }
 
@@ -43,35 +41,37 @@ export function ConceptView({
   const isLast = currentIndex === data.sections.length - 1
 
   const handleNext = () => {
-    if (!isLast) setCurrentIndex((prev) => prev + 1)
+    if (!isLast) setCurrentIndex(prev => prev + 1)
     else onNext()
   }
 
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
+
         <motion.div
           key={section.subCode}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
+
           {/* Header */}
           <div className="mb-6">
-            <Badge className="bg-purple-500 text-white mb-3">
-              {data.title}
-            </Badge>
             <div className="flex items-center gap-3 mb-2">
               <BookOpen className="w-8 h-8 text-purple-600" />
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-purple-900">
                   {section.title}
                 </h1>
-                <span className="text-xl">{"⭐".repeat(section.importance)}</span>
+                <span className="text-xl">
+                  {"⭐".repeat(section.importance)}
+                </span>
               </div>
             </div>
+
             <p className="text-gray-600">
-              ({currentIndex + 1}/{data.sections.length})
+              {currentIndex + 1} / {data.sections.length}
             </p>
           </div>
 
@@ -83,16 +83,20 @@ export function ConceptView({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="mb-1"
+                className="mb-3"
               >
                 {block.type === "heading" && (
                   <h2 className="text-lg font-semibold text-purple-800 mb-2">
                     {block.text}
                   </h2>
                 )}
+
                 {block.type === "paragraph" && (
-                  <p className="text-gray-800 leading-relaxed">{block.text}</p>
+                  <p className="text-gray-800 leading-relaxed">
+                    {block.text}
+                  </p>
                 )}
+
                 {block.type === "list" && (
                   <ul className="list-disc list-inside text-gray-800 space-y-2 pl-3">
                     {block.items.map((item, idx) => (
@@ -100,6 +104,7 @@ export function ConceptView({
                     ))}
                   </ul>
                 )}
+
                 {block.type === "table" && (
                   <div className="overflow-x-auto mt-4">
                     <table className="min-w-full border border-purple-200 text-sm">
@@ -124,6 +129,7 @@ export function ConceptView({
                         ))}
                       </tbody>
                     </table>
+
                     {block.caption && (
                       <p className="text-sm text-gray-500 mt-2">
                         {block.caption}
@@ -131,6 +137,7 @@ export function ConceptView({
                     )}
                   </div>
                 )}
+
                 {block.type === "image" && block.url && (
                   <div className="text-center mt-4">
                     <img
@@ -138,6 +145,7 @@ export function ConceptView({
                       alt={block.alt || ""}
                       className="rounded-lg shadow-md inline-block max-h-80"
                     />
+
                     {block.caption && (
                       <p className="text-sm text-gray-500 mt-2">
                         {block.caption}
@@ -155,19 +163,19 @@ export function ConceptView({
               <div className="p-2 bg-yellow-400 rounded-lg">
                 <Lightbulb className="w-5 h-5 text-white" />
               </div>
+
               <div>
                 <h3 className="text-yellow-900 font-semibold mb-2">
                   학습 팁
                 </h3>
                 <p className="text-gray-700">
-                  개념을 이해했다면 다음 단계로 넘어가 미니체크로 확인해보세요!  
-                  O/X 문제를 통해 핵심 내용을 빠르게 점검할 수 있습니다.
+                  개념을 이해했다면 미니체크로 빠르게 복습해봐
                 </p>
               </div>
             </div>
           </Card>
 
-          {/* Next Button */}
+          {/* Next */}
           <div className="flex justify-end">
             <Button
               onClick={handleNext}
@@ -178,6 +186,7 @@ export function ConceptView({
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
+
         </motion.div>
       </div>
     </div>

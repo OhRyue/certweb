@@ -19,12 +19,15 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
     const [verificationCode, setVerificationCode] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const navigate = useNavigate()
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    const [isPasswordInvalid, setIsPasswordInvalid] = useState(false);
+    const [passwordConfirm, setPasswordConfirm] = useState("");
 
     // 1️⃣ 인증 메일 전송
     const handleSendEmail = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await axios.post("/account/forgot-password", { username });
+            await axios.post("/account/forgot-password", { userId: username });
             alert("인증 코드가 이메일로 전송되었습니다!");
             setStep("code");
         } catch (err: any) {
@@ -36,11 +39,11 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
     const handleVerifyCode = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await axios.post("/account/verify-code", {
+            const res = await axios.post("/account/forgot-password/verify", {
                 email,
                 code: verificationCode,
             });
-            alert(res.data || "인증 성공!");
+            alert(res.data.message);
             setStep("complete");
         } catch (err: any) {
             alert(err.response?.data || "인증 코드가 올바르지 않습니다.");
@@ -58,11 +61,11 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         }
 
         try {
-            const res = await axios.post("/account/reset-password", {
-                email,             // ✅ 반드시 포함
-                newPassword,       // ✅ 백엔드에서 newPassword 사용
+            const res = await axios.post("/account/forgot-password/reset", {
+                email,
+                newPassword,
             });
-            alert(res.data || "비밀번호가 성공적으로 변경되었습니다!");
+            alert(res.data.message);
             navigate("/login");
         } catch (err: any) {
             console.error("비밀번호 변경 에러:", err.response || err);
@@ -70,6 +73,10 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         }
     };
 
+    // 비밀번호 형식 유효성 판단
+    const handleNewPasswordBlur = () => {
+        setIsPasswordInvalid(!passwordRegex.test(newPassword));
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
@@ -132,16 +139,68 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
                     {step === "complete" && (
                         <form onSubmit={handleResetPassword}>
                             <h2 className="text-purple-900 mb-4 text-center text-lg">새 비밀번호 설정</h2>
+
                             <label className="text-sm text-gray-700 mb-2 block">새 비밀번호</label>
+
                             <Input
                                 type="password"
                                 placeholder="새 비밀번호 입력"
                                 value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                className="mb-4"
+                                onChange={(e) => {
+                                    setNewPassword(e.target.value)
+                                    if (isPasswordInvalid) {
+                                        setIsPasswordInvalid(false)
+                                    }
+                                }}
+                                onBlur={handleNewPasswordBlur}
+                                className={`bg-white focus:border-purple-400 transition-all ${isPasswordInvalid
+                                    ? "border-red-400 text-red-700 placeholder-red-300"
+                                    : "border-purple-200"
+                                    }`}
                                 required
                             />
-                            <Button type="submit" className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-6">
+
+                            <p
+                                className={`text-xs mt-1 transition-colors ${isPasswordInvalid ? "text-red-500" : "text-gray-500"
+                                    }`}
+                            >
+                                영문 숫자 특수문자 포함 8자 이상
+                            </p>
+
+                            {/* 비밀번호 재확인 */}
+                            <label className="text-sm text-gray-700 mb-2 block mt-4">비밀번호 확인</label>
+
+                            <Input
+                                type="password"
+                                placeholder="새 비밀번호 다시 입력"
+                                value={passwordConfirm}
+                                onChange={(e) => setPasswordConfirm(e.target.value)}
+                                className="bg-white border-purple-200 focus:border-purple-400"
+                            />
+
+                            {passwordConfirm && (
+                                <p
+                                    className={`text-xs mt-1 flex items-center gap-1 ${newPassword === passwordConfirm ? "text-green-600" : "text-red-600"
+                                        }`}
+                                >
+                                    {newPassword === passwordConfirm ? (
+                                        <>
+                                            <CheckCircle className="w-3 h-3" /> 비밀번호가 일치합니다
+                                        </>
+                                    ) : (
+                                        "비밀번호가 일치하지 않습니다"
+                                    )}
+                                </p>
+                            )}
+
+                            <Button
+                                type="submit"
+                                disabled={
+                                    !passwordRegex.test(newPassword) ||
+                                    newPassword !== passwordConfirm
+                                }
+                                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-6 mt-4 disabled:opacity-50"
+                            >
                                 비밀번호 변경하기
                             </Button>
                         </form>
