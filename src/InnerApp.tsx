@@ -71,7 +71,11 @@ import { ShopDashboard } from "./components/Shop/ShopDashboard"
 import { LevelUpScreen } from "./components/LevelUpScreen"
 import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
 
-export default function InnerApp() {
+interface InnerAppProps {
+  onLogout: () => void
+}
+
+export default function InnerApp({ onLogout }: InnerAppProps) {
   const navigate = useNavigate()
   const [userSettings, setUserSettings] = useState(initialSettings)
   const [userPoints, setUserPoints] = useState(5000)
@@ -88,14 +92,14 @@ export default function InnerApp() {
     targetCertification: ""
   })
 
-   useEffect(() => {
+  useEffect(() => {
     async function fetchProfile() {
       try {
         // 1. 기본 프로필 설정(userId, nickname, avatarUrl, timezone, lang)
         const profileRes = await axios.get("/account/profile")
-        
+
         // 2. 목표 자격증 호출(id, userId, certId, targetExamMode, targetRoundId, ddayCached)
-        const goalRes = await axios.get("/account/goal") 
+        const goalRes = await axios.get("/account/goal")
 
         setUserProfile(prev => ({
           ...prev,
@@ -181,7 +185,18 @@ export default function InnerApp() {
           {/* 기타 그대로 */}
           <Route path="/report" element={<ReportDashboard />} />
           <Route path="/certinfo" element={<CertInfoDashboard />} />
-          <Route path="/settings" element={<SettingsDashboard userProfile={userProfile} userSettings={userSettings} onUpdateProfile={setUserProfile} onUpdateSettings={setUserSettings} />} />
+          <Route
+            path="/settings"
+            element={
+              <SettingsDashboard
+                userProfile={userProfile}
+                userSettings={userSettings}
+                onUpdateProfile={setUserProfile}
+                onUpdateSettings={setUserSettings}
+                onLogout={onLogout}
+              />
+            }
+          />
           <Route path="/shop" element={<ShopDashboard shopItems={shopItems} userPoints={userPoints} onPurchase={(id, price) => {
             setUserPoints(prev => prev - price)
             setShopItems(prev => prev.map(item => item.id === id ? { ...item, isPurchased: true } : item))
