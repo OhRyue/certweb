@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { LoginScreen } from "./components/LoginScreen"
 import { SignUpScreen } from "./components/SignUpScreen"
 import { ForgotPasswordScreen } from "./components/ForgotPasswordScreen"
+import { PrivateRoute } from "./PrivateRoute"
 import InnerApp from "./InnerApp"
 import { Toaster } from "./components/ui/sonner"
 
@@ -16,27 +17,34 @@ export default function App() {
     if (token) setIsLoggedIn(true)
   }, [])
 
+  const handleLogout = () => {
+    localStorage.clear()
+    setIsLoggedIn(false)
+  }
+
   return (
     <BrowserRouter>
       <Routes>
-        {/* 로그인 안 해도 접근 가능한 페이지 */}
-        <Route path="/login" element={<LoginScreen onLogin={() => setIsLoggedIn(true)} />} />
+
+        {/* 로그인 페이지 */}
+        <Route
+          path="/login"
+          element={
+            isLoggedIn
+              ? <Navigate to="/" replace />
+              : <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+          }
+        />
+
         <Route path="/signup" element={<SignUpScreen />} />
         <Route path="/forgotPassword" element={<ForgotPasswordScreen />} />
 
-        {/* 로그인 필요 → 안 되어 있으면 자동으로 /login */}
-        <Route
-          path="/*"
-          element={
-            isLoggedIn ? (
-              <InnerApp />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+        {/* 보호 영역 */}
+        <Route element={<PrivateRoute isLoggedIn={isLoggedIn} />}>
+          <Route path="/*" element={<InnerApp onLogout={handleLogout} />} />
+        </Route>
       </Routes>
-      <Toaster />
     </BrowserRouter>
+
   )
 }

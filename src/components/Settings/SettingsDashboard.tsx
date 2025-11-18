@@ -1,4 +1,6 @@
 import { useState } from "react";
+import axios from "../api/axiosConfig"
+import { useNavigate } from "react-router-dom"
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -31,12 +33,14 @@ interface SettingsDashboardProps {
   onUpdateSettings: (settings: any) => void;
 }
 
-export function SettingsDashboard({ 
-  userProfile, 
+export function SettingsDashboard({
+  userProfile,
   userSettings,
   onUpdateProfile,
-  onUpdateSettings 
+  onUpdateSettings,
+  onLogout
 }: SettingsDashboardProps) {
+  const navigate = useNavigate()
   const [profile, setProfile] = useState(userProfile);
   const [settings, setSettings] = useState(userSettings);
 
@@ -59,6 +63,23 @@ export function SettingsDashboard({
       toast.success("데이터가 초기화되었습니다.");
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post("/account/logout")
+    } catch (e) {
+      console.error("로그아웃 API 실패", e)
+    }
+
+    localStorage.removeItem("accessToken")
+    localStorage.removeItem("refreshToken")
+    localStorage.removeItem("userId")
+
+    toast.success("로그아웃 완료")
+     onLogout()   // 여기서 상태 false 됨
+    navigate("/login", { replace: true })
+  }
+
 
   return (
     <div className="p-8">
@@ -142,7 +163,7 @@ export function SettingsDashboard({
                   </div>
                 </div>
 
-                <Button 
+                <Button
                   onClick={handleSaveProfile}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
@@ -151,6 +172,13 @@ export function SettingsDashboard({
                 </Button>
               </div>
             </Card>
+            <Button
+              onClick={handleLogout}
+              className="w-full mt-3 bg-red-500 hover:bg-red-600 text-white"
+            >
+              로그아웃
+            </Button>
+
           </TabsContent>
 
           {/* Study Settings Tab */}
@@ -159,7 +187,7 @@ export function SettingsDashboard({
               {/* Timer Settings */}
               <Card className="p-6 border-2 border-purple-200">
                 <h3 className="text-purple-900 mb-4">타이머 설정</h3>
-                
+
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -168,7 +196,7 @@ export function SettingsDashboard({
                     </div>
                     <Switch
                       checked={settings.timerEnabled}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         setSettings({ ...settings, timerEnabled: checked })
                       }
                     />
@@ -182,7 +210,7 @@ export function SettingsDashboard({
                       </div>
                       <Slider
                         value={[settings.timerDuration]}
-                        onValueChange={(value) => 
+                        onValueChange={(value) =>
                           setSettings({ ...settings, timerDuration: value[0] })
                         }
                         min={30}
@@ -198,7 +226,7 @@ export function SettingsDashboard({
               {/* Study Aids */}
               <Card className="p-6 border-2 border-purple-200">
                 <h3 className="text-purple-900 mb-4">학습 보조</h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -207,7 +235,7 @@ export function SettingsDashboard({
                     </div>
                     <Switch
                       checked={settings.hintsEnabled}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         setSettings({ ...settings, hintsEnabled: checked })
                       }
                     />
@@ -220,7 +248,7 @@ export function SettingsDashboard({
                     </div>
                     <Switch
                       checked={settings.soundEnabled}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         setSettings({ ...settings, soundEnabled: checked })
                       }
                     />
@@ -234,7 +262,7 @@ export function SettingsDashboard({
                   <Bell className="w-5 h-5 text-purple-600" />
                   <h3 className="text-purple-900">알림 설정</h3>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -243,9 +271,9 @@ export function SettingsDashboard({
                     </div>
                     <Switch
                       checked={settings.notifications.dailyReminder}
-                      onCheckedChange={(checked) => 
-                        setSettings({ 
-                          ...settings, 
+                      onCheckedChange={(checked) =>
+                        setSettings({
+                          ...settings,
                           notifications: { ...settings.notifications, dailyReminder: checked }
                         })
                       }
@@ -259,9 +287,9 @@ export function SettingsDashboard({
                     </div>
                     <Switch
                       checked={settings.notifications.weeklyReport}
-                      onCheckedChange={(checked) => 
-                        setSettings({ 
-                          ...settings, 
+                      onCheckedChange={(checked) =>
+                        setSettings({
+                          ...settings,
                           notifications: { ...settings.notifications, weeklyReport: checked }
                         })
                       }
@@ -270,7 +298,7 @@ export function SettingsDashboard({
                 </div>
               </Card>
 
-              <Button 
+              <Button
                 onClick={handleSaveSettings}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
               >
@@ -288,7 +316,7 @@ export function SettingsDashboard({
                 <p className="text-gray-600 mb-4">
                   학습 기록, 통계, 설정 등 모든 데이터를 JSON 파일로 내보냅니다.
                 </p>
-                <Button 
+                <Button
                   onClick={handleExportData}
                   variant="outline"
                   className="w-full border-2 border-blue-500 text-blue-700 hover:bg-blue-50"
@@ -303,7 +331,7 @@ export function SettingsDashboard({
                 <p className="text-gray-600 mb-4">
                   ⚠️ 모든 학습 기록과 통계가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
                 </p>
-                <Button 
+                <Button
                   onClick={handleResetData}
                   variant="destructive"
                   className="w-full"
