@@ -20,7 +20,14 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* 로그인 안 해도 접근 가능한 페이지 */}
-        <Route path="/login" element={<LoginScreen onLogin={() => setIsLoggedIn(true)} />} />
+        <Route
+          path="/login"
+          element={
+            isLoggedIn
+              ? <Navigate to="/" replace />
+              : <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+          }
+        />
         <Route path="/signup" element={<SignUpScreen />} />
         <Route path="/forgotPassword" element={<ForgotPasswordScreen />} />
 
