@@ -74,15 +74,18 @@ export function MicroFlowPage() {
     const fetchConcepts = async () => {
       try {
         // api 호출
-        const res = await axios.get(`/cert/concepts/${subTopicId}`)
-        // sectionsJson 문자열을 파싱해서 실제 리치블록 구조로 변환
-        const parsed = JSON.parse(res.data.sectionsJson)
+        // 개념 데이터
+        const ConceptRes = await axios.get(`/cert/concepts/${subTopicId}`)
+        const parsed = JSON.parse(ConceptRes.data.sectionsJson)     // sectionsJson 문자열을 파싱해서 실제 리치블록 구조로 변환
+
+        // 토픽 제목 데이터 호출
+        const topicRes = await axios.get(`/cert/topics/${subTopicId}`)
 
         // ConceptView에서 바로 쓸 수 있는 형태로 정리
         setConceptData({
-          topicId: res.data.topicId,
+          topicId: ConceptRes.data.topicId,
           sections: parsed.sections,
-          title: parsed.title || ""   // 없으면 빈 문자열
+          title: topicRes.data.title || ""   // 없으면 빈 문자열
         })
 
       } catch (err) {
