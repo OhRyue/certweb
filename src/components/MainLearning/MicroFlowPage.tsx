@@ -52,9 +52,12 @@ export function MicroFlowPage() {
       id: q.questionId,           // 문제 아이디
       question: q.text,           // 문제 본문
 
-      // 선택지 변환
+      // 선택지
       options: q.choices
-        ? q.choices.map(c => `${c.label}. ${c.text}`)
+        ? q.choices.map(c => ({
+          label: c.label,     // A B C D
+          text: c.text        // 선택지 내용
+        }))
         : [],
 
       // grade-one 때 판단
@@ -234,7 +237,7 @@ export function MicroFlowPage() {
           // 메인 학습 대시보드로 이동
           onBackToDashboard={() => navigate("/learning")}
         />
-        
+
         {/* 
           레벨업 연출
           지금은 showLevelUp이 항상 false라서 화면에 안 나옴

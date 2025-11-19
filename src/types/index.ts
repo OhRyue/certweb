@@ -43,6 +43,11 @@ export interface Subject {
   color: string
 }
 
+export interface QuestionOption {
+  label: string;
+  text: string;
+}
+
 export interface Question {
   id: string
   topicId: string
@@ -51,7 +56,7 @@ export interface Question {
   type: "multiple" | "ox" | "typing" // typing for 실기
   examType?: "written" | "practical" // 필기 or 실기
   question: string
-  options: string[] // for multiple/ox
+  options: QuestionOption[];
   correctAnswer: number | string // number for multiple/ox, string for typing
   explanation: string
 }
