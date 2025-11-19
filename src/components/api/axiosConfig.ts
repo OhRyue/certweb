@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: "/api",
+  baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
   withCredentials: true,
 });
 
@@ -75,7 +75,7 @@ instance.interceptors.response.use(
         // 새 토큰 저장
         localStorage.setItem("accessToken", newAccessToken);
         console.log("새 토큰 저장 완료:", newAccessToken.substring(0, 50) + "...");
-        
+
         // 새 토큰 페이로드 확인
         try {
           const tokenParts = newAccessToken.split('.');
@@ -92,7 +92,7 @@ instance.interceptors.response.use(
         // 원래 요청의 Authorization 헤더를 새 토큰으로 명시적으로 업데이트
         originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        
+
         // 재시도 플래그를 리셋하지 않음 (무한 루프 방지)
         console.log("원래 요청 재시도:", originalRequest.url);
         console.log("재시도 요청 헤더:", originalRequest.headers);
