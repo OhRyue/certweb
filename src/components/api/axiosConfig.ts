@@ -1,7 +1,17 @@
 import axios from "axios";
 
+// 환경 변수 검증
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+if (!API_BASE_URL) {
+  console.error(
+    "VITE_API_BASE_URL 환경 변수가 설정되지 않았습니다. " +
+    "Netlify 대시보드에서 환경 변수를 설정해주세요."
+  );
+}
+
 const instance = axios.create({
-  baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
+  baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : "/api",
   withCredentials: true,
 });
 
