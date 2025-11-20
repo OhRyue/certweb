@@ -9,7 +9,6 @@ import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import {
   BarChart3,
   TrendingUp,
-  TrendingDown,
   Clock,
   Target,
   Sparkles,
@@ -55,7 +54,6 @@ export function ReportDashboard() {
           total: item.total,
           correct: item.correct,
           proficiency: Math.round(item.accuracy),
-          trend: item.accuracy >= 75 ? "up" : "down"  // 대충 기준
         }))
       )
 
@@ -180,11 +178,6 @@ export function ReportDashboard() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-gray-800">#{stat.tag}</span>
-                          {stat.trend === "up" ? (
-                            <TrendingUp className="w-4 h-4 text-green-500" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 text-red-500" />
-                          )}
                         </div>
 
                         <div className="flex items-center gap-4">
