@@ -15,6 +15,7 @@ import {
   FileText,
   Code
 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 const recentResults = [
   { id: "r1", type: "Micro", topic: "데이터베이스 기초", date: "2025-10-22", score: 89, total: 9 },
@@ -34,6 +35,7 @@ export function ReportDashboard() {
   const [overviewLoading, setOverviewLoading] = useState(true)
   const [recentRecords, setRecentRecords] = useState<any[]>([])
   const [recentLoading, setRecentLoading] = useState(true)
+  const navigate = useNavigate()
 
 
 
@@ -389,7 +391,7 @@ export function ReportDashboard() {
                 </div>
               )}
 
-              <Button variant="outline" className="w-full mt-4">
+              <Button variant="outline" className="w-full mt-4" onClick={()=> navigate(`/report/history`)}>
                 전체 기록 보기
               </Button>
             </Card>
