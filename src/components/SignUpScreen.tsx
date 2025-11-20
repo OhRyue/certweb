@@ -76,7 +76,7 @@ export function SignUpScreen() {
 
             try {
                 setIsCheckingId(true);
-                const res = await axios.get(`account/check-userId`, {
+                const res = await axios.get(`/account/check-userId`, {
                     params: { userId: trimmedId },
                 });
                 setIdAvailable(res.data.available);
