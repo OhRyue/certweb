@@ -1,43 +1,86 @@
-import { useState } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { BarChart3, TrendingUp, TrendingDown, Clock, Target, Sparkles, FileText, Code } from "lucide-react";
+import { useState, useEffect } from "react"
+import axios from "../api/axiosConfig"
 
-// Mock data - 필기
-const tagStatsWritten = [
-  { tag: "데이터베이스", total: 45, correct: 38, proficiency: 84, trend: "up" },
-  { tag: "네트워크", total: 38, correct: 29, proficiency: 76, trend: "up" },
-  { tag: "OOP", total: 35, correct: 24, proficiency: 69, trend: "down" },
-  { tag: "SQL", total: 32, correct: 28, proficiency: 88, trend: "up" },
-  { tag: "정규화", total: 28, correct: 18, proficiency: 64, trend: "down" },
-];
-
-// Mock data - 실기
-const tagStatsPractical = [
-  { tag: "SQL 구현", total: 25, correct: 18, proficiency: 72, trend: "up" },
-  { tag: "알고리즘 구현", total: 30, correct: 19, proficiency: 63, trend: "down" },
-  { tag: "프로그래밍", total: 28, correct: 22, proficiency: 79, trend: "up" },
-  { tag: "데이터 처리", total: 22, correct: 14, proficiency: 64, trend: "down" },
-  { tag: "시스템 구축", total: 20, correct: 16, proficiency: 80, trend: "up" },
-];
+import { Card } from "../ui/card"
+import { Button } from "../ui/button"
+import { Badge } from "../ui/badge"
+import { Progress } from "../ui/progress"
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
+import {
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Target,
+  Sparkles,
+  FileText,
+  Code
+} from "lucide-react"
 
 const recentResults = [
   { id: "r1", type: "Micro", topic: "데이터베이스 기초", date: "2025-10-22", score: 89, total: 9 },
   { id: "r2", type: "Review", topic: "네트워크", date: "2025-10-21", score: 75, total: 20 },
   { id: "r3", type: "카테고리", topic: "OOP 종합", date: "2025-10-20", score: 82, total: 20 },
   { id: "r4", type: "Micro", topic: "객체지향", date: "2025-10-19", score: 67, total: 9 },
-];
+]
 
 export function ReportDashboard() {
-  const [examType, setExamType] = useState<"written" | "practical">("written");
-  const tagStats = examType === "written" ? tagStatsWritten : tagStatsPractical;
+
+  const [examType, setExamType] = useState<"written" | "practical">("written")
+  const [tagStats, setTagStats] = useState<any[]>([])
+  const [weaknessTags, setWeaknessTags] = useState<string[]>([])
+  const [message, setMessage] = useState("")
+  const [loading, setLoading] = useState(true)
+
+  // userId는 나중에 토큰 기반으로 제거됨. 지금은 임시 유지
+  const userId = localStorage.getItem("userId")
+
+  async function fetchReport(mode: "written" | "practical") {
+    try {
+      setLoading(true)
+
+      const res = await axios.get("/progress/report/ability-by-tag", {
+        params: {
+          userId,
+          mode: mode === "written" ? "WRITTEN" : "PRACTICAL",
+          limit: 10
+        }
+      })
+
+      const data = res.data
+
+      setTagStats(
+        data.items.map((item: any) => ({
+          tag: item.tag,
+          total: item.total,
+          correct: item.correct,
+          proficiency: Math.round(item.accuracy),
+          trend: item.accuracy >= 75 ? "up" : "down"  // 대충 기준
+        }))
+      )
+
+      setWeaknessTags(data.weaknessTags)
+      setMessage(data.message)
+
+    } catch (error: any) {
+      console.error(error)
+      setTagStats([])
+      setWeaknessTags([])
+      setMessage("데이터를 불러오는 중 오류가 발생했습니다")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 처음 로딩 + examType 변경 시 다시 호출
+  useEffect(() => {
+    fetchReport(examType)
+  }, [examType])
 
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -99,92 +142,106 @@ export function ReportDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tag Statistics */}
+
+          {/* 태그 분석 */}
           <div className="lg:col-span-2">
             <Card className="p-6 border-2 border-purple-200">
+
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-purple-900">태그별 능력지수</h2>
                 
-                {/* Exam Type Toggle */}
                 <Tabs value={examType} onValueChange={(v) => setExamType(v as "written" | "practical")} className="w-auto">
                   <TabsList className="bg-purple-100">
                     <TabsTrigger value="written" className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      필기
+                      <FileText className="w-4 h-4" /> 필기
                     </TabsTrigger>
                     <TabsTrigger value="practical" className="flex items-center gap-2">
-                      <Code className="w-4 h-4" />
-                      실기
+                      <Code className="w-4 h-4" /> 실기
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
-              
-              <div className="space-y-4">
-                {tagStats.map((stat) => (
-                  <div key={stat.tag} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-800">#{stat.tag}</span>
-                        {stat.trend === "up" ? (
-                          <TrendingUp className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4 text-red-500" />
-                        )}
+
+              {/* 데이터 로딩 */}
+              {loading && <p className="text-gray-600">불러오는 중...</p>}
+
+              {/* 데이터 부족 */}
+              {!loading && tagStats.length === 0 && (
+                <Card className="p-6 bg-pink-50 border-2 border-pink-200">
+                  <p className="text-gray-700 text-center">{message}</p>
+                </Card>
+              )}
+
+              {/* 데이터 있을 때 */}
+              {!loading && tagStats.length > 0 && (
+                <div className="space-y-4">
+                  {tagStats.map((stat: any) => (
+                    <div key={stat.tag} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-gray-800">#{stat.tag}</span>
+                          {stat.trend === "up" ? (
+                            <TrendingUp className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-red-500" />
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-gray-600">
+                            {stat.correct}/{stat.total}
+                          </span>
+
+                          <Badge
+                            variant="secondary"
+                            className={
+                              stat.proficiency >= 80
+                                ? "bg-green-100 text-green-700"
+                                : stat.proficiency >= 60
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-red-100 text-red-700"
+                            }
+                          >
+                            {stat.proficiency}%
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-600">
-                          {stat.correct} / {stat.total}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className={
-                            stat.proficiency >= 80
-                              ? "bg-green-100 text-green-700"
-                              : stat.proficiency >= 60
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
-                          }
-                        >
-                          {stat.proficiency}%
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="relative">
+
                       <Progress value={stat.proficiency} className="h-2" />
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
-              {/* Weakness Analysis */}
+              {/* 약점 분석 */}
               <div className="mt-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 rounded-lg border border-red-200">
                 <div className="flex items-start gap-3">
                   <div className="text-2xl">💡</div>
                   <div>
-                    <h3 className="text-red-900 mb-2">약점 분석 ({examType === "written" ? "필기" : "실기"})</h3>
-                    <p className="text-sm text-gray-700">
-                      {examType === "written" ? (
-                        <>
-                          <strong>정규화</strong>와 <strong>OOP</strong> 태그의 정답률이 낮습니다.
-                        </>
-                      ) : (
-                        <>
-                          <strong>알고리즘 구현</strong>과 <strong>데이터 처리</strong> 태그의 정답률이 낮습니다.
-                        </>
-                      )}
-                      {" "}약점 보완 퀴즈로 집중 학습을 추천합니다!
-                    </p>
+                    <h3 className="text-red-900 mb-2">
+                      약점 분석 ({examType === "written" ? "필기" : "실기"})
+                    </h3>
+
+                    {weaknessTags.length === 0 ? (
+                      <p className="text-sm text-gray-700">{message}</p>
+                    ) : (
+                      <p className="text-sm text-gray-700">
+                        {weaknessTags.join(", ")} 태그의 정답률이 낮습니다.  
+                        {" "}약점 보완 퀴즈로 집중 학습을 추천합니다!
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
+
             </Card>
           </div>
 
-          {/* Recent Results */}
+          {/* Recent Results SIDE */}
           <div>
             <Card className="p-6 border-2 border-purple-200">
               <h2 className="text-purple-900 mb-6">최근 학습 결과</h2>
+
               <div className="space-y-4">
                 {recentResults.map((result) => (
                   <div
@@ -206,7 +263,9 @@ export function ReportDashboard() {
                       </Badge>
                       <span className="text-xs text-gray-500">{result.date}</span>
                     </div>
+
                     <h4 className="text-gray-900 mb-2">{result.topic}</h4>
+                    
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">
                         {Math.round((result.score / result.total) * 100)}% 정답률
@@ -219,10 +278,7 @@ export function ReportDashboard() {
                 ))}
               </div>
 
-              <Button 
-                variant="outline" 
-                className="w-full mt-4"
-              >
+              <Button variant="outline" className="w-full mt-4">
                 전체 기록 보기
               </Button>
             </Card>
@@ -230,5 +286,5 @@ export function ReportDashboard() {
         </div>
       </div>
     </div>
-  );
+  )
 }
