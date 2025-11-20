@@ -122,12 +122,6 @@ export function Navigation({ userProfile, userPoints = 0 }: NavigationProps) {
           )
         })}
       </nav>
-
-      {/* Footer */}
-      <div className="text-center text-white/60 text-xs pt-4 border-t border-white/20">
-        <p>© 2025 자격증 마스터</p>
-        <p>v1.0.0</p>
-      </div>
     </div>
   )
 }
