@@ -14,6 +14,8 @@ const instance = axios.create({
   baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : "/api",
   withCredentials: true,
 });
+console.log("🔵 [AXIOS INIT] API_BASE_URL =", API_BASE_URL);
+console.log("🔵 [AXIOS INIT] 최종 baseURL =", instance.defaults.baseURL);
 
 // 요청 인터셉터
 instance.interceptors.request.use(
@@ -43,6 +45,13 @@ instance.interceptors.request.use(
         console.log("요청 인터셉터: 이미 Authorization 헤더 있음 (재시도)", config.url)
       }
     }
+    
+    // 🔴 디버깅용: 실제 요청 URL 확인
+    console.log("➡️ [REQUEST]", {
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`
+    });
 
     return config
   },
