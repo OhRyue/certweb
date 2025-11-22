@@ -1,6 +1,6 @@
 import { motion } from "motion/react"
 import { useNavigate, useParams } from "react-router-dom"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import axios from "../api/axiosConfig"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
@@ -12,27 +12,37 @@ export function CommunityDetailModal() {
   const { postId } = useParams()
 
   const [post, setPost] = useState<any>(null)
+  const [postContent, setPostContent] = useState("") // 게시글 본문 (API 응답의 content 필드)
   const [comments, setComments] = useState<any[]>([])
-  const [content, setContent] = useState("")
+  const [content, setContent] = useState("") // 댓글 작성용
   const [pending, setPending] = useState(false)
+  const [likedByMe, setLikedByMe] = useState(false)
+  const [canEdit, setCanEdit] = useState(false)
 
-  // load post detail
-  useEffect(() => {
+  const fetchPostDetail = useCallback(async () => {
     if (!postId) return
-    fetchPostDetail()
-  }, [postId])
-
-  const fetchPostDetail = async () => {
     try {
-      const res = await axios.get(`/community/posts/${postId}`)
+      const res = await axios.get(`/community/posts/${postId}`, {
+        params: {
+          commentSize: 100 // 기본값 100
+        }
+      })
       const data = res.data
 
       setPost(data.post)
+      setPostContent(data.content || "") // API 응답의 content 필드
       setComments(data.comments || [])
+      setLikedByMe(data.likedByMe || false)
+      setCanEdit(data.canEdit || false)
     } catch (err) {
       console.error("게시글 상세 불러오기 실패", err)
     }
-  }
+  }, [postId])
+
+  // load post detail
+  useEffect(() => {
+    fetchPostDetail()
+  }, [fetchPostDetail])
 
   // 댓글 작성 API
   const submitComment = async () => {
@@ -113,16 +123,20 @@ export function CommunityDetailModal() {
 
         {/* 본문 */}
         <div className="mb-6 p-6 bg-gray-50 rounded-lg text-gray-800 whitespace-pre-wrap">
-          {content}
+          {postContent}
         </div>
 
         {/* 버튼 */}
         <div className="flex gap-3 mb-8 pb-6 border-b">
-          <Button variant="outline" className="flex-1 border-gray-200 hover:border-pink-300">
-            <Heart className="w-4 h-4 mr-2" /> 좋아요 {post.likeCount}
+          <Button 
+            variant="outline" 
+            className={`flex-1 border-gray-200 ${likedByMe ? 'border-pink-300 bg-pink-50' : 'hover:border-pink-300'}`}
+          >
+            <Heart className={`w-4 h-4 mr-2 ${likedByMe ? 'fill-pink-500 text-pink-500' : ''}`} /> 
+            좋아요 {post.likeCount || 0}
           </Button>
           <Button variant="outline" className="flex-1 border-gray-200">
-            <MessageCircle className="w-4 h-4 mr-2" /> 댓글 {post.commentCount}
+            <MessageCircle className="w-4 h-4 mr-2" /> 댓글 {post.commentCount || 0}
           </Button>
           <Button variant="outline" className="border-gray-200">
             <Share2 className="w-4 h-4" />
@@ -138,10 +152,14 @@ export function CommunityDetailModal() {
                 {c.authorDisplayName}
               </div>
               <div className="flex items-center text-pink-600 text-xs">
-                <ThumbsUp className="w-3 h-3 mr-1" /> {c.likeCount}
+                <ThumbsUp className={`w-3 h-3 mr-1 ${c.likedByMe ? 'fill-pink-600' : ''}`} /> 
+                {c.likeCount || 0}
               </div>
             </div>
             <p className="text-sm text-gray-700">{c.content}</p>
+            <div className="text-xs text-gray-500 mt-1">
+              {new Date(c.createdAt).toLocaleString()}
+            </div>
           </div>
         ))}
 
