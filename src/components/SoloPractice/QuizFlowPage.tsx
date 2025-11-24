@@ -133,6 +133,7 @@ export function QuizFlowPage() {
       return (
         <ProblemSolving
           questions={relatedQuestions}
+          quizType={quizType}
           onComplete={(score) => {
             setProblemScore(score)
             setStep("result")

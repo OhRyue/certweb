@@ -11,6 +11,7 @@ import axios from "../api/axiosConfig"
 // props로 받을 타입 정의
 interface ReviewProblemSolvingProps {
   questions: Question[]   // 문제 배열
+  quizType?: "category" | "difficulty" | "weakness"  // 퀴즈 타입
   // 모든 문제 완료 시 호출되는 콜백
   onComplete: (
     score: number,      // 맞은 개수
@@ -20,7 +21,7 @@ interface ReviewProblemSolvingProps {
 
 // 카테고리 퀴즈의 필기(객관식) 문제 풀이 컴포넌트
 
-export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingProps) {
+export function ProblemSolving({ questions, quizType, onComplete }: ReviewProblemSolvingProps) {
   const [currentIndex, setCurrentIndex] = useState(0)                             // 현재 문제 인덱스(0부터 시작)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)       // 사용자가 선택한 보기 번호
   const [showResult, setShowResult] = useState(false)                             // 결과(정답 여부) 보여줄지 여부
@@ -167,11 +168,17 @@ export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingPr
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          {/* 카테고리 뱃지 */}
+          {/* 퀴즈 타입 뱃지 */}
           <div className="flex items-center gap-2 mb-3">
-            <Badge className="bg-blue-500 text-white">총정리</Badge>
+            <Badge className="bg-blue-500 text-white">
+              {quizType === "difficulty" 
+                ? "난이도" 
+                : quizType === "weakness" 
+                ? "약점 보완" 
+                : "카테고리"}
+            </Badge>
             <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-              객관식
+              필기기
             </Badge>
           </div>
 
