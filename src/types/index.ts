@@ -59,6 +59,7 @@ export interface Question {
   options: QuestionOption[];
   correctAnswer: number | string // number for multiple/ox, string for typing
   explanation: string
+  imageUrl?: string // 실기 문제용 이미지 URL
 }
 
 export interface Concept {

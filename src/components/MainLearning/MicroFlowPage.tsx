@@ -4,7 +4,8 @@ import axios from "../api/axiosConfig"
 
 import { ConceptView } from "./ConceptView"
 import { MiniCheck } from "./MiniCheck"
-import { ProblemSolving } from "./ProblemSolving"
+import { ProblemSolvingWritten } from "./ProblemSolvingWritten"
+import { ProblemSolvingPractical } from "./ProblemSolvingPractical"
 import { MicroWrongAnswers } from "./MicroWrongAnswers"
 import { MicroResult } from "./MicroResult"
 import { LevelUpScreen } from "../LevelUpScreen"
@@ -46,7 +47,7 @@ export function MicroFlowPage() {
   const examType = (rawType === "practical" ? "practical" : "written") as "written" | "practical"
 
   // 백엔드 MCQ 응답을 프론트에서 쓰기 편한 형태로 정규화
-  // ProblemSolving 컴포넌트가 기대하는 필드 구조로 맞춰주는 역할
+  // ProblemSolvingWritten 컴포넌트가 기대하는 필드 구조로 맞춰주는 역할
   function normalizeMcq(items) {
     return items.map((q) => ({
       id: q.questionId,           // 문제 아이디
@@ -69,6 +70,31 @@ export function MicroFlowPage() {
       // 난이도나 태그는 백엔드가 주면 그대로 사용
       difficulty: q.difficulty ?? "medium",
       tags: q.tags ?? []
+    }))
+  }
+
+  // 실기 문제 세트 응답을 프론트에서 쓰기 편한 형태로 정규화
+  // ProblemSolvingPractical 컴포넌트가 기대하는 필드 구조로 맞춰주는 역할
+  function normalizePractical(items) {
+    return items.map((q) => ({
+      id: String(q.questionId),   // 문제 아이디 (문자열로 변환)
+      question: q.text,           // 문제 본문
+      imageUrl: q.imageUrl,       // 이미지 URL (실기용)
+      
+      // 실기는 타이핑 방식이므로 선택지 없음
+      options: [],
+
+      // 채점 API를 통해 받아야 하므로 일단 null
+      correctAnswer: null,
+
+      // 해설은 채점 응답으로 채울 수 있음, 지금은 비워둠
+      explanation: "",
+
+      // 기본값 설정
+      difficulty: "medium",
+      tags: [],
+      type: "typing",             // 실기는 타이핑 타입
+      examType: "practical"       // 실기 타입 명시
     }))
   }
 
@@ -148,15 +174,23 @@ export function MicroFlowPage() {
           // 미니체크 점수 저장
           setMiniScore(score)
           try {
-            // 객관식 문제 세트 호출
-            const res = await axios.get(`/study/${examType}/mcq/${subTopicId}`)
-            // 백엔드 응답을 ProblemSolving이 쓰기 좋은 구조로 정규화
-            setMcqData(normalizeMcq(res.data.payload.items))
+            // 필기/실기에 따라 다른 API 호출
+            if (examType === "practical") {
+              // 실기 문제 세트 호출
+              const res = await axios.get(`/study/practical/set/${subTopicId}`)
+              // 백엔드 응답을 ProblemSolvingPractical이 쓰기 좋은 구조로 정규화
+              setMcqData(normalizePractical(res.data.payload.items))
+            } else {
+              // 필기 객관식 문제 세트 호출
+              const res = await axios.get(`/study/${examType}/mcq/${subTopicId}`)
+              // 백엔드 응답을 ProblemSolvingWritten이 쓰기 좋은 구조로 정규화
+              setMcqData(normalizeMcq(res.data.payload.items))
+            }
             // 다음 단게로 이동(ProblemSolving 렌더링)
             setStep("problem")
           } catch (err) {
             console.error(err)
-            setError("객관식 문제 불러오기 실패")
+            setError(examType === "practical" ? "실기 문제 불러오기 실패" : "객관식 문제 불러오기 실패")
           }
         }}
       />
@@ -167,37 +201,59 @@ export function MicroFlowPage() {
   // 잠깐 로딩 텍스트 보여주기
   if (!mcqData) return <div>불러오는 중...</div>
 
-  // 4. 객관식 문제 풀이 단계
-  // ProblemSolving은 문제 배열과 onSubmitOne onComplete를 받아서 내부 로직 수행
+  // 4. 문제 풀이 단계
+  // 필기와 실기에 따라 다른 컴포넌트 사용
   if (step === "problem") {
+    // 필기 모드: ProblemSolvingWritten 사용
+    if (examType === "written") {
+      return (
+        <ProblemSolvingWritten
+          questions={mcqData}
+          topicName={conceptData.title}
+          topicId={subTopicId}
+          userId={userId}
+          // 사용자가 한 문제를 제출할 때 마다 호출
+          // 이 함수는 grade-one API를 호출해서 해당 문제의 정답 여부만 즉시 확인
+          onSubmitOne={async ({ questionId, label }) => {
+            const res = await axios.post(`/study/${examType}/mcq/grade-one`, {
+              userId,
+              topicId: subTopicId,
+              questionId,
+              label
+            })
+            // grade-one 응답 구조 확인용 로그
+            // 실제 서비스 때는 제거해도 됨
+            console.log("grade-one 응답:", res.data.payload.items)     // 디버깅
+            // ProblemSolvingWritten이 그대로 사용할 수 있게 응답 전체를 반환
+            // 예상 형태  correct  correctLabel  explanation  aiExplanation 등
+            return res.data
+          }}
+          // 모든 문제를 다 풀었을 때 호출
+          // score  전체 점수
+          // answers  각 문항에 대한 정오 정보와 선택 정보
+          onComplete={(score, answers) => {
+            // 점수 저장
+            setProblemScore(score)
+            // 틀린 문제만 따로 추려서 상태로 저장
+            setWrongAnswers(answers.filter(a => !a.isCorrect))
+            // 다음 단계로 이동(MicroWrongAnswers)
+            setStep("wrong")
+          }}
+        />
+      )
+    }
+    
+    // 실기 모드: ProblemSolvingPractical 사용
     return (
-      <ProblemSolving
+      <ProblemSolvingPractical
         questions={mcqData}
         topicName={conceptData.title}
         topicId={subTopicId}
-        userId={userId}
-        examType={examType}
-        // 사용자가 한 문제를 제출할 때 마다 호출
-        // 이 함수는 grade-one API를 호출해서 해당 문제의 정답 여부만 즉시 확인
-        onSubmitOne={async ({ questionId, label }) => {
-          const res = await axios.post(`/study/${examType}/mcq/grade-one`, {
-            userId,
-            topicId: subTopicId,
-            questionId,
-            label
-          })
-          // grade-one 응답 구조 확인용 로그
-          // 실제 서비스 때는 제거해도 됨
-          console.log("mcqData:", res.data.payload.items)     // 디버깅
-          // ProblemSolving이 그대로 사용할 수 있게 응답 전체를 반환
-          // 예상 형태  correct  correctLabel  explanation  aiExplanation 등
-          return res.data
-        }}
-        // 모든 객관식 문제를 다 풀었을 때 호출
+        // 모든 문제를 다 풀었을 때 호출
         // score  전체 점수
         // answers  각 문항에 대한 정오 정보와 선택 정보
         onComplete={(score, answers) => {
-          // 객관식 점수 저장
+          // 점수 저장
           setProblemScore(score)
           // 틀린 문제만 따로 추려서 상태로 저장
           setWrongAnswers(answers.filter(a => !a.isCorrect))
