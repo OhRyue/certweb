@@ -7,8 +7,9 @@ import { Badge } from "../ui/badge"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
-import { Tag, Play, ChevronRight, ChevronDown } from "lucide-react"
+import { Tag, Play, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 
 interface CategoryQuizProps {
   onStart?: () => void
@@ -189,73 +190,54 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
           {/* 좌측 트리 */}
           <div className="lg:col-span-2">
             <Card className="p-0 px-4 pt-2 pb-3 border-2 border-purple-200">
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="text-purple-900">학습 주제 선택</h2>
+              <div className="space-y-2 mb-4">
 
-                {/* 필기/실기 토글 */}
-                <div className="flex gap-2 bg-blue-100 p-1 rounded-xl">
-                  <Button
-                    variant={selectedExamType === "written" ? "default" : "ghost"}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "written"
-                      ? "bg-blue-500 text-white hover:bg-blue-600"
-                      : "text-blue-700 hover:bg-blue-100 hover:text-blue-700"
-                      }`}
-                    onClick={() => toggleExamType("written")}
-                  >
-                    📝 필기
-                  </Button>
+                {/* 제목 + 토글 */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl text-purple-900">학습 주제 선택</h2>
 
-                  <Button
-                    variant={selectedExamType === "practical" ? "default" : "ghost"}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "practical"
-                      ? "bg-orange-500 text-white hover:bg-orange-600"
-                      : "text-orange-700 hover:bg-orange-100 hover:text-orange-700"
-                      }`}
-                    onClick={() => toggleExamType("practical")}
-                  >
-                    💻 실기
-                  </Button>
+                  <Tabs value={selectedExamType} onValueChange={v => toggleExamType(v as "written" | "practical")}>
+                    <TabsList className="bg-gradient-to-r from-purple-100 to-pink-100 p-1">
+                      <TabsTrigger
+                        value="written"
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-sky-500 data-[state=active]:text-white"
+                      >
+                        <FileText className="w-4 h-4 mr-2" /> 필기
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="practical"
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
+                      >
+                        <Keyboard className="w-4 h-4 mr-2" /> 실기
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </div>
-              </div>
 
-              <p className="text-sm text-gray-600 mt-0 mb-1">
-                {selectedExamType === "written"
-                  ? "필기 과목의 세부 주제를 선택하세요"
-                  : "실기 과목의 세부 주제를 선택하세요"}
-              </p>
+                {/* 설명 */}
+                <p className="text-sm text-gray-600">
+                  {selectedExamType === "written"
+                    ? "필기 과목의 세부 주제를 선택하세요"
+                    : "실기 과목의 세부 주제를 선택하세요"}
+                </p>
 
-              {/* 전체 선택 체크박스 */}
-              <div className="flex justify-end">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={(() => {
-                      const allIds = getAllDetailIds()
-                      return allIds.length > 0 && allIds.every(id => selectedDetails.includes(id))
-                    })()}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
+                {/* 전체 선택 */}
+                <div className="flex justify-end">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={(() => {
                         const allIds = getAllDetailIds()
-                        setSelectedDetails([...allIds])
-                      } else {
-                        setSelectedDetails([])
-                      }
-                    }}
-                  />
-                  <Label
-                    className="text-sm text-gray-600 cursor-pointer"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      const allIds = getAllDetailIds()
-                      const isAllSelected = allIds.length > 0 && allIds.every(id => selectedDetails.includes(id))
-                      if (isAllSelected) {
-                        setSelectedDetails([])
-                      } else {
-                        setSelectedDetails([...allIds])
-                      }
-                    }}
-                  >
-                    전체 선택
-                  </Label>
+                        return allIds.length > 0 && allIds.every(id => selectedDetails.includes(id))
+                      })()}
+                      onCheckedChange={(checked) => {
+                        const allIds = getAllDetailIds()
+                        checked ? setSelectedDetails([...allIds]) : setSelectedDetails([])
+                      }}
+                    />
+                    <Label className="text-sm text-gray-600 cursor-pointer">
+                      전체 선택
+                    </Label>
+                  </div>
                 </div>
               </div>
 
