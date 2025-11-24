@@ -7,11 +7,13 @@ import { Input } from "../ui/input"
 import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
 import type { Question } from "../../types"
+import axios from "../api/axiosConfig"
 
 // props로 받을 타입 정의
 interface ReviewProblemSolvingPracticalProps {
   questions: Question[]   // 주관식 문제 배열
-  topicName: string     
+  topicName: string
+  topicId?: number        // topicId (실기 채점 API에 필요)
   onComplete: (           // 모든 문제 완료 시 호출되는 콜백
     score: number,        //  맞은 개수
     answers: { questionId: string | number; selectedAnswer: string; isCorrect: boolean }[]
@@ -23,17 +25,21 @@ interface ReviewProblemSolvingPracticalProps {
 export function ProblemPractical({
   questions,
   topicName,
+  topicId = 0,
   onComplete,
 }: ReviewProblemSolvingPracticalProps) {
   // 현재 문제 인덱스와 선택 결과 및 점수 상태
   const [currentIndex, setCurrentIndex] = useState(0)     // 현재 문제 인덱스(0부터 시작)
   const [typedAnswer, setTypedAnswer] = useState("")      // 사용자가 입력한 답
   const [showResult, setShowResult] = useState(false)     // 결과(정답 여부) 보여줄지 여부
-  const [isGrading, setIsGrading] = useState(false)       // 맞힌 문제 개수
-  const [score, setScore] = useState(0)                   // 사용자가 풀었던 모든 문제 기록(오답노트용)
-  const [answers, setAnswers] = useState<
-    { questionId: string | number; selectedAnswer: string; isCorrect: boolean }[]
+  const [isGrading, setIsGrading] = useState(false)       // 채점 중 상태
+  const [score, setScore] = useState(0)                   // 맞힌 문제 개수
+  const [answers, setAnswers] = useState<                 // 사용자가 풀었던 모든 문제 기록(오답노트용)
+    { questionId: string | number; selectedAnswer: string; isCorrect: boolean; explanation?: string; score?: number }[]
   >([])
+  const [gradingResults, setGradingResults] = useState<  // 채점 결과 저장
+    Record<string | number, { score: number; baseExplanation: string; aiExplanation: string; isCorrect: boolean }>
+  >({})
 
   // 문제 배열이 비었을 때 예외 처리
   if (!questions || questions.length === 0) {
@@ -49,28 +55,94 @@ export function ProblemPractical({
 
   // 진행률 계산
   const progress = ((currentIndex + 1) / questions.length) * 100
-  // 
-  const isCorrect =
-    typedAnswer.trim().toLowerCase() ===
-    String(currentQuestion.correctAnswer).toLowerCase()
 
+  // 현재 문제의 채점 결과 가져오기
+  const currentGradingResult = gradingResults[currentQuestion.id]
+  const isCorrect = currentGradingResult?.isCorrect || false
+  const explanation = currentGradingResult?.aiExplanation || currentGradingResult?.baseExplanation || ""
+
+  // 실기 채점 API 호출
   const handleSubmit = async () => {
-    if (showResult || !typedAnswer.trim()) return
-    setIsGrading(true)
-    await new Promise((r) => setTimeout(r, 1000))
-    setIsGrading(false)
-    setShowResult(true)
-    if (isCorrect) setScore((prev) => prev + 1)
+    if (showResult || !typedAnswer.trim() || isGrading) return
 
-    // 오답노트용 데이터 저장
-    setAnswers((prev) => [
-      ...prev,
-      {
-        questionId: currentQuestion.id,
-        selectedAnswer: typedAnswer.trim(),
-        isCorrect,
-      },
-    ])
+    const questionId = Number(currentQuestion.id)
+    const userText = typedAnswer.trim()
+
+    setIsGrading(true)
+
+    try {
+      // 실기 채점 API 호출 (한 문제씩)
+      const response = await axios.post("/study/assist/practical/submit", {
+        topicId: topicId || questionId, // topicId가 있으면 사용, 없으면 questionId 사용
+        answers: [{
+          questionId: questionId,
+          userText: userText
+        }]
+      })
+
+      // 채점 결과 처리
+      const gradingItem = response.data.payload?.items?.[0]
+      const itemScore = gradingItem?.score || 0
+      const isCorrectResult = itemScore > 0 // score > 0이면 정답으로 간주
+
+      // AI 해설을 우선으로 사용하고, 없으면 base 해설 사용
+      const finalExplanation = gradingItem?.aiExplanation || gradingItem?.baseExplanation || ""
+
+      // 채점 결과를 상태에 저장
+      setGradingResults(prev => ({
+        ...prev,
+        [questionId]: {
+          score: itemScore,
+          baseExplanation: gradingItem?.baseExplanation || "",
+          aiExplanation: gradingItem?.aiExplanation || "",
+          isCorrect: isCorrectResult
+        }
+      }))
+
+      // 점수 업데이트
+      if (isCorrectResult) {
+        setScore(prev => prev + 1)
+      }
+
+      // 답안 저장
+      setAnswers(prev => [
+        ...prev,
+        {
+          questionId: currentQuestion.id,
+          selectedAnswer: userText,
+          isCorrect: isCorrectResult,
+          explanation: finalExplanation,
+          score: itemScore
+        },
+      ])
+
+      setShowResult(true)
+    } catch (err: any) {
+      console.error("실기 채점 API 오류:", err)
+      // 에러 발생 시 기본 처리
+      setGradingResults(prev => ({
+        ...prev,
+        [questionId]: {
+          score: 0,
+          baseExplanation: "",
+          aiExplanation: "",
+          isCorrect: false
+        }
+      }))
+      setAnswers(prev => [
+        ...prev,
+        {
+          questionId: currentQuestion.id,
+          selectedAnswer: userText,
+          isCorrect: false,
+          explanation: "",
+          score: 0
+        },
+      ])
+      setShowResult(true)
+    } finally {
+      setIsGrading(false)
+    }
   }
 
   const handleNext = () => {
@@ -109,7 +181,7 @@ export function ProblemPractical({
               문제 {currentIndex + 1} / {questions.length}
             </span>
             <span className="text-orange-600">
-              정답: {score} / {currentIndex}
+              정답: {score} / {answers.length}
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -158,37 +230,6 @@ export function ProblemPractical({
                   <span className="text-orange-800">채점 중...</span>
                 </motion.div>
               )}
-
-              {showResult && (
-                <div
-                  className={`p-4 rounded-lg border-2 ${
-                    isCorrect
-                      ? "bg-green-50 border-green-300"
-                      : "bg-red-50 border-red-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    {isCorrect ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-600" />
-                    )}
-                    <span
-                      className={isCorrect ? "text-green-900" : "text-red-900"}
-                    >
-                      {isCorrect ? "정답입니다!" : "오답입니다!"}
-                    </span>
-                  </div>
-                  {!isCorrect && (
-                    <p className="text-gray-700">
-                      정답:{" "}
-                      <span className="text-green-700">
-                        {currentQuestion.correctAnswer}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           </Card>
 
@@ -213,25 +254,41 @@ export function ProblemPractical({
                     )}
                   </div>
                   <div className="flex-1">
-                    <h3
-                      className={
-                        isCorrect
-                          ? "text-green-900 mb-2"
-                          : "text-red-900 mb-2"
-                      }
-                    >
-                      {isCorrect ? "정답이에요!" : "틀렸어요!"}
-                    </h3>
-                    <Badge
-                      variant="secondary"
-                      className="bg-orange-100 text-orange-700"
-                    >
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      AI 해설
-                    </Badge>
-                    <p className="text-gray-700 mt-2">
-                      {currentQuestion.explanation}
-                    </p>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3
+                        className={
+                          isCorrect
+                            ? "text-green-900"
+                            : "text-red-900"
+                        }
+                      >
+                        {isCorrect ? "정답이에요!" : "틀렸어요!"}
+                      </h3>
+                      {currentGradingResult?.score !== undefined && (
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                          점수: {currentGradingResult.score}
+                        </Badge>
+                      )}
+                    </div>
+                    {explanation && (
+                      <>
+                        <Badge
+                          variant="secondary"
+                          className="bg-orange-100 text-orange-700 mb-2"
+                        >
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          {currentGradingResult?.aiExplanation ? "AI 해설" : "해설"}
+                        </Badge>
+                        <p className="text-gray-700 mt-2 whitespace-pre-line">
+                          {explanation}
+                        </p>
+                      </>
+                    )}
+                    {!explanation && (
+                      <p className="text-gray-700 mt-2">
+                        {currentQuestion.explanation || "해설이 없습니다."}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Card>
