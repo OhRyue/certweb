@@ -17,8 +17,8 @@ interface CategoryQuizProps {
 }
 
 // 카테고리 기반 퀴즈 시작 화면
-export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps) {
-  const [subjects, setSubjects] = useState<any[]>([])       // 👉 mockData 대신 API 데이터
+export function CategoryQuiz({ }: CategoryQuizProps) {
+  const [subjects, setSubjects] = useState<any[]>([])
   const [selectedDetails, setSelectedDetails] = useState<number[]>([])
   const [questionCount, setQuestionCount] = useState("10")
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
@@ -77,7 +77,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
 
       const res = await axios.get("/cert/topics", {
         params: {
-          certId: 1,       // 필요하면 props 로 받을 수 있음
+          certId: 1,
           mode,
           parentId: null
         }
@@ -111,42 +111,40 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
   // 선택 ID 집계 함수들
   // ------------------------------
   const getAllDetailIdsInSubject = (subject: any) => {
-    return subject.mainTopics.flatMap(main =>
-      main.subTopics.flatMap(sub => sub.details.map(d => d.id))
-    )
+    if (!subject || !subject.mainTopics || subject.mainTopics.length === 0) {
+      return []
+    }
+
+    return subject.mainTopics.flatMap(main => {
+      if (!main || !main.subTopics || main.subTopics.length === 0) {
+        return []
+      }
+      return main.subTopics.flatMap(sub => {
+        if (!sub || !sub.details || sub.details.length === 0) {
+          return [sub.id]
+        }
+        return sub.details.map(d => d.id)
+      })
+    })
   }
 
   const getAllDetailIdsInMainTopic = (mainTopic: any) => {
-    return mainTopic.subTopics.flatMap(sub => sub.details.map(d => d.id))
+    if (!mainTopic || !mainTopic.subTopics || mainTopic.subTopics.length === 0) {
+      return []
+    }
+    return mainTopic.subTopics.flatMap(sub => {
+      if (!sub || !sub.details || sub.details.length === 0) {
+        return [sub.id]
+      }
+      return sub.details.map(d => d.id)
+    })
   }
 
   const getAllDetailIdsInSubTopic = (subTopic: any) => {
+    if (!subTopic || !subTopic.details || subTopic.details.length === 0) {
+      return [subTopic.id]
+    }
     return subTopic.details.map(d => d.id)
-  }
-
-  // 전체 detail ID 가져오기
-  const getAllDetailIds = () => {
-    return currentSubjects.flatMap(subject => getAllDetailIdsInSubject(subject))
-  }
-
-  // 전체 선택/해제
-  const toggleSelectAll = () => {
-    const allIds = getAllDetailIds()
-    const isAllSelected = allIds.length > 0 && allIds.every(id => selectedDetails.includes(id))
-    
-    if (isAllSelected) {
-      setSelectedDetails([])
-    } else {
-      setSelectedDetails([...allIds])
-    }
-  }
-
-  const toggleDetail = (detailId: number) => {
-    if (selectedDetails.includes(detailId)) {
-      setSelectedDetails(selectedDetails.filter(d => d !== detailId))
-    } else {
-      setSelectedDetails([...selectedDetails, detailId])
-    }
   }
 
   // ------------------------------
@@ -155,6 +153,21 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
   const currentSubjects = subjects.filter(
     s => s.examType === selectedExamType
   )
+
+  // 전체 detail ID 가져오기
+  const getAllDetailIds = () => {
+    return currentSubjects.flatMap(subject => getAllDetailIdsInSubject(subject))
+  }
+
+  const toggleDetail = (detailId: number) => {
+    setSelectedDetails(prev => {
+      if (prev.includes(detailId)) {
+        return prev.filter(d => d !== detailId)
+      } else {
+        return [...prev, detailId]
+      }
+    })
+  }
 
   return (
     <div className="p-8">
@@ -175,19 +188,18 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 좌측 트리 */}
           <div className="lg:col-span-2">
-            <Card className="p-6 border-2 border-purple-200">
-              <div className="flex items-center justify-between mb-4">
+            <Card className="p-0 px-4 pt-2 pb-3 border-2 border-purple-200">
+              <div className="flex items-center justify-between mb-1">
                 <h2 className="text-purple-900">학습 주제 선택</h2>
 
                 {/* 필기/실기 토글 */}
                 <div className="flex gap-2 bg-blue-100 p-1 rounded-xl">
                   <Button
                     variant={selectedExamType === "written" ? "default" : "ghost"}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      selectedExamType === "written"
-                        ? "bg-blue-500 text-white hover:bg-blue-600"
-                        : "text-blue-700 hover:bg-blue-100 hover:text-blue-700"
-                    }`}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "written"
+                      ? "bg-blue-500 text-white hover:bg-blue-600"
+                      : "text-blue-700 hover:bg-blue-100 hover:text-blue-700"
+                      }`}
                     onClick={() => toggleExamType("written")}
                   >
                     📝 필기
@@ -195,11 +207,10 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
 
                   <Button
                     variant={selectedExamType === "practical" ? "default" : "ghost"}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      selectedExamType === "practical"
-                        ? "bg-orange-500 text-white hover:bg-orange-600"
-                        : "text-orange-700 hover:bg-orange-100 hover:text-orange-700"
-                    }`}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "practical"
+                      ? "bg-orange-500 text-white hover:bg-orange-600"
+                      : "text-orange-700 hover:bg-orange-100 hover:text-orange-700"
+                      }`}
                     onClick={() => toggleExamType("practical")}
                   >
                     💻 실기
@@ -207,23 +218,44 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 mt-0 mb-1">
                 {selectedExamType === "written"
                   ? "필기 과목의 세부 주제를 선택하세요"
                   : "실기 과목의 세부 주제를 선택하세요"}
               </p>
 
               {/* 전체 선택 체크박스 */}
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-end">
                 <div className="flex items-center gap-2">
                   <Checkbox
                     checked={(() => {
                       const allIds = getAllDetailIds()
                       return allIds.length > 0 && allIds.every(id => selectedDetails.includes(id))
                     })()}
-                    onCheckedChange={toggleSelectAll}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        const allIds = getAllDetailIds()
+                        setSelectedDetails([...allIds])
+                      } else {
+                        setSelectedDetails([])
+                      }
+                    }}
                   />
-                  <Label className="text-sm text-gray-600 cursor-pointer">전체 선택</Label>
+                  <Label
+                    className="text-sm text-gray-600 cursor-pointer"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      const allIds = getAllDetailIds()
+                      const isAllSelected = allIds.length > 0 && allIds.every(id => selectedDetails.includes(id))
+                      if (isAllSelected) {
+                        setSelectedDetails([])
+                      } else {
+                        setSelectedDetails([...allIds])
+                      }
+                    }}
+                  >
+                    전체 선택
+                  </Label>
                 </div>
               </div>
 
@@ -239,26 +271,29 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Checkbox
+                          <div
                             onClick={(e) => e.stopPropagation()}
-                            checked={(() => {
-                              const allIds = getAllDetailIdsInSubject(subject)
-                              return allIds.length > 0 && allIds.every(id =>
-                                selectedDetails.includes(id)
-                              )
-                            })()}
-                            onCheckedChange={() => {
-                              const allIds = getAllDetailIdsInSubject(subject)
-                              const isAllSelected = allIds.length > 0 && allIds.every(id =>
-                                selectedDetails.includes(id)
-                              )
-                              if (isAllSelected) {
-                                setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
-                              } else {
-                                setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
-                              }
-                            }}
-                          />
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={(() => {
+                                const allIds = getAllDetailIdsInSubject(subject)
+                                return allIds.length > 0 && allIds.every(id =>
+                                  selectedDetails.includes(id)
+                                )
+                              })()}
+                              onCheckedChange={(checked) => {
+                                setSelectedDetails(prev => {
+                                  const allIds = getAllDetailIdsInSubject(subject)
+                                  if (checked) {
+                                    return [...new Set([...prev, ...allIds])]
+                                  } else {
+                                    return prev.filter(id => !allIds.includes(id))
+                                  }
+                                })
+                              }}
+                            />
+                          </div>
                           <div className="p-2 rounded-lg text-2xl" style={{ backgroundColor: subject.color + "20" }}>
                             {subject.icon}
                           </div>
@@ -298,24 +333,24 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                             >
                               <div className="flex items-center gap-2">
                                 <Checkbox
-                                  onClick={(e) => e.stopPropagation()}
                                   checked={(() => {
                                     const allIds = getAllDetailIdsInMainTopic(mainTopic)
                                     return allIds.length > 0 && allIds.every(id =>
                                       selectedDetails.includes(id)
                                     )
                                   })()}
-                                  onCheckedChange={() => {
-                                    const allIds = getAllDetailIdsInMainTopic(mainTopic)
-                                    const isAllSelected = allIds.length > 0 && allIds.every(id =>
-                                      selectedDetails.includes(id)
-                                    )
-                                    if (isAllSelected) {
-                                      setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
-                                    } else {
-                                      setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
-                                    }
+                                  onCheckedChange={(checked) => {
+                                    setSelectedDetails(prev => {
+                                      const allIds = getAllDetailIdsInMainTopic(mainTopic)
+                                      if (checked) {
+                                        return [...new Set([...prev, ...allIds])]
+                                      } else {
+                                        return prev.filter(id => !allIds.includes(id))
+                                      }
+                                    })
                                   }}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onMouseDown={(e) => e.stopPropagation()}
                                 />
                                 <span className="text-lg">{mainTopic.icon}</span>
                                 <h4 className="text-purple-800">{mainTopic.name}</h4>
@@ -350,20 +385,21 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                                               selectedDetails.includes(id)
                                             )
                                           })()}
-                                          onCheckedChange={() => {
-                                            const allIds = getAllDetailIdsInSubTopic(subTopic)
-                                            const isAllSelected = allIds.length > 0 && allIds.every(id =>
-                                              selectedDetails.includes(id)
-                                            )
-                                            if (isAllSelected) {
-                                              setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
-                                            } else {
-                                              setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
-                                            }
+                                          onCheckedChange={(checked) => {
+                                            setSelectedDetails(prev => {
+                                              const allIds = getAllDetailIdsInSubTopic(subTopic)
+                                              if (checked) {
+                                                return [...new Set([...prev, ...allIds])]
+                                              } else {
+                                                return prev.filter(id => !allIds.includes(id))
+                                              }
+                                            })
                                           }}
+                                          onPointerDown={(e) => e.stopPropagation()}
+                                          onMouseDown={(e) => e.stopPropagation()}
                                         />
                                         <span className="text-sm text-purple-700">{subTopic.name}</span>
-                                
+
                                       </div>
 
                                       {expandedSubTopic === subTopic.id
@@ -378,11 +414,10 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                                           <div
                                             key={detail.id}
                                             onClick={() => toggleDetail(detail.id)}
-                                            className={`p-2 rounded-lg cursor-pointer transition-all border ${
-                                              selectedDetails.includes(detail.id)
-                                                ? "border-purple-500 bg-purple-50"
-                                                : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
-                                            }`}
+                                            className={`p-2 rounded-lg cursor-pointer transition-all border ${selectedDetails.includes(detail.id)
+                                              ? "border-purple-500 bg-purple-50"
+                                              : "border-gray-200 hover:border-purple-300 hover:bg-gray-50"
+                                              }`}
                                           >
                                             <div className="flex items-center gap-2">
                                               <Checkbox
