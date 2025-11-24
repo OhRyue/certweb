@@ -28,93 +28,76 @@ export function ProblemSolvingPractical({
   const [isGrading, setIsGrading] = useState(false);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<any[]>([]);
-  const [practicalAnswers, setPracticalAnswers] = useState<Array<{ questionId: number; userText: string }>>([]);
   const [gradingResults, setGradingResults] = useState<Record<number, { score: number; baseExplanation: string; aiExplanation: string; isCorrect: boolean }>>({});
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
 
-  // 실기 모드: 타이핑 답안 제출 처리
+  // 실기 모드: 타이핑 답안 제출 처리 (즉시 채점)
   const handleSubmitTypedAnswer = async () => {
     if (showResult || !typedAnswer.trim() || isGrading) return;
 
     const questionId = Number(currentQuestion.id);
     const userText = typedAnswer.trim();
 
-    // 답안 저장
-    const newAnswer = { questionId, userText };
-    const updatedAnswers = [...practicalAnswers, newAnswer];
-    setPracticalAnswers(updatedAnswers);
+    setIsGrading(true);
+    try {
+      // grade-one API 호출 (즉시 채점)
+      const res = await axios.post(`/study/practical/grade-one`, {
+        topicId: topicId,
+        questionId: questionId,
+        userText: userText
+      });
 
-    // 마지막 문제인지 확인
-    const isLastQuestion = currentIndex === questions.length - 1;
+      // 채점 결과 처리
+      const gradingData = res.data;
+      const isCorrect = gradingData.score > 0; // score > 0이면 정답으로 간주
 
-    if (isLastQuestion) {
-      // 마지막 문제: 모든 답안을 한 번에 채점 API로 제출
-      setIsGrading(true);
-      try {
-        const res = await axios.post(`/study/practical/submit`, {
-          topicId: topicId,
-          answers: updatedAnswers
-        });
+      // 채점 결과 저장
+      const gradingResult = {
+        score: gradingData.score || 0,
+        baseExplanation: gradingData.baseExplanation || "",
+        aiExplanation: gradingData.aiExplanation || "",
+        isCorrect
+      };
 
-        // 채점 결과 저장
-        const results: Record<number, { score: number; baseExplanation: string; aiExplanation: string; isCorrect: boolean }> = {};
-        let totalScore = 0;
+      setGradingResults(prev => ({
+        ...prev,
+        [questionId]: gradingResult
+      }));
 
-        res.data.payload.items.forEach((item: any) => {
-          const isCorrect = item.score > 0; // score > 0이면 정답으로 간주
-          results[item.questionId] = {
-            score: item.score,
-            baseExplanation: item.baseExplanation || "",
-            aiExplanation: item.aiExplanation || "",
-            isCorrect
-          };
-          if (isCorrect) totalScore++;
-        });
-
-        setGradingResults(results);
-        setScore(totalScore);
-
-        // answers 배열 생성 (onComplete에 전달할 형식)
-        const finalAnswers = updatedAnswers.map(answer => {
-          const result = results[answer.questionId];
-          return {
-            questionId: answer.questionId,
-            selectedAnswer: answer.userText,
-            isCorrect: result?.isCorrect || false,
-            timeSpent: 0,
-            explanation: result?.aiExplanation || result?.baseExplanation || "",
-            score: result?.score || 0
-          };
-        });
-
-        setAnswers(finalAnswers);
-        setIsGrading(false);
-        setShowResult(true);
-      } catch (err) {
-        console.error("실기 채점 API 오류:", err);
-        setIsGrading(false);
-        // 에러 발생 시 기본 처리
-        setShowResult(true);
-        setAnswers(updatedAnswers.map(answer => ({
-          questionId: answer.questionId,
-          selectedAnswer: answer.userText,
-          isCorrect: false,
-          timeSpent: 0,
-          explanation: "",
-          score: 0
-        })));
+      // 점수 업데이트
+      if (isCorrect) {
+        setScore(prev => prev + 1);
       }
-    } else {
-      // 중간 문제: 답안만 저장하고 다음 문제로
-      setShowResult(true);
-      setAnswers([...answers, {
-        questionId: currentQuestion.id,
-        selectedAnswer: typedAnswer,
-        isCorrect: false, // 채점 전이므로 임시로 false
+
+      // answers 배열에 추가 (onComplete에 전달할 형식)
+      const answerData = {
+        questionId: questionId,
+        selectedAnswer: userText,
+        isCorrect: isCorrect,
         timeSpent: 0,
-      }]);
+        explanation: gradingData.aiExplanation || gradingData.baseExplanation || "",
+        score: gradingData.score || 0
+      };
+
+      setAnswers(prev => [...prev, answerData]);
+      setIsGrading(false);
+      setShowResult(true);
+    } catch (err) {
+      console.error("실기 채점 API 오류:", err);
+      setIsGrading(false);
+      // 에러 발생 시 기본 처리
+      const answerData = {
+        questionId: questionId,
+        selectedAnswer: userText,
+        isCorrect: false,
+        timeSpent: 0,
+        explanation: "",
+        score: 0
+      };
+      setAnswers(prev => [...prev, answerData]);
+      setShowResult(true);
     }
   };
 
@@ -124,10 +107,8 @@ export function ProblemSolvingPractical({
       setTypedAnswer("");
       setShowResult(false);
     } else {
-      // 실기 모드이고 채점이 완료된 경우에만 onComplete 호출
-      if (Object.keys(gradingResults).length > 0) {
-        onComplete(score, answers);
-      }
+      // 모든 문제를 다 풀었을 때 onComplete 호출
+      onComplete(score, answers);
     }
   };
 
@@ -237,7 +218,7 @@ export function ProblemSolvingPractical({
                   disabled={!typedAnswer.trim()}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
-                  {currentIndex === questions.length - 1 ? "모든 답안 제출 및 채점" : "답안 저장"}
+                  답안 제출
                 </Button>
               )}
 
@@ -253,17 +234,7 @@ export function ProblemSolvingPractical({
                 </motion.div>
               )}
 
-              {/* 중간 문제: 답안 저장 완료 표시 */}
-              {showResult && !currentGradingResult && currentIndex < questions.length - 1 && (
-                <div className="p-4 rounded-lg border-2 bg-blue-50 border-blue-300">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                    <span className="text-blue-900">답안이 저장되었습니다. 다음 문제로 진행하세요.</span>
-                  </div>
-                </div>
-              )}
-
-              {/* 마지막 문제: 채점 결과 표시 */}
+              {/* 채점 결과 표시 */}
               {showResult && currentGradingResult && (
                 <div className={`p-4 rounded-lg border-2 ${
                   isCorrect ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300"
@@ -288,7 +259,7 @@ export function ProblemSolvingPractical({
             </div>
           </Card>
 
-          {/* Explanation (해설) - 마지막 문제에서만 표시 */}
+          {/* Explanation (해설) */}
           {showResult && !isGrading && currentGradingResult && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -314,13 +285,15 @@ export function ProblemSolvingPractical({
                       <h3 className={isCorrect ? "text-green-900" : "text-red-900"}>
                         {isCorrect ? "정답이에요!" : "아쉽네요!"}
                       </h3>
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        AI 해설
-                      </Badge>
+                      {currentGradingResult.aiExplanation && (
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          AI 해설
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-gray-700">
-                      {currentGradingResult.aiExplanation || currentGradingResult.baseExplanation || currentQuestion.explanation}
+                      {currentGradingResult.aiExplanation || currentGradingResult.baseExplanation || currentQuestion.explanation || "해설이 없습니다."}
                     </p>
                   </div>
                 </div>
@@ -332,25 +305,11 @@ export function ProblemSolvingPractical({
                   size="lg"
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >
-                  오답 보기
+                  {currentIndex < questions.length - 1 ? "다음 문제" : "오답 보기"}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
             </motion.div>
-          )}
-
-          {/* 중간 문제: 다음 문제로 버튼 */}
-          {showResult && !currentGradingResult && currentIndex < questions.length - 1 && (
-            <div className="flex justify-end">
-              <Button
-                onClick={handleNext}
-                size="lg"
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-              >
-                다음 문제
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
           )}
         </motion.div>
       </div>
