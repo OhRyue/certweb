@@ -189,9 +189,8 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 좌측 트리 */}
           <div className="lg:col-span-2">
-            <Card className="p-0 px-4 pt-2 pb-3 border-2 border-purple-200">
+            <Card className="p-0 px-4 pt-4 pb-3 border-2 border-purple-200">
               <div className="space-y-2 mb-4">
-
                 {/* 제목 + 토글 */}
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl text-purple-900">학습 주제 선택</h2>
@@ -220,7 +219,10 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
                     ? "필기 과목의 세부 주제를 선택하세요"
                     : "실기 과목의 세부 주제를 선택하세요"}
                 </p>
+              </div>
 
+              {/* 전체 선택 + 트리 렌더링 */}
+              <div className="space-y-4">
                 {/* 전체 선택 */}
                 <div className="flex justify-end">
                   <div className="flex items-center gap-2">
@@ -239,10 +241,9 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
                     </Label>
                   </div>
                 </div>
-              </div>
 
-              {/* 트리 렌더링 */}
-              <div className="space-y-4">
+                {/* 트리 렌더링 */}
+                <div className="space-y-4">
                 {currentSubjects.map(subject => (
                   <div key={subject.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
                     <div
@@ -424,13 +425,14 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
                     )}
                   </div>
                 ))}
-              </div>
-
-              {currentSubjects.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  해당 유형({selectedExamType === "written" ? "필기" : "실기"})의 학습 자료가 없습니다.
                 </div>
-              )}
+
+                {currentSubjects.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    해당 유형({selectedExamType === "written" ? "필기" : "실기"})의 학습 자료가 없습니다.
+                  </div>
+                )}
+              </div>
             </Card>
           </div>
 
