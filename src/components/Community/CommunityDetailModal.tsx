@@ -71,6 +71,42 @@ export function CommunityDetailModal() {
     fetchPostDetail()
   }, [fetchPostDetail])
 
+  // 좋아요 토글 함수
+  const toggleLike = async (targetType: "POST" | "COMMENT", targetId: number) => {
+    try {
+      const res = await axios.post("/community/reactions/toggle", {
+        targetType,
+        targetId
+      })
+
+      const { liked, likeCount } = res.data
+
+      if (targetType === "POST") {
+        // 게시글 좋아요 업데이트
+        setLikedByMe(liked)
+        setPost((prev: any) => ({
+          ...prev,
+          likeCount: likeCount
+        }))
+      } else {
+        // 댓글 좋아요 업데이트
+        setComments((prevComments: any[]) =>
+          prevComments.map((comment) =>
+            comment.id === targetId
+              ? {
+                  ...comment,
+                  likedByMe: liked,
+                  likeCount: likeCount
+                }
+              : comment
+          )
+        )
+      }
+    } catch (err) {
+      console.error("좋아요 토글 실패", err)
+    }
+  }
+
   // 게시글 수정 시작
   const startEditPost = () => {
     if (!post) return
@@ -408,10 +444,11 @@ export function CommunityDetailModal() {
         <div className="flex gap-3 mb-8 pb-6 border-b">
           <Button 
             variant="outline" 
+            onClick={() => post && toggleLike("POST", post.id)}
             className={`flex-1 border-gray-200 ${likedByMe ? 'border-pink-300 bg-pink-50' : 'hover:border-pink-300'}`}
           >
             <Heart className={`w-4 h-4 mr-2 ${likedByMe ? 'fill-pink-500 text-pink-500' : ''}`} /> 
-            좋아요 {post.likeCount || 0}
+            좋아요 {post?.likeCount || 0}
           </Button>
           <Button variant="outline" className="flex-1 border-gray-200">
             <MessageCircle className="w-4 h-4 mr-2" /> 댓글 {post.commentCount || 0}
@@ -480,10 +517,13 @@ export function CommunityDetailModal() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center text-pink-600 text-xs">
+                    <button
+                      onClick={() => toggleLike("COMMENT", c.id)}
+                      className="flex items-center text-pink-600 text-xs hover:text-pink-700 transition-colors"
+                    >
                       <ThumbsUp className={`w-3 h-3 mr-1 ${c.likedByMe ? 'fill-pink-600' : ''}`} /> 
                       {c.likeCount || 0}
-                    </div>
+                    </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
