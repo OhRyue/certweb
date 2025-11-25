@@ -15,9 +15,10 @@ import {
   Award,
   ChevronRight
 } from "lucide-react";
-import { examSchedules, mockRankingData, categoryProgress } from "../data/mockData";
+import { mockRankingData, categoryProgress } from "../data/mockData";
 import type { UserProfile } from "../types";
 import axios from "./api/axiosConfig";
+import { CERT_MAP } from "../constants/certMap";
 
 interface HomeDashboardProps {
   userProfile: UserProfile;
@@ -31,23 +32,78 @@ interface QuickStats {
   accuracyDelta: number;
 }
 
+interface OverviewResponse {
+  user: {
+    userId: string;
+    nickname: string;
+    avatarUrl: string;
+    level: number;
+    xpTotal: number;
+    streakDays: number;
+  };
+  goal: {
+    certId: number;
+    targetExamMode: string;
+    targetRoundId: number;
+    dday: number;
+  };
+}
+
+// 자격증별 아이콘 매핑 (ID 기반)
+const CERT_ICON_MAP: Record<number, string> = {
+  1: "💻", // 정보처리기사
+  2: "🗄️", // SQLD
+  3: "📊", // 컴활 1급
+  4: "🐧", // 리눅스마스터 2급
+};
+
+// 자격증 이름별 아이콘 매핑 (폴백용)
+const CERT_NAME_ICON_MAP: Record<string, string> = {
+  "정보처리기사": "💻",
+  "SQLD": "🗄️",
+  "컴활 1급": "📊",
+  "리눅스마스터 2급": "🐧",
+};
+
 export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   const [quickStats, setQuickStats] = useState<QuickStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(true);
 
-  // Get the target certification exam
-  const targetExam = examSchedules.find(
-    exam => exam.category === userProfile.targetCertification
-  );
-
-  const dDay = targetExam
-    ? Math.ceil((targetExam.date.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-    : null;
+  // Get the target certification exam from API, fallback to userProfile
+  const targetCertName = overview?.goal.certId 
+    ? CERT_MAP[overview.goal.certId as keyof typeof CERT_MAP] 
+    : userProfile.targetCertification || null;
+  
+  const targetCertIcon = overview?.goal.certId 
+    ? CERT_ICON_MAP[overview.goal.certId] || "📚"
+    : (targetCertName ? CERT_NAME_ICON_MAP[targetCertName] || "📚" : "📚");
+  
+  const dDay = overview?.goal.dday ?? null;
 
   // Get progress for the target certification only
   const targetProgress = categoryProgress.find(
-    cat => cat.category === userProfile.targetCertification
+    cat => cat.category === (targetCertName || userProfile.targetCertification)
   );
+
+  // Fetch overview (user and goal data)
+  useEffect(() => {
+    async function fetchOverview() {
+      try {
+        setOverviewLoading(true);
+        const res = await axios.get("/progress/home/overview");
+        setOverview(res.data);
+      } catch (err) {
+        console.error("홈 개요 데이터 불러오기 실패", err);
+        setOverview(null);
+      } finally {
+        setOverviewLoading(false);
+      }
+    }
+
+    fetchOverview();
+  }, []);
 
   // Fetch quick stats
   useEffect(() => {
@@ -77,11 +133,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
           className="text-center mb-8"
         >
           <h1 className="text-blue-900 mb-2 flex items-center justify-center gap-2">
-            ✨ 환영합니다, {userProfile.name}님! ✨
+            ✨ 환영합니다, {overview?.user.nickname || userProfile.name}님! ✨
           </h1>
           <div className="flex items-center justify-center gap-2 mt-3">
             <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-1">
-              {targetExam?.icon} {userProfile.targetCertification} 도전 중!
+              {targetCertIcon || "📚"} {targetCertName || userProfile.targetCertification} 도전 중!
             </Badge>
           </div>
           <p className="text-purple-600 mt-2">오늘도 즐겁게 공부해볼까요? 📚</p>
@@ -102,7 +158,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                   <div className="text-center mb-4">
                     <div className="inline-flex items-center justify-center gap-2 mb-2">
                       <Star className="w-5 h-5 text-yellow-500" />
-                      <span className="text-purple-700">Level {userProfile.level}</span>
+                      <span className="text-purple-700">Level {overview?.user.level || userProfile.level}</span>
                       <Star className="w-5 h-5 text-yellow-500" />
                     </div>
                   </div>
@@ -120,9 +176,9 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                     }}
                   >
                     <div className="text-center bg-white/50 backdrop-blur rounded-2xl p-8 mb-4">
-                      <div className="text-9xl mb-4">{userProfile.avatar}</div>
-                      <h3 className="text-purple-800 mb-1">{userProfile.name}</h3>
-                      <p className="text-purple-600 text-sm">{userProfile.targetCertification} 도전 중!</p>
+                      <div className="text-9xl mb-4">{overview?.user.avatarUrl || userProfile.avatar}</div>
+                      <h3 className="text-purple-800 mb-1">{overview?.user.nickname || userProfile.name}</h3>
+                      <p className="text-purple-600 text-sm">{targetCertName || userProfile.targetCertification} 도전 중!</p>
                     </div>
                   </motion.div>
 
@@ -130,10 +186,12 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-purple-700">경험치</span>
-                      <span className="text-purple-700">{userProfile.xp} / {(userProfile.level + 1) * 500} XP</span>
+                      <span className="text-purple-700">
+                        {overview?.user.xpTotal || userProfile.xp} / {((overview?.user.level || userProfile.level) + 1) * 500} XP
+                      </span>
                     </div>
                     <Progress
-                      value={(userProfile.xp / ((userProfile.level + 1) * 500)) * 100}
+                      value={((overview?.user.xpTotal || userProfile.xp) / (((overview?.user.level || userProfile.level) + 1) * 500)) * 100}
                       className="h-3 bg-purple-200"
                     />
                   </div>
@@ -141,14 +199,28 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                   {/* Streak */}
                   <div className="mt-4 flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
                     <Flame className="w-5 h-5 text-orange-500" />
-                    <span className="text-orange-700">{userProfile.studyStreak}일 연속 학습 🔥</span>
+                    <span className="text-orange-700">{overview?.user.streakDays || userProfile.studyStreak}일 연속 학습 🔥</span>
                   </div>
                 </div>
               </Card>
             </motion.div>
 
             {/* D-Day Card */}
-            {targetExam && (
+            {overviewLoading ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg">
+                  <div className="p-6">
+                    <div className="flex items-center justify-center py-8">
+                      <span className="text-blue-600 text-sm">로딩 중...</span>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ) : targetCertName ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -163,25 +235,34 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <div className="bg-white/50 backdrop-blur rounded-xl p-4 mb-3">
                       <div className="text-center">
-                        <div className="text-4xl mb-2">{targetExam.icon}</div>
-                        <p className="text-blue-900 mb-2">{targetExam.name}</p>
+                        <div className="text-4xl mb-2">{targetCertIcon}</div>
+                        <p className="text-blue-900 mb-2">{targetCertName}</p>
                         <p className="text-blue-600 text-sm">
-                          {targetExam.date.toLocaleDateString('ko-KR')}
+                          {overview?.goal.targetExamMode || "시험"}
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-center">
-                      <motion.div
-                        animate={{ scale: [1, 1.05, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        <div className="text-5xl text-blue-600 mb-1">D-{Math.abs(dDay)}</div>
-                      </motion.div>
-                      <p className="text-blue-700 text-sm">
-                        {dDay && dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
-                      </p>
-                    </div>
+                    {dDay !== null ? (
+                      <div className="text-center">
+                        <motion.div
+                          animate={{ scale: [1, 1.05, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        >
+                          <div className="text-5xl text-blue-600 mb-1">D-{Math.abs(dDay)}</div>
+                        </motion.div>
+                        <p className="text-blue-700 text-sm">
+                          {dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <div className="text-3xl text-blue-400 mb-1">D-Day</div>
+                        <p className="text-blue-600 text-sm">
+                          시험 일정을 설정해주세요
+                        </p>
+                      </div>
+                    )}
 
                     <Button
                       asChild
@@ -195,7 +276,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                   </div>
                 </Card>
               </motion.div>
-            )}
+            ) : null}
           </div>
 
           {/* Middle Column - Progress & Quick Actions */}
