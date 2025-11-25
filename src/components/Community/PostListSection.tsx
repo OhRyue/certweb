@@ -19,6 +19,21 @@ interface PostListSectionProps {
   onPostClick: (id: number) => void
 }
 
+interface PopularPost {
+  id: number
+  categoryCode: string
+  categoryName: string
+  title: string
+  excerpt: string
+  anonymous: boolean
+  authorId: string
+  authorDisplayName: string
+  likeCount: number
+  commentCount: number
+  viewCount: number
+  createdAt: string
+}
+
 export function PostListSection({
   activeTab,
   setActiveTab,
@@ -34,6 +49,7 @@ export function PostListSection({
   const [categories, setCategories] = useState([])
   const [posts, setPosts] = useState([])
   const [totalPages, setTotalPages] = useState(1)
+  const [popularPosts, setPopularPosts] = useState<PopularPost[]>([])
   const [inputValue, setInputValue] = useState(searchQuery || "") // 입력 필드 값
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -46,6 +62,7 @@ export function PostListSection({
 
   useEffect(() => {
     fetchCategories()
+    fetchPopularPosts()
   }, [])
 
   const fetchPosts = useCallback(async () => {
@@ -153,6 +170,21 @@ export function PostListSection({
       setCategories(res.data.categories || [])
     } catch (err) {
       console.error("카테고리 불러오기 실패", err)
+    }
+  }
+
+  // 인기 게시글 가져오기
+  const fetchPopularPosts = async () => {
+    try {
+      const res = await axios.get("/community/posts/hot", {
+        params: {
+          days: 3, // 최근 3일간
+          limit: 5 // 상위 5개
+        }
+      })
+      setPopularPosts(res.data.items || [])
+    } catch (err) {
+      console.error("인기 게시글 불러오기 실패", err)
     }
   }
 
@@ -279,23 +311,38 @@ export function PostListSection({
         )}
       </Card>
 
-      {/* 인기글 UI 그대로 (mockPosts → posts로 대체 가능하지만 변경 안 함) */}
+      {/* 인기 게시글 */}
       <Card className="p-6 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
         <div className="flex items-center gap-3 mb-3">
           <TrendingUp className="w-5 h-5 text-orange-600" />
           <h3 className="text-orange-900">🔥 인기 게시글</h3>
         </div>
-        <div className="space-y-2">
-          {posts.slice(0, 3).map((post, idx) => (
-            <button
-              key={post.id}
-              onClick={() => onPostClick(post.id)}
-              className="w-full text-left text-sm text-gray-700 hover:text-orange-700 transition-colors"
-            >
-              {idx + 1}. {post.title}
-            </button>
-          ))}
-        </div>
+        {popularPosts.length > 0 ? (
+          <div className="space-y-2">
+            {popularPosts.map((post, idx) => (
+              <button
+                key={post.id}
+                onClick={() => onPostClick(post.id)}
+                className="w-full text-left text-sm text-gray-700 hover:text-orange-700 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="font-bold text-orange-600 flex-shrink-0">{idx + 1}.</span>
+                    <span className="truncate">
+                      {post.title} <span className="text-gray-500">({post.commentCount})</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-gray-500 flex-shrink-0">
+                    <Eye className="w-4 h-4" />
+                    <span>{post.viewCount}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 text-center py-4">인기 게시글이 없습니다</p>
+        )}
       </Card>
 
       {/* 실제 게시글 목록 */}
