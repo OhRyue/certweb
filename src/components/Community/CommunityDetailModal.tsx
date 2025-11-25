@@ -477,11 +477,6 @@ export function CommunityDetailModal() {
                       <div className="text-sm text-gray-900 font-medium">
                         {c.authorDisplayName}
                       </div>
-                      {c.anonymous && (
-                        <Badge variant="outline" className="text-xs px-1.5 py-0">
-                          익명
-                        </Badge>
-                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
