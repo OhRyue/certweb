@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Link } from "react-router-dom"
 import { Card } from "./ui/card";
@@ -16,12 +17,24 @@ import {
 } from "lucide-react";
 import { examSchedules, mockRankingData, categoryProgress } from "../data/mockData";
 import type { UserProfile } from "../types";
+import axios from "./api/axiosConfig";
 
 interface HomeDashboardProps {
   userProfile: UserProfile;
 }
 
+interface QuickStats {
+  solvedToday: number;
+  minutesToday: number;
+  accuracyToday: number;
+  xpToday: number;
+  accuracyDelta: number;
+}
+
 export function HomeDashboard({ userProfile }: HomeDashboardProps) {
+  const [quickStats, setQuickStats] = useState<QuickStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
   // Get the target certification exam
   const targetExam = examSchedules.find(
     exam => exam.category === userProfile.targetCertification
@@ -36,7 +49,23 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     cat => cat.category === userProfile.targetCertification
   );
 
-  const currentUserRank = mockRankingData.find(r => r.isCurrentUser);
+  // Fetch quick stats
+  useEffect(() => {
+    async function fetchQuickStats() {
+      try {
+        setLoading(true);
+        const res = await axios.get("/progress/home/quick-stats");
+        setQuickStats(res.data);
+      } catch (err) {
+        console.error("오늘의 성과 데이터 불러오기 실패", err);
+        setQuickStats(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchQuickStats();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
@@ -422,44 +451,79 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                     <h3 className="text-green-800">오늘의 성과 ✨</h3>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="text-xl">📝</div>
-                        <span className="text-green-800 text-sm">문제 풀이</span>
+                  {loading ? (
+                    <div className="space-y-3">
+                      <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
+                        <span className="text-green-600 text-sm">로딩 중...</span>
                       </div>
-                      <span className="text-green-600">15문제</span>
                     </div>
+                  ) : quickStats ? (
+                    <>
+                      <div className="space-y-3">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-xl">📝</div>
+                            <span className="text-green-800 text-sm">문제 풀이</span>
+                          </div>
+                          <span className="text-green-600">{quickStats.solvedToday}문제</span>
+                        </div>
 
-                    <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="text-xl">⏱️</div>
-                        <span className="text-green-800 text-sm">학습 시간</span>
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-xl">⏱️</div>
+                            <span className="text-green-800 text-sm">학습 시간</span>
+                          </div>
+                          <span className="text-green-600">{quickStats.minutesToday}분</span>
+                        </div>
+
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-xl">✅</div>
+                            <span className="text-green-800 text-sm">정답률</span>
+                          </div>
+                          <span className="text-green-600">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
+                        </div>
+
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-xl">⭐</div>
+                            <span className="text-green-800 text-sm">획득 XP</span>
+                          </div>
+                          <span className="text-green-600">+{quickStats.xpToday.toLocaleString()} XP</span>
+                        </div>
                       </div>
-                      <span className="text-green-600">45분</span>
-                    </div>
 
-                    <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="text-xl">✅</div>
-                        <span className="text-green-800 text-sm">정답률</span>
+                      <div className={`mt-4 text-center text-sm ${
+                        quickStats.accuracyDelta > 0 
+                          ? "text-green-700" 
+                          : quickStats.accuracyDelta < 0 
+                          ? "text-orange-600" 
+                          : "text-green-600"
+                      }`}>
+                        {quickStats.accuracyDelta > 0 ? (
+                          <>
+                            <TrendingUp className="w-4 h-4 inline-block mr-1" />
+                            정답률이 어제보다 {(quickStats.accuracyDelta * 100).toFixed(0)}% 향상되었어요! 🎉
+                          </>
+                        ) : quickStats.accuracyDelta < 0 ? (
+                          <>
+                            <TrendingUp className="w-4 h-4 inline-block mr-1 rotate-180" />
+                            정답률이 어제보다 {(Math.abs(quickStats.accuracyDelta) * 100).toFixed(0)}% 감소했어요
+                          </>
+                        ) : (
+                          <>
+                            정답률이 어제와 동일해요
+                          </>
+                        )}
                       </div>
-                      <span className="text-green-600">87%</span>
-                    </div>
-
-                    <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="text-xl">⭐</div>
-                        <span className="text-green-800 text-sm">획득 XP</span>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
+                        <span className="text-green-600 text-sm">데이터를 불러올 수 없습니다</span>
                       </div>
-                      <span className="text-green-600">+250 XP</span>
                     </div>
-                  </div>
-
-                  <div className="mt-4 text-center text-green-700 text-sm">
-                    <TrendingUp className="w-4 h-4 inline-block mr-1" />
-                    어제보다 20% 향상되었어요! 🎉
-                  </div>
+                  )}
                 </div>
               </Card>
             </motion.div>
