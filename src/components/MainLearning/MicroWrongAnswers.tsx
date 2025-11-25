@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -32,13 +32,20 @@ export function MicroWrongAnswers({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isPractical = examType === "practical";
+  // onContinue를 useRef로 안정적인 참조 유지
+  const onContinueRef = useRef(onContinue);
+  
+  // onContinue가 변경될 때마다 ref 업데이트
+  useEffect(() => {
+    onContinueRef.current = onContinue;
+  }, [onContinue]);
   
   const currentWrong = wrongAnswers[currentIndex];
 
   // 현재 문제의 상세 정보를 API로 받아오기
   useEffect(() => {
     if (wrongAnswers.length === 0) {
-      onContinue();
+      onContinueRef.current();
       return;
     }
 
@@ -82,8 +89,7 @@ export function MicroWrongAnswers({
           question: data.stem,
           options: options,
           correctAnswer: data.correctAnswer,
-          explanation: data.explanation || "", // API 응답에서 직접 해설 가져오기
-          imageUrl: undefined
+          explanation: data.explanation || "" // API 응답에서 직접 해설 가져오기
         };
         
         // 디버깅: API 응답 확인
@@ -101,7 +107,7 @@ export function MicroWrongAnswers({
     };
 
     fetchQuestion();
-  }, [currentIndex, currentWrong, wrongAnswers.length, onContinue]);
+  }, [currentIndex, currentWrong?.questionId, wrongAnswers.length]);
 
   if (wrongAnswers.length === 0) {
     return null;
@@ -213,9 +219,12 @@ export function MicroWrongAnswers({
                     {currentQuestion.options && currentQuestion.options.length > 0 ? (
                       currentQuestion.options.map((option, index) => {
                       // 라벨로 비교 (A, B, C, D 또는 O, X)
-                      // option은 항상 { label, text } 형태의 객체
-                      const optionLabel = option.label || String.fromCharCode(65 + index);
-                      const optionText = option.text || "";
+                      // option은 { label, text } 형태의 객체이거나 string일 수 있음
+                      const optionObj = typeof option === 'object' && option !== null 
+                        ? option as { label?: string; text?: string }
+                        : null;
+                      const optionLabel = optionObj?.label || String.fromCharCode(65 + index);
+                      const optionText = optionObj?.text || (typeof option === 'string' ? option : "");
                       const isUserAnswer = currentWrong.userAnswer === optionLabel;
                       const isCorrectAnswer = currentQuestion.correctAnswer === optionLabel;
 

@@ -12,6 +12,11 @@ interface MiniQuestion {
   text: string
 }
 
+interface MiniAnswer {
+  questionId: number
+  answer: boolean // true = O, false = X
+}
+
 interface MiniCheckProps {
   questions: MiniQuestion[]
   topicName: string
@@ -19,7 +24,7 @@ interface MiniCheckProps {
   topicId: number
   examType: "written" | "practical"
   sessionId?: number | null
-  onComplete: (score: number, learningSessionId?: number) => void
+  onComplete: (score: number, learningSessionId?: number, answers?: MiniAnswer[]) => void
 }
 
 export function MiniCheck({
@@ -36,14 +41,39 @@ export function MiniCheck({
   const [result, setResult] = useState<{ correct: boolean; explanation: string } | null>(null)
   const [score, setScore] = useState(0)
   const [learningSessionId, setLearningSessionId] = useState<number | null>(null)
+  // 모든 문제의 답안을 저장
+  const [allAnswers, setAllAnswers] = useState<MiniAnswer[]>([])
+  // 채점 중복 호출 방지
+  const [isGrading, setIsGrading] = useState(false)
+
+  // 문제가 없을 때 방어
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="p-8 text-center text-gray-600">
+        <p>미니체크 문제를 불러오는 중...</p>
+      </div>
+    )
+  }
 
   const currentQuestion = questions[currentIndex]
+  
+  // currentQuestion이 없을 때 방어
+  if (!currentQuestion) {
+    return (
+      <div className="p-8 text-center text-gray-600">
+        <p>문제를 불러오는 중...</p>
+      </div>
+    )
+  }
+
   const progress = ((currentIndex + 1) / questions.length) * 100
 
   // 즉시 채점
   const handleAnswer = async (answer: "O" | "X") => {
-    if (result) return // 이미 채점했으면 재클릭 금지
+    // 이미 채점했거나 채점 중이면 재호출 방지
+    if (result || isGrading) return
 
+    setIsGrading(true)
     setSelectedAnswer(answer)
 
     try {
@@ -73,8 +103,19 @@ export function MiniCheck({
       if (correct) {
         setScore((prev) => prev + 1)
       }
+
+      // 답안 저장
+      setAllAnswers((prev) => [
+        ...prev,
+        {
+          questionId: currentQuestion.questionId,
+          answer: answer === "O"
+        }
+      ])
     } catch (err) {
       console.error("미니체크 채점 에러", err)
+    } finally {
+      setIsGrading(false)
     }
   }
 
@@ -84,7 +125,8 @@ export function MiniCheck({
       setSelectedAnswer(null)
       setResult(null)
     } else {
-      onComplete(score, learningSessionId || undefined)
+      // 모든 답안과 함께 완료 콜백 호출
+      onComplete(score, learningSessionId || undefined, allAnswers)
     }
   }
 
@@ -140,8 +182,8 @@ export function MiniCheck({
                 return (
                   <motion.button
                     key={option}
-                    disabled={!!result}
-                    whileHover={!result ? { scale: 1.05 } : {}}
+                    disabled={!!result || isGrading}
+                    whileHover={!result && !isGrading ? { scale: 1.05 } : {}}
                     onClick={() => handleAnswer(option as "O" | "X")}
                     className={btnStyle}
                   >

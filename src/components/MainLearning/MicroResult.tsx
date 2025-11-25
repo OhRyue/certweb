@@ -8,7 +8,9 @@ interface MicroResultProps {
   topicName: string;
   miniCheckScore: number;
   problemScore: number;
-  totalProblems: number;
+  totalProblems: number; // 전체 문제 수 (미니체크 + MCQ)
+  miniTotal?: number; // 미니체크 총 문제 수
+  mcqTotal?: number; // MCQ 총 문제 수
   aiSummary?: string;
   onBackToDashboard: () => void;
   onRetry: () => void;
@@ -19,12 +21,20 @@ export function MicroResult({
   miniCheckScore, 
   problemScore, 
   totalProblems,
+  miniTotal,
+  mcqTotal,
   aiSummary,
   onBackToDashboard,
   onRetry 
 }: MicroResultProps) {
+  // 전체 정답 수 = 미니체크 정답 + MCQ 정답
   const totalScore = miniCheckScore + problemScore;
-  const percentage = Math.round((totalScore / totalProblems) * 100);
+  // 전체 문제 수 = 미니체크 문제 수 + MCQ 문제 수
+  // totalProblems가 이미 합계라면 사용, 아니면 miniTotal + mcqTotal 계산
+  const actualTotalProblems = totalProblems || (miniTotal || 0) + (mcqTotal || 0);
+  const percentage = actualTotalProblems > 0 
+    ? Math.round((totalScore / actualTotalProblems) * 100)
+    : 0;
 
   const getMessage = () => {
     if (percentage >= 90) return { emoji: "🎉", text: "완벽해요!", color: "from-yellow-400 to-orange-400" };
@@ -89,14 +99,14 @@ export function MicroResult({
                     <span className="text-2xl">⭕</span>
                     <span className="text-gray-600">미니체크</span>
                   </div>
-                  <div className="text-purple-600">{miniCheckScore} / 4</div>
+                  <div className="text-purple-600">{miniCheckScore} / {miniTotal || 4}</div>
                 </div>
                 <div>
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <Sparkles className="w-5 h-5 text-purple-500" />
                     <span className="text-gray-600">문제풀이</span>
                   </div>
-                  <div className="text-purple-600">{problemScore} / 5</div>
+                  <div className="text-purple-600">{problemScore} / {mcqTotal || 5}</div>
                 </div>
               </div>
             </Card>
