@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
+import axios from "../api/axiosConfig";
 import type { Question } from "../../types";
 
 interface WrongAnswer {
-  question: Question;
-  userAnswer: number | string;
-  correctAnswer: number | string;
+  questionId: number;
+  userAnswer: string; // "A", "B", "O", "X" 등
+  correctAnswer: string; // "A", "B", "O", "X" 등
+  explanation?: string; // 해설
 }
 
 interface MicroWrongAnswersProps {
@@ -26,16 +28,104 @@ export function MicroWrongAnswers({
   onContinue 
 }: MicroWrongAnswersProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const isPractical = examType === "practical";
   
+  const currentWrong = wrongAnswers[currentIndex];
+
+  // 현재 문제의 상세 정보를 API로 받아오기
+  useEffect(() => {
+    if (wrongAnswers.length === 0) {
+      onContinue();
+      return;
+    }
+
+    const fetchQuestion = async () => {
+      if (!currentWrong) return;
+      
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const res = await axios.get(`/study/written/question/${currentWrong.questionId}`);
+        const data = res.data;
+        
+        // API 응답을 Question 형태로 변환
+        console.log("choices 배열:", data.choices);
+        console.log("choices 배열 길이:", data.choices?.length);
+        if (data.choices && data.choices.length > 0) {
+          console.log("첫 번째 choice:", data.choices[0]);
+          console.log("첫 번째 choice의 키들:", Object.keys(data.choices[0]));
+        }
+        
+        const options = (data.choices || []).map((choice: any, index: number) => {
+          console.log(`선택지 ${index}:`, choice);
+          const option = {
+            label: choice.label || "",
+            text: choice.content || choice.text || ""
+          };
+          console.log(`선택지 ${index} 변환 결과:`, option);
+          return option;
+        });
+        
+        console.log("최종 변환된 options 배열:", options);
+        
+        const question: Question = {
+          id: String(data.questionId),
+          topicId: "",
+          tags: [],
+          difficulty: "medium",
+          type: data.type === "OX" ? "ox" : "multiple",
+          examType: "written",
+          question: data.stem,
+          options: options,
+          correctAnswer: data.correctAnswer,
+          explanation: data.explanation || "", // API 응답에서 직접 해설 가져오기
+          imageUrl: undefined
+        };
+        
+        // 디버깅: API 응답 확인
+        console.log("문제 상세 정보:", data);
+        console.log("변환된 선택지:", options);
+        console.log("변환된 문제:", question);
+        
+        setCurrentQuestion(question);
+      } catch (err: any) {
+        console.error("문제 상세 정보 불러오기 실패:", err);
+        setError(err.response?.data?.message || "문제를 불러오는 중 오류가 발생했습니다");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuestion();
+  }, [currentIndex, currentWrong, wrongAnswers.length, onContinue]);
+
   if (wrongAnswers.length === 0) {
-    // 틀린 문제가 없으면 바로 다음으로
-    onContinue();
     return null;
   }
 
-  const currentWrong = wrongAnswers[currentIndex];
-  const currentQuestion = currentWrong.question;
+  if (loading) {
+    return (
+      <div className="p-8 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-gray-600 mb-2">문제를 불러오는 중...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !currentQuestion) {
+    return (
+      <div className="p-8 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 mb-2">{error || "문제를 불러올 수 없습니다"}</div>
+        </div>
+      </div>
+    );
+  }
 
   const handleNext = () => {
     if (currentIndex < wrongAnswers.length - 1) {
@@ -120,9 +210,14 @@ export function MicroWrongAnswers({
                 {/* 필기 모드: 선택형 */}
                 {!isPractical && (
                   <div className="space-y-3">
-                    {currentQuestion.options.map((option, index) => {
-                      const isUserAnswer = index === currentWrong.userAnswer;
-                      const isCorrectAnswer = index === currentQuestion.correctAnswer;
+                    {currentQuestion.options && currentQuestion.options.length > 0 ? (
+                      currentQuestion.options.map((option, index) => {
+                      // 라벨로 비교 (A, B, C, D 또는 O, X)
+                      // option은 항상 { label, text } 형태의 객체
+                      const optionLabel = option.label || String.fromCharCode(65 + index);
+                      const optionText = option.text || "";
+                      const isUserAnswer = currentWrong.userAnswer === optionLabel;
+                      const isCorrectAnswer = currentQuestion.correctAnswer === optionLabel;
 
                       let cardClass = "p-4 border-2 rounded-lg ";
                       
@@ -143,13 +238,13 @@ export function MicroWrongAnswers({
                                 isUserAnswer ? "bg-red-100 text-red-700" :
                                 "bg-gray-100 text-gray-600"
                               }`}>
-                                {index + 1}
+                                {optionLabel}
                               </div>
                               <span className={
                                 isCorrectAnswer ? "text-green-900" :
                                 isUserAnswer ? "text-red-900" :
                                 "text-gray-600"
-                              }>{option}</span>
+                              }>{optionText}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {isCorrectAnswer && (
@@ -168,7 +263,10 @@ export function MicroWrongAnswers({
                           </div>
                         </div>
                       );
-                    })}
+                    })
+                    ) : (
+                      <div className="text-gray-500 text-center py-4">선택지 정보를 불러올 수 없습니다.</div>
+                    )}
                   </div>
                 )}
 

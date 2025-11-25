@@ -18,7 +18,8 @@ interface MiniCheckProps {
   userId: string
   topicId: number
   examType: "written" | "practical"
-  onComplete: (score: number) => void
+  sessionId?: number | null
+  onComplete: (score: number, learningSessionId?: number) => void
 }
 
 export function MiniCheck({
@@ -27,12 +28,14 @@ export function MiniCheck({
   userId,
   topicId,
   examType,
+  sessionId,
   onComplete
 }: MiniCheckProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<"O" | "X" | null>(null)
   const [result, setResult] = useState<{ correct: boolean; explanation: string } | null>(null)
   const [score, setScore] = useState(0)
+  const [learningSessionId, setLearningSessionId] = useState<number | null>(null)
 
   const currentQuestion = questions[currentIndex]
   const progress = ((currentIndex + 1) / questions.length) * 100
@@ -44,15 +47,28 @@ export function MiniCheck({
     setSelectedAnswer(answer)
 
     try {
-      const res = await axios.post(`/study/${examType}/mini/grade-one`, {
-        userId,
-        topicId,
-        questionId: currentQuestion.questionId,
-        answer: answer === "O"
-      })
+      // 세션이 있으면 sessionId를 쿼리 파라미터로 전달
+      const config = sessionId
+        ? { params: { sessionId } }
+        : {}
+      
+      const res = await axios.post(
+        `/study/${examType}/mini/grade-one`,
+        {
+          topicId,
+          questionId: currentQuestion.questionId,
+          answer: answer === "O"
+        },
+        config
+      )
 
-      const { correct, explanation } = res.data
+      const { correct, explanation, learningSessionId: receivedSessionId } = res.data
       setResult({ correct, explanation })
+
+      // learningSessionId 저장 (필기/실기 모두, 첫 번째 문제에서 받은 값이면 저장)
+      if (receivedSessionId !== undefined && learningSessionId === null) {
+        setLearningSessionId(receivedSessionId)
+      }
 
       if (correct) {
         setScore((prev) => prev + 1)
@@ -68,7 +84,7 @@ export function MiniCheck({
       setSelectedAnswer(null)
       setResult(null)
     } else {
-      onComplete(score)
+      onComplete(score, learningSessionId || undefined)
     }
   }
 

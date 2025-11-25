@@ -9,6 +9,7 @@ interface MicroResultProps {
   miniCheckScore: number;
   problemScore: number;
   totalProblems: number;
+  aiSummary?: string;
   onBackToDashboard: () => void;
   onRetry: () => void;
 }
@@ -18,6 +19,7 @@ export function MicroResult({
   miniCheckScore, 
   problemScore, 
   totalProblems,
+  aiSummary,
   onBackToDashboard,
   onRetry 
 }: MicroResultProps) {
@@ -117,13 +119,14 @@ export function MicroResult({
                       Beta
                     </Badge>
                   </div>
-                  <p className="text-gray-700">
-                    {percentage >= 80 
-                      ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
-                      : percentage >= 60
-                      ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다. 특히 정규화의 각 단계별 특징을 정리해보세요."
-                      : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한번 읽어보고, 문제를 다시 풀어보는 것을 추천합니다."
-                    }
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {aiSummary || (
+                      percentage >= 80 
+                        ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
+                        : percentage >= 60
+                        ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다. 특히 정규화의 각 단계별 특징을 정리해보세요."
+                        : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한번 읽어보고, 문제를 다시 풀어보는 것을 추천합니다."
+                    )}
                   </p>
                 </div>
               </div>
