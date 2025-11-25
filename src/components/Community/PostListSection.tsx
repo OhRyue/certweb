@@ -1,11 +1,23 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import axios from "../api/axiosConfig"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Input } from "../ui/input"
 import { motion } from "motion/react"
-import { Search, TrendingUp, Eye, Heart, MessageCircle } from "lucide-react"
+import { Search, TrendingUp, Eye, Heart, MessageCircle, X } from "lucide-react"
+
+interface PostListSectionProps {
+  activeTab: string
+  setActiveTab: (tab: string) => void
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+  currentPage: number
+  setCurrentPage: (page: number) => void
+  setShowWritePost: (show: boolean) => void
+  renderPagination: (current: number, total: number, onChange: (page: number) => void) => React.ReactNode
+  onPostClick: (id: number) => void
+}
 
 export function PostListSection({
   activeTab,
@@ -17,32 +29,39 @@ export function PostListSection({
   setShowWritePost,
   renderPagination,
   onPostClick
-}: any) {
+}: PostListSectionProps) {
 
   const [categories, setCategories] = useState([])
   const [posts, setPosts] = useState([])
   const [totalPages, setTotalPages] = useState(1)
+  const [inputValue, setInputValue] = useState(searchQuery || "") // 입력 필드 값
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // searchQuery가 외부에서 변경될 때 inputValue 동기화 (예: 카테고리 변경 시)
+  useEffect(() => {
+    if (searchQuery === "") {
+      setInputValue("")
+    }
+  }, [searchQuery])
 
   useEffect(() => {
     fetchCategories()
   }, [])
 
-  useEffect(() => {
-    fetchPosts()
-  }, [activeTab, searchQuery, currentPage])
-
-  const fetchCategories = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
-      const res = await axios.get("/community/categories")
-      setCategories(res.data.categories || [])
-    } catch (err) {
-      console.error("카테고리 불러오기 실패", err)
-    }
-  }
+      interface SearchParams {
+        page: number
+        size: number
+        sort: string
+        today: boolean
+        anonymousOnly: boolean
+        mine: boolean
+        category?: string
+        keyword?: string
+      }
 
-  const fetchPosts = async () => {
-    try {
-      const params: any = {
+      const params: SearchParams = {
         page: currentPage - 1,
         size: 10,
         sort: "LATEST",
@@ -84,6 +103,57 @@ export function PostListSection({
     } catch (err) {
       console.error("게시글 목록 불러오기 실패", err)
     }
+  }, [activeTab, searchQuery, currentPage])
+
+  useEffect(() => {
+    fetchPosts()
+  }, [fetchPosts])
+
+  // Debounce: 입력이 멈춘 후 500ms 후에 검색 실행
+  useEffect(() => {
+    // 이전 타이머 취소
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    // 빈 값이면 즉시 검색어 초기화
+    if (inputValue.trim() === "") {
+      if (searchQuery !== "") {
+        setSearchQuery("")
+        setCurrentPage(1)
+      }
+      return
+    }
+
+    // 최소 2자 이상일 때만 검색
+    if (inputValue.trim().length < 2) {
+      return
+    }
+
+    // 500ms 후에 검색 실행
+    debounceTimerRef.current = setTimeout(() => {
+      if (inputValue.trim() !== searchQuery) {
+        setSearchQuery(inputValue.trim())
+        setCurrentPage(1)
+      }
+    }, 500)
+
+    // cleanup
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputValue]) // searchQuery, setSearchQuery, setCurrentPage는 의존성에서 제외 (무한 루프 방지)
+
+  const fetchCategories = async () => {
+    try {
+      const res = await axios.get("/community/categories")
+      setCategories(res.data.categories || [])
+    } catch (err) {
+      console.error("카테고리 불러오기 실패", err)
+    }
   }
 
   const getCategoryColor = (category: string) => {
@@ -94,6 +164,37 @@ export function PostListSection({
       case "질문": return "bg-purple-100 text-purple-700 border-purple-300"
       default: return "bg-gray-100 text-gray-700 border-gray-300"
     }
+  }
+
+  // 검색 실행 함수
+  const handleSearch = () => {
+    const trimmedValue = inputValue.trim()
+    if (trimmedValue.length >= 2) {
+      setSearchQuery(trimmedValue)
+      setCurrentPage(1)
+    } else if (trimmedValue === "") {
+      setSearchQuery("")
+      setCurrentPage(1)
+    }
+  }
+
+  // Enter 키 처리
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      // Debounce 타이머 취소
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+      handleSearch()
+    }
+  }
+
+  // 검색어 초기화
+  const handleClear = () => {
+    setInputValue("")
+    setSearchQuery("")
+    setCurrentPage(1)
   }
 
   return (
@@ -143,20 +244,39 @@ export function PostListSection({
         </div>
       </Card>
 
-      {/* 검색창 UI 그대로 */}
+      {/* 검색창 UI 개선 */}
       <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="게시글 검색..."
-            value={searchQuery}
-            onChange={e => {
-              setSearchQuery(e.target.value)
-              setCurrentPage(1)
-            }}
-            className="pl-10 border-purple-200 focus:border-purple-400"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="게시글 검색... (최소 2자 이상)"
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className={`pl-10 ${inputValue ? "pr-10" : ""} border-purple-200 focus:border-purple-400`}
+            />
+            {inputValue && (
+              <button
+                onClick={handleClear}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="검색어 초기화"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            onClick={handleSearch}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white whitespace-nowrap"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            검색
+          </Button>
         </div>
+        {inputValue.trim().length > 0 && inputValue.trim().length < 2 && (
+          <p className="text-xs text-gray-500 mt-2 ml-1">최소 2자 이상 입력해주세요</p>
+        )}
       </Card>
 
       {/* 인기글 UI 그대로 (mockPosts → posts로 대체 가능하지만 변경 안 함) */}
@@ -183,10 +303,7 @@ export function PostListSection({
         {posts.map(post => (
           <motion.div key={post.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ scale: 1.01 }}>
             <Card
-              className={`p-6 border-2 cursor-pointer transition-all hover:shadow-lg ${false
-                ? "border-red-200 bg-gradient-to-r from-red-50 to-pink-50"
-                : "border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
-                }`}
+              className="p-6 border-2 cursor-pointer transition-all hover:shadow-lg border-purple-200 bg-white/80 backdrop-blur hover:border-purple-300"
               onClick={() => onPostClick(post.id)}
             >
               <div className="flex items-start justify-between gap-4">
