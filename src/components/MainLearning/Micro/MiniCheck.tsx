@@ -1,11 +1,11 @@
 import { useState } from "react"
-import { Card } from "../ui/card"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
-import { Progress } from "../ui/progress"
+import { Card } from "../../ui/card"
+import { Button } from "../../ui/button"
+import { Badge } from "../../ui/badge"
+import { Progress } from "../../ui/progress"
 import { motion } from "motion/react"
 import { ArrowRight, CheckCircle2, XCircle } from "lucide-react"
-import axios from "../api/axiosConfig"
+import axios from "../../api/axiosConfig"
 
 interface MiniQuestion {
   questionId: number
@@ -236,7 +236,11 @@ export function MiniCheck({
                 onClick={handleNext}
                 className="bg-purple-500 text-white"
               >
-                {currentIndex < questions.length - 1 ? "다음 문제" : "객관식 문제 풀러 가기"}
+                {currentIndex < questions.length - 1 
+                  ? "다음 문제" 
+                  : examType === "practical" 
+                    ? "실기 문제 풀러 가기" 
+                    : "객관식 문제 풀러 가기"}
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </div>

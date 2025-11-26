@@ -1,11 +1,11 @@
 import { useState } from "react"
-import { Card } from "../ui/card"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
-import { Progress } from "../ui/progress"
+import { Card } from "../../ui/card"
+import { Button } from "../../ui/button"
+import { Badge } from "../../ui/badge"
+import { Progress } from "../../ui/progress"
 import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react"
-import type { Question } from "../../types"
+import type { Question } from "../../../types"
 
 interface ReviewProblemSolvingProps {
   questions: Question[]

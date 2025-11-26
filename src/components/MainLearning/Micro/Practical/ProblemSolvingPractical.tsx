@@ -1,18 +1,20 @@
 import { useState } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
-import { Input } from "../ui/input";
+import { Card } from "../../../ui/card";
+import { Button } from "../../../ui/button";
+import { Badge } from "../../../ui/badge";
+import { Progress } from "../../../ui/progress";
+import { Input } from "../../../ui/input"
+import { Textarea } from "../../../ui/textarea";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react";
-import type { Question } from "../../types";
-import axios from "../api/axiosConfig";
+import type { Question } from "../../../../types";
+import axios from "../../../api/axiosConfig";
 
 interface ProblemSolvingPracticalProps {
   questions: Question[];
   topicName: string;
   topicId: number;
+  sessionId?: number | null;
   onComplete: (score: number, answers: any[]) => void;
 }
 
@@ -20,6 +22,7 @@ export function ProblemSolvingPractical({
   questions, 
   topicName, 
   topicId,
+  sessionId,
   onComplete 
 }: ProblemSolvingPracticalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -43,11 +46,21 @@ export function ProblemSolvingPractical({
     setIsGrading(true);
     try {
       // grade-one API 호출 (즉시 채점)
-      const res = await axios.post(`/study/practical/grade-one`, {
-        topicId: topicId,
-        questionId: questionId,
-        userText: userText
-      });
+      // 실기 모드는 세션을 통해 제출하므로 sessionId 없이도 사용 가능
+      // sessionId가 있으면 쿼리 파라미터로 전달 (선택적)
+      const config = sessionId
+        ? { params: { sessionId } }
+        : {}
+      
+      const res = await axios.post(
+        `/study/practical/grade-one`,
+        {
+          topicId: topicId,
+          questionId: questionId,
+          userText: userText
+        },
+        config
+      );
 
       // 채점 결과 처리
       const gradingData = res.data;
@@ -197,19 +210,31 @@ export function ProblemSolvingPractical({
                 <label className="block text-sm mb-2 text-purple-800">
                   답안을 입력하세요
                 </label>
-                <Input
-                  type="text"
-                  value={typedAnswer}
-                  onChange={(e) => setTypedAnswer(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !showResult && !isGrading) {
-                      handleSubmitTypedAnswer();
-                    }
-                  }}
-                  placeholder="정답을 입력하세요..."
-                  disabled={showResult || isGrading}
-                  className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400"
-                />
+                {/* questionType이 LONG이면 Textarea, SHORT이면 Input */}
+                {(currentQuestion as any).questionType === "LONG" ? (
+                  <Textarea
+                    value={typedAnswer}
+                    onChange={(e) => setTypedAnswer(e.target.value)}
+                    placeholder="정답을 입력하세요..."
+                    disabled={showResult || isGrading}
+                    className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400 min-h-32"
+                    rows={6}
+                  />
+                ) : (
+                  <Input
+                    type="text"
+                    value={typedAnswer}
+                    onChange={(e) => setTypedAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !showResult && !isGrading) {
+                        handleSubmitTypedAnswer();
+                      }
+                    }}
+                    placeholder="정답을 입력하세요..."
+                    disabled={showResult || isGrading}
+                    className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400"
+                  />
+                )}
               </div>
 
               {!showResult && !isGrading && (

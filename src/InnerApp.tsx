@@ -12,9 +12,10 @@ import { HomeDashboard } from "./components/HomeDashboard"
 
 // main Learning
 import { MainLearningDashboard } from "./components/MainLearning/MainLearningDashboard"
-import { MicroFlowPage } from "./components/MainLearning/MicroFlowPage"
-import { ReviewFlowPage } from "./components/MainLearning/ReviewFlowPage"
-import { ReviewFlowPracticalPage } from "./components/MainLearning/ReviewFlowPracticalPage"
+import { MicroFlowPage as WrittenMicroFlowPage } from "./components/MainLearning/Micro/Written/MicroFlowPage"
+import { MicroFlowPage as PracticalMicroFlowPage } from "./components/MainLearning/Micro/Practical/MicroFlowPage"
+import { ReviewFlowPage } from "./components/MainLearning/Review/ReviewFlowPage"
+import { ReviewFlowPracticalPage } from "./components/MainLearning/Review/ReviewFlowPracticalPage"
 
 // solo Pracitce
 import { SoloPracticeDashboard } from "./components/SoloPractice/SoloPracticeDashboard"
@@ -71,9 +72,22 @@ import { ShopDashboard } from "./components/Shop/ShopDashboard"
 //etc
 import { LevelUpScreen } from "./components/LevelUpScreen"
 import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
+import { useSearchParams } from "react-router-dom"
 
 interface InnerAppProps {
   onLogout: () => void
+}
+
+// MicroFlowPage 라우터: type 파라미터에 따라 필기/실기 컴포넌트 분기
+function MicroFlowPageRouter() {
+  const [searchParams] = useSearchParams()
+  const type = (searchParams.get("type") || "written").toLowerCase()
+  
+  if (type === "practical") {
+    return <PracticalMicroFlowPage />
+  }
+  
+  return <WrittenMicroFlowPage />
 }
 
 export default function InnerApp({ onLogout }: InnerAppProps) {
@@ -124,7 +138,12 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
           {/* 메인 학습 */}
           <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
           <Route path="/learning" element={<MainLearningDashboard />} />
-          <Route path="/learning/micro" element={<MicroFlowPage />} />
+          <Route 
+            path="/learning/micro" 
+            element={
+              <MicroFlowPageRouter />
+            } 
+          />
           <Route path="/learning/review-written" element={<ReviewFlowPage />} />
           <Route path="/learning/review-practical" element={<ReviewFlowPracticalPage />} />
 

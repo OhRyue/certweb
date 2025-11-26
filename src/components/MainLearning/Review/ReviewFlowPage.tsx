@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { ReviewProblemSolving } from "./ReviewProblemSolving"
-import { MicroWrongAnswers } from "./MicroWrongAnswers"
+import { MicroWrongAnswers } from "../Micro/Written/MicroWrongAnswers"
 import { ReviewResult } from "./ReviewResult"
-import { LevelUpScreen } from "../LevelUpScreen"
-import { questions, topics } from "../../data/mockData"
+import { LevelUpScreen } from "../../LevelUpScreen"
+import { questions, topics } from "../../../data/mockData"
 
 export function ReviewFlowPage() {
   const [step, setStep] = useState<"problem" | "wrong" | "result">("problem")

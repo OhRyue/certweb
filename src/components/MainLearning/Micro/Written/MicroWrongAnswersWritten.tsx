@@ -1,48 +1,43 @@
 import { useState, useEffect, useRef } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
+import { Card } from "../../../ui/card";
+import { Button } from "../../../ui/button";
+import { Badge } from "../../../ui/badge";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
-import axios from "../api/axiosConfig";
-import type { Question } from "../../types";
+import axios from "../../../api/axiosConfig";
+import type { Question } from "../../../../types";
 
 interface WrongAnswer {
   questionId: number;
-  userAnswer: string; // "A", "B", "O", "X" 등
-  correctAnswer: string; // "A", "B", "O", "X" 등
-  explanation?: string; // 해설
+  userAnswer: string; // "A", "B", "O", "X"
+  correctAnswer?: string; // "A", "B", "O", "X"
+  explanation?: string;
 }
 
-interface MicroWrongAnswersProps {
+interface MicroWrongAnswersWrittenProps {
   wrongAnswers: WrongAnswer[];
   topicName: string;
-  examType: "written" | "practical";
   onContinue: () => void;
 }
 
-export function MicroWrongAnswers({ 
+export function MicroWrongAnswersWritten({ 
   wrongAnswers, 
   topicName, 
-  examType,
   onContinue 
-}: MicroWrongAnswersProps) {
+}: MicroWrongAnswersWrittenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const isPractical = examType === "practical";
-  // onContinue를 useRef로 안정적인 참조 유지
   const onContinueRef = useRef(onContinue);
   
-  // onContinue가 변경될 때마다 ref 업데이트
   useEffect(() => {
     onContinueRef.current = onContinue;
   }, [onContinue]);
   
   const currentWrong = wrongAnswers[currentIndex];
 
-  // 현재 문제의 상세 정보를 API로 받아오기
+  // 필기 모드: API로 문제 상세 정보 가져오기
   useEffect(() => {
     if (wrongAnswers.length === 0) {
       onContinueRef.current();
@@ -60,24 +55,10 @@ export function MicroWrongAnswers({
         const data = res.data;
         
         // API 응답을 Question 형태로 변환
-        console.log("choices 배열:", data.choices);
-        console.log("choices 배열 길이:", data.choices?.length);
-        if (data.choices && data.choices.length > 0) {
-          console.log("첫 번째 choice:", data.choices[0]);
-          console.log("첫 번째 choice의 키들:", Object.keys(data.choices[0]));
-        }
-        
-        const options = (data.choices || []).map((choice: any, index: number) => {
-          console.log(`선택지 ${index}:`, choice);
-          const option = {
-            label: choice.label || "",
-            text: choice.content || choice.text || ""
-          };
-          console.log(`선택지 ${index} 변환 결과:`, option);
-          return option;
-        });
-        
-        console.log("최종 변환된 options 배열:", options);
+        const options = (data.choices || []).map((choice: any) => ({
+          label: choice.label || "",
+          text: choice.text || ""
+        }));
         
         const question: Question = {
           id: String(data.questionId),
@@ -89,13 +70,8 @@ export function MicroWrongAnswers({
           question: data.stem,
           options: options,
           correctAnswer: data.correctAnswer,
-          explanation: data.explanation || "" // API 응답에서 직접 해설 가져오기
+          explanation: data.explanation || currentWrong.explanation || ""
         };
-        
-        // 디버깅: API 응답 확인
-        console.log("문제 상세 정보:", data);
-        console.log("변환된 선택지:", options);
-        console.log("변환된 문제:", question);
         
         setCurrentQuestion(question);
       } catch (err: any) {
@@ -154,8 +130,8 @@ export function MicroWrongAnswers({
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Badge className="bg-red-500 text-white">오답 노트</Badge>
-            <Badge variant="secondary" className={isPractical ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}>
-              {isPractical ? "실기" : "필기"}
+            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+              필기
             </Badge>
             <Badge variant="outline">{topicName}</Badge>
           </div>
@@ -214,12 +190,9 @@ export function MicroWrongAnswers({
                 <h2 className="text-red-900 mb-6">{currentQuestion.question}</h2>
 
                 {/* 필기 모드: 선택형 */}
-                {!isPractical && (
-                  <div className="space-y-3">
-                    {currentQuestion.options && currentQuestion.options.length > 0 ? (
-                      currentQuestion.options.map((option, index) => {
-                      // 라벨로 비교 (A, B, C, D 또는 O, X)
-                      // option은 { label, text } 형태의 객체이거나 string일 수 있음
+                <div className="space-y-3">
+                  {currentQuestion.options && currentQuestion.options.length > 0 ? (
+                    currentQuestion.options.map((option, index) => {
                       const optionObj = typeof option === 'object' && option !== null 
                         ? option as { label?: string; text?: string }
                         : null;
@@ -273,34 +246,10 @@ export function MicroWrongAnswers({
                         </div>
                       );
                     })
-                    ) : (
-                      <div className="text-gray-500 text-center py-4">선택지 정보를 불러올 수 없습니다.</div>
-                    )}
-                  </div>
-                )}
-
-                {/* 실기 모드: 타이핑 답안 */}
-                {isPractical && (
-                  <div className="space-y-4">
-                    {/* 내가 입력한 답 */}
-                    <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <XCircle className="w-5 h-5 text-red-600" />
-                        <span className="text-red-900">내가 입력한 답</span>
-                      </div>
-                      <p className="text-red-700 ml-7">{currentWrong.userAnswer}</p>
-                    </div>
-
-                    {/* 정답 */}
-                    <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        <span className="text-green-900">정답</span>
-                      </div>
-                      <p className="text-green-700 ml-7">{currentQuestion.correctAnswer}</p>
-                    </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-gray-500 text-center py-4">선택지 정보를 불러올 수 없습니다.</div>
+                  )}
+                </div>
               </div>
             </div>
           </Card>
@@ -310,15 +259,7 @@ export function MicroWrongAnswers({
             <div className="flex items-start gap-3">
               <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0" />
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-blue-900">해설</h3>
-                  {isPractical && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      AI 해설
-                    </Badge>
-                  )}
-                </div>
+                <h3 className="text-blue-900 mb-2">해설</h3>
                 <p className="text-gray-700">{currentQuestion.explanation}</p>
               </div>
             </div>
@@ -353,3 +294,6 @@ export function MicroWrongAnswers({
     </div>
   );
 }
+
+
+
