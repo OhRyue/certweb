@@ -185,9 +185,9 @@ export function ProblemSolving({ questions, topicName, examType, onComplete }: P
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center flex-shrink-0">
-                            {index + 1}
+                             {option.label}
                           </div>
-                          <span>{option}</span>
+                          <span>{option.text}</span>
                         </div>
                         {showResult && isCorrectAnswer && (
                           <CheckCircle2 className="w-5 h-5 text-green-600" />

@@ -122,7 +122,7 @@ export function MicroFlowPage() {
   }
 
   // 백엔드 MCQ 응답을 프론트에서 쓰기 편한 형태로 정규화
-  // ProblemSolving 컴포넌트가 기대하는 필드 구조로 맞춰주는 역할
+  // ProblemSolvingWritten 컴포넌트가 기대하는 필드 구조로 맞춰주는 역할
   function normalizeMcq(items) {
     return items.map((q) => ({
       id: q.questionId,           // 문제 아이디
@@ -662,7 +662,7 @@ export function MicroFlowPage() {
           // 메인 학습 대시보드로 이동
           onBackToDashboard={() => navigate("/learning")}
         />
-        
+
         {/* 
           레벨업 연출
           지금은 showLevelUp이 항상 false라서 화면에 안 나옴

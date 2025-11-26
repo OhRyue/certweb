@@ -4,7 +4,7 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { motion } from "motion/react"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, CheckCircle2, XCircle } from "lucide-react"
 import axios from "../api/axiosConfig"
 
 interface MiniQuestion {
@@ -138,14 +138,14 @@ export function MiniCheck({
         <div className="mb-6">
           <Badge className="bg-purple-500 text-white mb-3">{topicName}</Badge>
           <h1 className="text-purple-900 mb-2">미니체크 O X</h1>
-          <p className="text-gray-600">바로 채점되는 방식</p>
+          <p className="text-gray-600">개념을 제대로 이해했는지 확인해보세요!</p>
         </div>
 
         {/* Progress bar */}
         <Card className="p-4 mb-6 bg-white border-2 border-purple-200">
           <div className="flex items-center justify-between mb-2">
-            <span>문제 {currentIndex + 1} / {questions.length}</span>
-            <span className="text-purple-600">정답 {score}</span>
+            <span className="text-gray-600">문제 {currentIndex + 1} / {questions.length}</span>
+            <span className="text-purple-600">정답: {score} / {questions.length}</span>
           </div>
           <Progress value={progress} className="h-2" />
         </Card>
@@ -195,18 +195,39 @@ export function MiniCheck({
           </Card>
 
           {/* 해설 */}
+          {/* Explanation */}
           {result && (
-            <Card
-              className={`p-6 mb-6 border-2 ${
-                result.correct ? "bg-green-50" : "bg-red-50"
-              }`}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              <p className="font-semibold">
-                {result.correct ? "정답입니다" : "틀렸습니다"}
-              </p>
-              <p className="mt-2 text-gray-700">{result.explanation}</p>
-            </Card>
+              <Card
+                className={`p-6 mb-6 border-2 ${result.correct
+                    ? "bg-green-50 border-green-300"
+                    : "bg-red-50 border-red-300"
+                  }`}
+              >
+                <div className="flex items-start gap-3">
+                  {result.correct ? (
+                    <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
+                  )}
+
+                  <div>
+                    <h3 className={result.correct ? "text-green-900" : "text-red-900"}>
+                      {result.correct ? "정답이에요" : "틀렸어요"}
+                    </h3>
+
+                    <p className="text-gray-700 mt-2">
+                      {result.explanation}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
           )}
+
 
           {/* 다음 버튼 */}
           {result && (

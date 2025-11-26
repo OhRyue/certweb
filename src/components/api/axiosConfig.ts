@@ -1,9 +1,21 @@
 import axios from "axios";
 
+// 환경 변수 검증
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+if (!API_BASE_URL) {
+  console.error(
+    "VITE_API_BASE_URL 환경 변수가 설정되지 않았습니다. " +
+    "Netlify 대시보드에서 환경 변수를 설정해주세요."
+  );
+}
+
 const instance = axios.create({
-  baseURL: "/api",
+  baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : "/api",
   withCredentials: true,
 });
+console.log("🔵 [AXIOS INIT] API_BASE_URL =", API_BASE_URL);
+console.log("🔵 [AXIOS INIT] 최종 baseURL =", instance.defaults.baseURL);
 
 // 요청 인터셉터
 instance.interceptors.request.use(
@@ -33,6 +45,13 @@ instance.interceptors.request.use(
         console.log("요청 인터셉터: 이미 Authorization 헤더 있음 (재시도)", config.url)
       }
     }
+    
+    // 🔴 디버깅용: 실제 요청 URL 확인
+    console.log("➡️ [REQUEST]", {
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`
+    });
 
     return config
   },
@@ -75,7 +94,7 @@ instance.interceptors.response.use(
         // 새 토큰 저장
         localStorage.setItem("accessToken", newAccessToken);
         console.log("새 토큰 저장 완료:", newAccessToken.substring(0, 50) + "...");
-        
+
         // 새 토큰 페이로드 확인
         try {
           const tokenParts = newAccessToken.split('.');
@@ -92,7 +111,7 @@ instance.interceptors.response.use(
         // 원래 요청의 Authorization 헤더를 새 토큰으로 명시적으로 업데이트
         originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        
+
         // 재시도 플래그를 리셋하지 않음 (무한 루프 방지)
         console.log("원래 요청 재시도:", originalRequest.url);
         console.log("재시도 요청 헤더:", originalRequest.headers);

@@ -57,6 +57,7 @@ import { HallOfFame } from "./components/RankBadge/ranking/HallofFame"
 
 // report
 import { ReportDashboard } from "./components/Report/ReportDashboard"
+import { FullHistoryView } from "./components/Report/FullHistoryView"
 
 // cert info
 import { CertInfoDashboard } from "./components/CertInfo/CertInfoDashboard"
@@ -182,8 +183,11 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
           <Route path="/rankBadge/weekly" element={<WeeklyRanking />} />
           <Route path="/rankBadge/hall" element={<HallOfFame />} />
 
-          {/* 기타 그대로 */}
+          {/* 학습 리포트 */}
           <Route path="/report" element={<ReportDashboard />} />
+          <Route path="/report/history" element={<FullHistoryView />} />
+          
+          {/* 기타 그대로 */}
           <Route path="/certinfo" element={<CertInfoDashboard />} />
           <Route
             path="/settings"
