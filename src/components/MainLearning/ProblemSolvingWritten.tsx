@@ -52,8 +52,8 @@ export function ProblemSolvingWritten({
       });
 
       // 채점 결과 처리
-      const gradingItem = result.payload?.items?.[0];
-      const isCorrect = gradingItem?.correct || false;
+      // API 응답이 직접 { correct, correctLabel, explanation, aiExplanation } 형태
+      const isCorrect = result.correct || false;
 
       if (isCorrect) {
         setScore(score + 1);
@@ -64,8 +64,8 @@ export function ProblemSolvingWritten({
         selectedAnswer: answerIndex,
         isCorrect,
         timeSpent: 0,
-        explanation: gradingItem?.explanation || gradingItem?.aiExplanation || "",
-        correctLabel: gradingItem?.correctLabel || label
+        explanation: result.explanation || "", // explanation 필드 사용 (aiExplanation은 사용하지 않음)
+        correctLabel: result.correctLabel || label
       }]);
 
       setShowResult(true);

@@ -12,13 +12,19 @@ interface MiniQuestion {
   text: string
 }
 
+interface MiniAnswer {
+  questionId: number
+  answer: boolean // true = O, false = X
+}
+
 interface MiniCheckProps {
   questions: MiniQuestion[]
   topicName: string
   userId: string
   topicId: number
   examType: "written" | "practical"
-  onComplete: (score: number) => void
+  sessionId?: number | null
+  onComplete: (score: number, learningSessionId?: number, answers?: MiniAnswer[]) => void
 }
 
 export function MiniCheck({
@@ -27,38 +33,89 @@ export function MiniCheck({
   userId,
   topicId,
   examType,
+  sessionId,
   onComplete
 }: MiniCheckProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<"O" | "X" | null>(null)
   const [result, setResult] = useState<{ correct: boolean; explanation: string } | null>(null)
   const [score, setScore] = useState(0)
+  const [learningSessionId, setLearningSessionId] = useState<number | null>(null)
+  // 모든 문제의 답안을 저장
+  const [allAnswers, setAllAnswers] = useState<MiniAnswer[]>([])
+  // 채점 중복 호출 방지
+  const [isGrading, setIsGrading] = useState(false)
+
+  // 문제가 없을 때 방어
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="p-8 text-center text-gray-600">
+        <p>미니체크 문제를 불러오는 중...</p>
+      </div>
+    )
+  }
 
   const currentQuestion = questions[currentIndex]
+  
+  // currentQuestion이 없을 때 방어
+  if (!currentQuestion) {
+    return (
+      <div className="p-8 text-center text-gray-600">
+        <p>문제를 불러오는 중...</p>
+      </div>
+    )
+  }
+
   const progress = ((currentIndex + 1) / questions.length) * 100
 
   // 즉시 채점
   const handleAnswer = async (answer: "O" | "X") => {
-    if (result) return // 이미 채점했으면 재클릭 금지
+    // 이미 채점했거나 채점 중이면 재호출 방지
+    if (result || isGrading) return
 
+    setIsGrading(true)
     setSelectedAnswer(answer)
 
     try {
-      const res = await axios.post(`/study/${examType}/mini/grade-one`, {
-        userId,
-        topicId,
-        questionId: currentQuestion.questionId,
-        answer: answer === "O"
-      })
+      // 세션이 있으면 sessionId를 쿼리 파라미터로 전달
+      const config = sessionId
+        ? { params: { sessionId } }
+        : {}
+      
+      const res = await axios.post(
+        `/study/${examType}/mini/grade-one`,
+        {
+          topicId,
+          questionId: currentQuestion.questionId,
+          answer: answer === "O"
+        },
+        config
+      )
 
-      const { correct, explanation } = res.data
+      const { correct, explanation, learningSessionId: receivedSessionId } = res.data
       setResult({ correct, explanation })
+
+      // learningSessionId 저장 (필기/실기 모두, 첫 번째 문제에서 받은 값이면 저장)
+      if (receivedSessionId !== undefined && learningSessionId === null) {
+        setLearningSessionId(receivedSessionId)
+      }
 
       if (correct) {
         setScore((prev) => prev + 1)
       }
+
+      // 답안 저장
+      setAllAnswers((prev) => [
+        ...prev,
+        {
+          questionId: currentQuestion.questionId,
+          answer: answer === "O"
+        }
+      ])
     } catch (err) {
       console.error("미니체크 채점 에러", err)
+    } finally {
+      setIsGrading(false)
     }
   }
 
@@ -68,7 +125,8 @@ export function MiniCheck({
       setSelectedAnswer(null)
       setResult(null)
     } else {
-      onComplete(score)
+      // 모든 답안과 함께 완료 콜백 호출
+      onComplete(score, learningSessionId || undefined, allAnswers)
     }
   }
 
@@ -124,8 +182,8 @@ export function MiniCheck({
                 return (
                   <motion.button
                     key={option}
-                    disabled={!!result}
-                    whileHover={!result ? { scale: 1.05 } : {}}
+                    disabled={!!result || isGrading}
+                    whileHover={!result && !isGrading ? { scale: 1.05 } : {}}
                     onClick={() => handleAnswer(option as "O" | "X")}
                     className={btnStyle}
                   >

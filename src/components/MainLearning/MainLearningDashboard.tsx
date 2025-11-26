@@ -514,14 +514,33 @@ export function MainLearningDashboard() {
                             {/* Micro 학습 진입 버튼
                                 - 필기 실기 둘 다 동일한 경로 사용
                                 - type 파라미터로 모드 구분
+                                - 세션 시작 API 호출 후 sessionId를 포함해서 navigate
                              */}
                             <Button
                               size="sm"
-                              onClick={() =>
-                                navigate(
-                                  `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}`,
-                                )
-                              }
+                              onClick={async () => {
+                                try {
+                                  // 세션 시작 API 호출
+                                  const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+                                  const res = await axios.post("/study/session/start", {
+                                    topicId: subTopic.id,
+                                    mode,
+                                    resume: false
+                                  })
+                                  
+                                  // 응답으로 받은 sessionId를 포함해서 navigate
+                                  const sessionId = res.data.sessionId
+                                  navigate(
+                                    `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}&sessionId=${sessionId}`,
+                                  )
+                                } catch (err) {
+                                  console.error("세션 시작 실패:", err)
+                                  // 에러 발생 시에도 기존 방식으로 fallback (선택사항)
+                                  navigate(
+                                    `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}`,
+                                  )
+                                }
+                              }}
                               className={
                                 subTopic.completed
                                   ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
