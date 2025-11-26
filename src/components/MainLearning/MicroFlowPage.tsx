@@ -528,27 +528,55 @@ export function MicroFlowPage() {
             // 점수 저장
             setProblemScore(score)
             
+            // 틀린 문제 필터링
+            const wrongAnswersList = answers.filter(a => !a.isCorrect).map(a => {
+              const correctLabel = a.correctLabel || ""
+              return {
+                questionId: Number(a.questionId),
+                userAnswer: typeof a.selectedAnswer === 'number' 
+                  ? String.fromCharCode(65 + a.selectedAnswer) 
+                  : String(a.selectedAnswer),
+                correctAnswer: correctLabel || "",
+                explanation: a.explanation || ""
+              }
+            })
+            
             try {
-              // 세션이 있으면 세션 상태만 확인하여 다음 단계로 이동
-              // grade-one으로 이미 채점 및 저장이 완료되었으므로
-              // mcq/submit API 호출 없이 바로 세션 상태 확인
+              // 세션이 있으면 세션 상태 확인
               if (sessionId) {
-                // 세션 상태 다시 확인하여 다음 단계 결정
-                await syncSessionAndNavigate(sessionId)
+                // 틀린 문제가 없으면 오답 정리 단계를 건너뛰고 바로 다음 단계로
+                if (wrongAnswersList.length === 0 && learningSessionId) {
+                  // 세션 상태 확인
+                  const session = await fetchSessionInfo(sessionId)
+                  const currentStep = session.currentStep
+                  
+                  // 현재 단계가 REVIEW_WRONG 또는 REVIEW_WRONG2이면 advance API 호출하여 건너뛰기
+                  if (currentStep === "REVIEW_WRONG" || currentStep === "REVIEW_WRONG2") {
+                    await axios.post("/study/session/advance", {
+                      sessionId: learningSessionId,
+                      step: currentStep,
+                      score: null,
+                      detailsJson: null
+                    })
+                  }
+                  
+                  // 세션 상태 다시 확인하여 다음 단계 결정
+                  await syncSessionAndNavigate(sessionId)
+                } else {
+                  // 틀린 문제가 있으면 기존 방식대로 진행
+                  setWrongAnswers(wrongAnswersList)
+                  await syncSessionAndNavigate(sessionId)
+                }
               } else {
                 // 세션이 없으면 기존 방식 (fallback)
-                setWrongAnswers(answers.filter(a => !a.isCorrect).map(a => {
-                  const correctLabel = a.correctLabel || ""
-                  return {
-                    questionId: Number(a.questionId),
-                    userAnswer: typeof a.selectedAnswer === 'number' 
-                      ? String.fromCharCode(65 + a.selectedAnswer) 
-                      : String(a.selectedAnswer),
-                    correctAnswer: correctLabel || "",
-                    explanation: a.explanation || ""
-                  }
-                }))
-                setStep("wrong")
+                if (wrongAnswersList.length === 0) {
+                  // 틀린 문제가 없으면 오답 정리 단계 건너뛰고 결과 화면으로
+                  setStep("result")
+                } else {
+                  // 틀린 문제가 있으면 오답 정리 단계로
+                  setWrongAnswers(wrongAnswersList)
+                  setStep("wrong")
+                }
               }
             } catch (err) {
               console.error("다음 단계로 이동 실패:", err)
@@ -570,19 +598,46 @@ export function MicroFlowPage() {
         onComplete={async (score, answers) => {
           // 점수 저장
           setProblemScore(score)
-          // 틀린 문제만 따로 추려서 상태로 저장
-          setWrongAnswers(answers.filter(a => !a.isCorrect))
+          
+          // 틀린 문제 필터링
+          const wrongAnswersList = answers.filter(a => !a.isCorrect)
           
           try {
-            // 세션이 있으면 세션 상태만 확인하여 다음 단계로 이동
-            // grade-one으로 이미 채점 및 저장이 완료되었으므로
-            // mcq/submit API 호출 없이 바로 세션 상태 확인
+            // 세션이 있으면 세션 상태 확인
             if (sessionId) {
-              // 세션 상태 다시 확인하여 다음 단계 결정
-              await syncSessionAndNavigate(sessionId)
+              // 틀린 문제가 없으면 오답 정리 단계를 건너뛰고 바로 다음 단계로
+              if (wrongAnswersList.length === 0 && learningSessionId) {
+                // 세션 상태 확인
+                const session = await fetchSessionInfo(sessionId)
+                const currentStep = session.currentStep
+                
+                // 현재 단계가 REVIEW_WRONG 또는 REVIEW_WRONG2이면 advance API 호출하여 건너뛰기
+                if (currentStep === "REVIEW_WRONG" || currentStep === "REVIEW_WRONG2") {
+                  await axios.post("/study/session/advance", {
+                    sessionId: learningSessionId,
+                    step: currentStep,
+                    score: null,
+                    detailsJson: null
+                  })
+                }
+                
+                // 세션 상태 다시 확인하여 다음 단계 결정
+                await syncSessionAndNavigate(sessionId)
+              } else {
+                // 틀린 문제가 있으면 기존 방식대로 진행
+                setWrongAnswers(wrongAnswersList)
+                await syncSessionAndNavigate(sessionId)
+              }
             } else {
               // 세션이 없으면 기존 방식 (fallback)
-              setStep("wrong")
+              if (wrongAnswersList.length === 0) {
+                // 틀린 문제가 없으면 오답 정리 단계 건너뛰고 결과 화면으로
+                setStep("result")
+              } else {
+                // 틀린 문제가 있으면 오답 정리 단계로
+                setWrongAnswers(wrongAnswersList)
+                setStep("wrong")
+              }
             }
           } catch (err) {
             console.error("다음 단계로 이동 실패:", err)

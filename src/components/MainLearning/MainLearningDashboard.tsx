@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import axios from "../api/axiosConfig"
 import { Card } from "../ui/card"
@@ -6,6 +6,14 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog"
 import {
   BookOpen,
   CheckCircle2,
@@ -24,6 +32,25 @@ import type { Subject, MainTopic, SubTopic } from "../../types"
 // - 이걸 기반으로 트리 구조를 만들고 프론트에서 사용하는 Subject 구조로 변환
 // -------------------------------
 type ExamMode = "WRITTEN" | "PRACTICAL"
+
+// Micro 학습 진행 상태 타입
+type MicroStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "TRULY_COMPLETED"
+
+// Micro 학습 진행 상태 API 응답 타입
+interface MicroStatusResponse {
+  statuses: Array<{
+    topicId: number
+    status: MicroStatus
+    resumable: boolean
+  }>
+}
+
+// Micro 학습 통계 API 응답 타입
+interface MicroStatsResponse {
+  totalCount: number
+  completedCount: number
+  completionRate: number
+}
 
 interface RawTopic {
   id: number                    // PK
@@ -139,6 +166,12 @@ export function MainLearningDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)     // 어떤 MainTopic이 펼쳐져 있는지 표시
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")    // 현재 선택된 시험 유형(필기/실기)
+  const [microStatuses, setMicroStatuses] = useState<Map<number, MicroStatus>>(new Map())  // SubTopic ID별 Micro 학습 진행 상태
+  const [resumableMap, setResumableMap] = useState<Map<number, boolean>>(new Map())  // SubTopic ID별 resumable 상태
+  const [microStats, setMicroStats] = useState<MicroStatsResponse | null>(null)  // Micro 학습 통계
+  const [resumeDialogOpen, setResumeDialogOpen] = useState(false)  // 이어서 학습 다이얼로그 열림 상태
+  const [selectedSubTopicId, setSelectedSubTopicId] = useState<number | null>(null)  // 다이얼로그에서 선택된 SubTopic ID
+  const fetchedStatusesRef = useRef<string>("")  // 이미 조회한 상태 추적 (examType + topicIds 조합)
 
   // -------------------------------
   // 백엔드에서 트리 구조 가져오기
@@ -175,6 +208,135 @@ export function MainLearningDashboard() {
     fetchSubjects()
   }, [selectedExamType])
 
+  // -------------------------------
+  // Micro 학습 진행 상태 조회
+  //  - subjects가 로드된 후 모든 SubTopic의 진행 상태를 한 번에 조회
+  //  - GET /api/study/topic-progress/micro-status
+  // -------------------------------
+  useEffect(() => {
+    const fetchMicroStatuses = async () => {
+      // 로딩 중이거나 subjects가 없으면 리턴
+      if (loading || subjects.length === 0) return
+
+      try {
+        // 현재 선택된 시험 타입의 모든 SubTopic ID 수집
+        const currentSubjects = subjects.filter(s => s.examType === selectedExamType)
+        const topicIds: number[] = []
+        
+        currentSubjects.forEach(subject => {
+          subject.mainTopics.forEach(mt => {
+            mt.subTopics.forEach(st => {
+              topicIds.push(st.id)
+            })
+          })
+        })
+
+        if (topicIds.length === 0) return
+
+        // 이미 조회한 topicIds인지 확인 (무한 루프 방지)
+        const topicIdsKey = topicIds.sort((a, b) => a - b).join(",")
+        const currentHash = `${selectedExamType}-${topicIdsKey}`
+        
+        // 같은 조합이면 이미 조회한 것으로 간주 (무한 루프 방지)
+        if (fetchedStatusesRef.current === currentHash) {
+          return
+        }
+
+        // 조회 시작 전에 해시 저장 (중복 호출 방지)
+        fetchedStatusesRef.current = currentHash
+
+        // API 호출
+        const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+        const res = await axios.get<MicroStatusResponse>("/study/topic-progress/micro-status", {
+          params: {
+            topicIds: topicIds.join(","),
+            mode
+          }
+        })
+
+        // Map으로 변환하여 저장
+        const statusMap = new Map<number, MicroStatus>()
+        const resumableStatusMap = new Map<number, boolean>()
+        res.data.statuses.forEach(item => {
+          statusMap.set(item.topicId, item.status)
+          resumableStatusMap.set(item.topicId, item.resumable)
+        })
+
+        setMicroStatuses(statusMap)
+        setResumableMap(resumableStatusMap)
+
+        // subjects의 completed 상태 업데이트 (함수형 업데이트로 무한 루프 방지)
+        setSubjects(prevSubjects => {
+          // 변경사항이 있는지 확인
+          let hasChanges = false
+          const updated = prevSubjects.map(subject => {
+            if (subject.examType !== selectedExamType) return subject
+
+            const updatedMainTopics = subject.mainTopics.map(mt => ({
+              ...mt,
+              subTopics: mt.subTopics.map(st => {
+                const status = statusMap.get(st.id)
+                // TRULY_COMPLETED일 때만 완료로 표시 (COMPLETED는 진정한 완료가 아님)
+                const completed = status === "TRULY_COMPLETED"
+                if (st.completed !== completed) {
+                  hasChanges = true
+                }
+                return {
+                  ...st,
+                  completed
+                }
+              })
+            }))
+
+            return {
+              ...subject,
+              mainTopics: updatedMainTopics
+            }
+          })
+
+          // 변경사항이 없으면 이전 상태 반환 (무한 루프 방지)
+          if (!hasChanges) {
+            return prevSubjects
+          }
+
+          return updated
+        })
+      } catch (err) {
+        console.error("Micro 학습 진행 상태 조회 실패:", err)
+        // 에러가 발생해도 UI는 계속 표시 (기본값 사용)
+      }
+    }
+
+    fetchMicroStatuses()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, selectedExamType])  // subjects를 의존성에서 제거하여 무한 루프 방지 (내부에서 subjects 사용)
+
+  // -------------------------------
+  // Micro 학습 통계 조회
+  //  - GET /api/study/topic-progress/micro-stats
+  //  - 필기/실기 총 진행률 표시용
+  // -------------------------------
+  useEffect(() => {
+    const fetchMicroStats = async () => {
+      if (loading) return
+
+      try {
+        const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+        const res = await axios.get<MicroStatsResponse>("/study/topic-progress/micro-stats", {
+          params: {
+            mode
+          }
+        })
+
+        setMicroStats(res.data)
+      } catch (err) {
+        console.error("Micro 학습 통계 조회 실패:", err)
+        // 에러가 발생해도 UI는 계속 표시 (기본값 사용)
+      }
+    }
+
+    fetchMicroStats()
+  }, [loading, selectedExamType])
 
   // 로딩 주 상태 표시
   if (loading) {
@@ -194,26 +356,30 @@ export function MainLearningDashboard() {
 
   // -------------------------------
   // 진행률 계산
-  //  - 전체 SubTopic 개수 대비 completed된 SubTopic 개수
+  //  - API에서 받은 통계 데이터 사용
+  //  - API 데이터가 없으면 기본값 사용
+  //  - completionRate가 1보다 크면 이미 퍼센트 값, 1 이하면 소수점 값
   // -------------------------------
-  const calculateProgress = () => {
-    let total = 0
-    let completed = 0
-
-    currentSubjects.forEach(subject => {
-      subject.mainTopics.forEach(mt => {
-        mt.subTopics.forEach(st => {
-          total++
-          if (st.completed) completed++
-        })
-      })
-    })
-
-    const percent = total > 0 ? Math.round((completed / total) * 100) : 0
-    return { total, completed, percent }
+  const getProgress = () => {
+    if (microStats) {
+      // completionRate가 1보다 크면 이미 퍼센트 값이므로 그대로 사용
+      // 1 이하면 소수점 값이므로 100을 곱해서 퍼센트로 변환
+      const percent = microStats.completionRate > 1 
+        ? Math.round(microStats.completionRate)
+        : Math.round(microStats.completionRate * 100)
+      
+      return {
+        total: microStats.totalCount,
+        completed: microStats.completedCount,
+        percent
+      }
+    }
+    
+    // API 데이터가 없을 때는 기본값
+    return { total: 0, completed: 0, percent: 0 }
   }
 
-  const { total, completed, percent } = calculateProgress()
+  const { total, completed, percent } = getProgress()
 
   // MainTopic 단위 완료 여부: 그 아래 SubTopic들이 모두 completed이면 완료로 표시
   const isMainTopicCompleted = (mainTopic: MainTopic) =>
@@ -477,81 +643,145 @@ export function MainLearningDashboard() {
                       */}
                     {expandedMainTopic === mainTopic.id && (
                       <div className="p-5 bg-white space-y-4">
-                        {mainTopic.subTopics.map((subTopic, idx) => (
+                        {mainTopic.subTopics.map((subTopic, idx) => {
+                          const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
+                          const isTrulyCompleted = status === "TRULY_COMPLETED"
+                          
+                          return (
                           <div
                             key={subTopic.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${subTopic.completed
-                              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-                              : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
-                              }`}
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                              isTrulyCompleted
+                                ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+                                : "bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-purple-50 border-purple-100"
+                            }`}
                           >
                             {/* SubTopic 상태 표시 
-                              - 완료면 체크 아이콘
-                              - 미완료면 순번 표시 
+                              - TRULY_COMPLETED일 때만 체크 아이콘
+                              - 그 외에는 순번 표시 
                             */}
                             <div className="flex items-center gap-3">
-                              {subTopic.completed ? (
-                                <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                                  <CheckCircle2 className="w-5 h-5 text-white" />
-                                </div>
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center text-purple-700 text-sm">
-                                  {idx + 1}
-                                </div>
-                              )}
+                              {(() => {
+                                const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
+                                if (status === "TRULY_COMPLETED") {
+                                  return (
+                                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                                      <CheckCircle2 className="w-5 h-5 text-white" />
+                                    </div>
+                                  )
+                                } else {
+                                  return (
+                                    <div className="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center text-purple-700 text-sm">
+                                      {idx + 1}
+                                    </div>
+                                  )
+                                }
+                              })()}
                               <div>
                                 <span className="text-gray-800">{subTopic.name}</span>
-                                {subTopic.completed && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="ml-2 bg-green-100 text-green-700"
-                                  >
-                                    완료
-                                  </Badge>
-                                )}
+                                {(() => {
+                                  const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
+                                  // TRULY_COMPLETED일 때만 완료 배지 표시
+                                  if (status === "TRULY_COMPLETED") {
+                                    return (
+                                      <Badge
+                                        variant="secondary"
+                                        className="ml-2 bg-green-100 text-green-700"
+                                      >
+                                        완료
+                                      </Badge>
+                                    )
+                                  }
+                                  return null
+                                })()}
                               </div>
                             </div>
                             {/* Micro 학습 진입 버튼
                                 - 필기 실기 둘 다 동일한 경로 사용
                                 - type 파라미터로 모드 구분
                                 - 세션 시작 API 호출 후 sessionId를 포함해서 navigate
+                                - 진행 상태에 따라 버튼 텍스트와 스타일 변경
+                                - resumable이 true이거나 IN_PROGRESS일 때는 다이얼로그 표시
                              */}
-                            <Button
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  // 세션 시작 API 호출
-                                  const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
-                                  const res = await axios.post("/study/session/start", {
-                                    topicId: subTopic.id,
-                                    mode,
-                                    resume: false
-                                  })
+                            <div className="relative">
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
+                                  const resumable = resumableMap.get(subTopic.id) || false
                                   
-                                  // 응답으로 받은 sessionId를 포함해서 navigate
-                                  const sessionId = res.data.sessionId
-                                  navigate(
-                                    `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}&sessionId=${sessionId}`,
-                                  )
-                                } catch (err) {
-                                  console.error("세션 시작 실패:", err)
-                                  // 에러 발생 시에도 기존 방식으로 fallback (선택사항)
-                                  navigate(
-                                    `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}`,
+                                  // resumable이 true이거나 IN_PROGRESS일 때는 다이얼로그 표시
+                                  if (status === "IN_PROGRESS" || (resumable && (status === "COMPLETED" || status === "TRULY_COMPLETED"))) {
+                                    setSelectedSubTopicId(subTopic.id)
+                                    setResumeDialogOpen(true)
+                                    return
+                                  }
+                                  
+                                  // 그 외의 경우는 바로 세션 시작
+                                  try {
+                                    // 세션 시작 API 호출
+                                    const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+                                    const res = await axios.post("/study/session/start", {
+                                      topicId: subTopic.id,
+                                      mode,
+                                      resume: false
+                                    })
+                                    
+                                    // 응답으로 받은 sessionId를 포함해서 navigate
+                                    const sessionId = res.data.sessionId
+                                    navigate(
+                                      `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}&sessionId=${sessionId}`,
+                                    )
+                                  } catch (err) {
+                                    console.error("세션 시작 실패:", err)
+                                    // 에러 발생 시에도 기존 방식으로 fallback (선택사항)
+                                    navigate(
+                                      `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}`,
+                                    )
+                                  }
+                                }}
+                                className={(() => {
+                                  const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
+                                  if (status === "TRULY_COMPLETED") {
+                                    return "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                                  } else if (status === "COMPLETED") {
+                                    return "bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white"
+                                  } else {
+                                    // NOT_STARTED와 IN_PROGRESS는 모두 파란색
+                                    return "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                                  }
+                                })()}
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                {(() => {
+                                  const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
+                                  if (status === "TRULY_COMPLETED") {
+                                    return "학습 완료"
+                                  } else if (status === "COMPLETED") {
+                                    return "다시 도전"
+                                  } else {
+                                    // NOT_STARTED와 IN_PROGRESS는 모두 "Micro 학습"
+                                    return "Micro 학습"
+                                  }
+                                })()}
+                              </Button>
+                              {/* resumable이 true이거나 IN_PROGRESS일 때 빨간색 점 표시 */}
+                              {(() => {
+                                const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
+                                const resumable = resumableMap.get(subTopic.id) || false
+                                const showDot = status === "IN_PROGRESS" || (resumable && (status === "COMPLETED" || status === "TRULY_COMPLETED"))
+                                
+                                if (showDot) {
+                                  return (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
                                   )
                                 }
-                              }}
-                              className={
-                                subTopic.completed
-                                  ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-                                  : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                              }
-                            >
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              {subTopic.completed ? "다시 학습" : "Micro 학습"}
-                            </Button>
+                                return null
+                              })()}
+                            </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </Card>
@@ -561,6 +791,89 @@ export function MainLearningDashboard() {
           ))}
         </div>
       </div>
+
+      {/* 이어서 학습 선택 다이얼로그 */}
+      <Dialog 
+        open={resumeDialogOpen} 
+        onOpenChange={(open) => {
+          setResumeDialogOpen(open)
+          if (!open) {
+            setSelectedSubTopicId(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>학습 방법 선택</DialogTitle>
+            <DialogDescription>
+              이어서 진행할 수 있는 학습이 있습니다. 어떻게 진행하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!selectedSubTopicId) return
+                
+                try {
+                  // 처음부터 하기
+                  const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+                  const res = await axios.post("/study/session/start", {
+                    topicId: selectedSubTopicId,
+                    mode,
+                    resume: false
+                  })
+                  
+                  const sessionId = res.data.sessionId
+                  setResumeDialogOpen(false)
+                  navigate(
+                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,
+                  )
+                } catch (err) {
+                  console.error("세션 시작 실패:", err)
+                  setResumeDialogOpen(false)
+                  navigate(
+                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}`,
+                  )
+                }
+              }}
+              className="w-full sm:w-auto"
+            >
+              처음부터 하기
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedSubTopicId) return
+                
+                try {
+                  // 이어서 하기
+                  const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+                  const res = await axios.post("/study/session/start", {
+                    topicId: selectedSubTopicId,
+                    mode,
+                    resume: true
+                  })
+                  
+                  const sessionId = res.data.sessionId
+                  setResumeDialogOpen(false)
+                  navigate(
+                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,
+                  )
+                } catch (err) {
+                  console.error("세션 시작 실패:", err)
+                  setResumeDialogOpen(false)
+                  navigate(
+                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}`,
+                  )
+                }
+              }}
+              className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+            >
+              이어서 하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
