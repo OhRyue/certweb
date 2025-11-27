@@ -12,41 +12,147 @@ interface WrongAnswer {
   userAnswer: string; // "A", "B", "O", "X"
   correctAnswer?: string; // "A", "B", "O", "X"
   explanation?: string;
+  text?: string;
+  imageUrl?: string | null;
 }
 
 interface MicroWrongAnswersWrittenProps {
-  wrongAnswers: WrongAnswer[];
+  sessionId: number | null;
+  learningSessionId: number | null;
   topicName: string;
   onContinue: () => void;
+  wrongAnswers?: WrongAnswer[]; // props로 전달된 경우 API 호출 스킵
 }
 
 export function MicroWrongAnswersWritten({ 
-  wrongAnswers, 
+  sessionId,
+  learningSessionId,
   topicName, 
-  onContinue 
+  onContinue,
+  wrongAnswers: propWrongAnswers
 }: MicroWrongAnswersWrittenProps) {
+  const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>(propWrongAnswers || []);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!propWrongAnswers); // props로 전달되면 로딩 불필요
   const [error, setError] = useState<string | null>(null);
+  const [wrongAnswersLoaded, setWrongAnswersLoaded] = useState(false); // 오답 목록 로딩 완료 여부
   const onContinueRef = useRef(onContinue);
   
   useEffect(() => {
     onContinueRef.current = onContinue;
   }, [onContinue]);
+
+  // props로 wrongAnswers가 전달되면 API 호출 스킵
+  useEffect(() => {
+    if (propWrongAnswers && propWrongAnswers.length > 0) {
+      setWrongAnswers(propWrongAnswers);
+      setLoading(false);
+      setWrongAnswersLoaded(true);
+      return;
+    }
+  }, [propWrongAnswers]);
+
+  // 필기 모드: API로 오답 목록 가져오기 (props로 전달되지 않은 경우만)
+  useEffect(() => {
+    // props로 데이터가 전달되면 API 호출 스킵
+    if (propWrongAnswers && propWrongAnswers.length > 0) {
+      setLoading(false);
+      setWrongAnswersLoaded(true);
+      return;
+    }
+
+    const fetchWrongAnswers = async () => {
+      // learningSessionId가 없으면 다음 단계로 진행
+      if (!learningSessionId) {
+        setLoading(false);
+        setWrongAnswersLoaded(true);
+        onContinueRef.current();
+        return;
+      }
+
+      if (!sessionId) {
+        setError("세션 ID가 없습니다");
+        setLoading(false);
+        setWrongAnswersLoaded(true);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // 백엔드가 오답 존재 여부를 자동으로 처리하므로 바로 API 호출
+        const res = await axios.get(`/study/wrong/written/learning-session`, {
+          params: { 
+            learningSessionId: learningSessionId
+          }
+        });
+        
+        const items = res.data.items || [];
+        
+        // 오답 목록 로딩 완료 표시
+        setWrongAnswersLoaded(true);
+        
+        // 오답이 없으면 다음 단계로 진행 (로딩 완료 후)
+        if (items.length === 0) {
+          setLoading(false);
+          onContinueRef.current();
+          return;
+        }
+        
+        // API 응답을 WrongAnswer 형태로 변환
+        const processedItems: WrongAnswer[] = items.map((item: {
+          questionId: number;
+          myAnswer?: string;
+          correctAnswer?: string;
+          baseExplanation?: string;
+          text?: string;
+          imageUrl?: string | null;
+        }) => ({
+          questionId: item.questionId,
+          userAnswer: item.myAnswer || "",
+          correctAnswer: item.correctAnswer || "",
+          explanation: item.baseExplanation || "", // 필기는 항상 baseExplanation 사용
+          text: item.text || "",
+          imageUrl: item.imageUrl || null
+        }));
+        
+        setWrongAnswers(processedItems);
+      } catch (err: unknown) {
+        console.error("오답 목록 불러오기 실패:", err);
+        const errorMessage = err && typeof err === 'object' && 'response' in err && 
+          typeof err.response === 'object' && err.response !== null && 'data' in err.response &&
+          typeof err.response.data === 'object' && err.response.data !== null && 'message' in err.response.data
+          ? String(err.response.data.message)
+          : "오답 목록을 불러오는 중 오류가 발생했습니다";
+        setError(errorMessage);
+        setWrongAnswersLoaded(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWrongAnswers();
+  }, [sessionId, learningSessionId, propWrongAnswers]);
   
   const currentWrong = wrongAnswers[currentIndex];
 
   // 필기 모드: API로 문제 상세 정보 가져오기
   useEffect(() => {
+    // 오답 목록이 로딩되지 않았거나 로딩 중이면 실행하지 않음
+    if (!wrongAnswersLoaded || loading) return;
+    
+    // 오답이 없고 로딩이 완료된 경우에만 다음 단계로 진행
     if (wrongAnswers.length === 0) {
       onContinueRef.current();
       return;
     }
 
+    // currentWrong이 없으면 실행하지 않음
+    if (!currentWrong) return;
+
     const fetchQuestion = async () => {
-      if (!currentWrong) return;
-      
       setLoading(true);
       setError(null);
       
@@ -83,9 +189,10 @@ export function MicroWrongAnswersWritten({
     };
 
     fetchQuestion();
-  }, [currentIndex, currentWrong?.questionId, wrongAnswers.length]);
+  }, [currentIndex, currentWrong?.questionId, wrongAnswers.length, wrongAnswersLoaded]);
 
-  if (wrongAnswers.length === 0) {
+  // 오답이 없고 로딩이 완료된 경우에만 null 반환
+  if (wrongAnswers.length === 0 && wrongAnswersLoaded && !loading) {
     return null;
   }
 

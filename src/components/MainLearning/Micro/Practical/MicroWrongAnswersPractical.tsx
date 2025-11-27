@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "../../../ui/card";
 import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
-;
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
 import axios from "../../../api/axiosConfig";
@@ -39,6 +38,7 @@ export function MicroWrongAnswersPractical({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(!propWrongAnswers); // props로 전달되면 로딩 불필요
   const [error, setError] = useState<string | null>(null);
+  const [wrongAnswersLoaded, setWrongAnswersLoaded] = useState(false); // 오답 목록 로딩 완료 여부
   const onContinueRef = useRef(onContinue);
   
   useEffect(() => {
@@ -50,6 +50,7 @@ export function MicroWrongAnswersPractical({
     if (propWrongAnswers && propWrongAnswers.length > 0) {
       setWrongAnswers(propWrongAnswers);
       setLoading(false);
+      setWrongAnswersLoaded(true);
       return;
     }
   }, [propWrongAnswers]);
@@ -59,6 +60,7 @@ export function MicroWrongAnswersPractical({
     // props로 데이터가 전달되면 API 호출 스킵
     if (propWrongAnswers && propWrongAnswers.length > 0) {
       setLoading(false);
+      setWrongAnswersLoaded(true);
       return;
     }
 
@@ -66,6 +68,7 @@ export function MicroWrongAnswersPractical({
       // learningSessionId가 없으면 (review 모드 등) 다음 단계로 진행
       if (!learningSessionId) {
         setLoading(false);
+        setWrongAnswersLoaded(true);
         onContinueRef.current();
         return;
       }
@@ -73,6 +76,7 @@ export function MicroWrongAnswersPractical({
       if (!sessionId) {
         setError("세션 ID가 없습니다");
         setLoading(false);
+        setWrongAnswersLoaded(true);
         return;
       }
 
@@ -80,48 +84,7 @@ export function MicroWrongAnswersPractical({
       setError(null);
       
       try {
-        // 세션 상태 확인하여 오답 존재 여부 판단
-        const sessionRes = await axios.get(`/study/session/${sessionId}`);
-        const session = sessionRes.data;
-        
-        // 오답 존재 여부 확인
-        let hasWrongAnswers = false;
-        
-        // 방법 1: currentStep 확인
-        if (session.currentStep === "REVIEW_WRONG") {
-          hasWrongAnswers = true;
-        }
-        
-        // 방법 2: PRACTICAL 단계의 metadata에서 wrongQuestionIds 확인
-        if (!hasWrongAnswers) {
-          const practicalStep = session.steps?.find((s: { step: string; metadata?: string }) => s.step === "PRACTICAL");
-          if (practicalStep?.metadata) {
-            try {
-              const metadata = JSON.parse(practicalStep.metadata);
-              if (metadata.wrongQuestionIds && Array.isArray(metadata.wrongQuestionIds) && metadata.wrongQuestionIds.length > 0) {
-                hasWrongAnswers = true;
-              }
-            } catch {
-              // metadata 파싱 실패 시 무시
-            }
-          }
-        }
-        
-        // 방법 3: REVIEW_WRONG 단계의 state 확인
-        if (!hasWrongAnswers) {
-          const reviewWrongStep = session.steps?.find((s: { step: string; state?: string }) => s.step === "REVIEW_WRONG");
-          if (reviewWrongStep?.state === "IN_PROGRESS") {
-            hasWrongAnswers = true;
-          }
-        }
-        
-        // 오답이 없으면 다음 단계로 진행
-        if (!hasWrongAnswers) {
-          onContinueRef.current();
-          return;
-        }
-        
-        // 오답이 있을 때만 오답 조회 API 호출
+        // 백엔드가 오답 존재 여부를 자동으로 처리하므로 바로 API 호출
         const res = await axios.get(`/study/wrong/practical/learning-session`, {
           params: { 
             learningSessionId: learningSessionId
@@ -130,7 +93,12 @@ export function MicroWrongAnswersPractical({
         
         const items = res.data.items || [];
         
+        // 오답 목록 로딩 완료 표시
+        setWrongAnswersLoaded(true);
+        
+        // 오답이 없으면 다음 단계로 진행 (로딩 완료 후)
         if (items.length === 0) {
+          setLoading(false);
           onContinueRef.current();
           return;
         }
@@ -178,6 +146,7 @@ export function MicroWrongAnswersPractical({
           ? String(err.response.data.message)
           : "오답 목록을 불러오는 중 오류가 발생했습니다";
         setError(errorMessage);
+        setWrongAnswersLoaded(true);
       } finally {
         setLoading(false);
       }
@@ -206,7 +175,8 @@ export function MicroWrongAnswersPractical({
     );
   }
 
-  if (wrongAnswers.length === 0) {
+  // 오답이 없고 로딩이 완료된 경우에만 null 반환
+  if (wrongAnswers.length === 0 && wrongAnswersLoaded) {
     return null;
   }
 

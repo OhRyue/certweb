@@ -31,6 +31,7 @@ interface SessionInfo {
   status: "IN_PROGRESS" | "DONE" | "ABANDONED"
   currentStep: SessionStep | null
   steps: SessionStepInfo[]
+  learningSessionId?: number  // LearningSession ID (선택적, 세션 정보에 포함될 수 있음)
 }
 
 // 세션 단계를 내부 step으로 변환
@@ -117,6 +118,13 @@ export function MicroFlowPage() {
       // 세션의 topicId 업데이트 (세션 조회로 확인한 topicId 사용)
       setTopicId(session.topicId)
       
+      // learningSessionId가 세션 정보에 포함되어 있으면 저장
+      if (session.learningSessionId !== undefined && learningSessionId === null) {
+        setLearningSessionId(session.learningSessionId)
+        // localStorage에도 저장
+        localStorage.setItem('learningSessionId', session.learningSessionId.toString())
+      }
+      
       // currentStep에 따라 적절한 단계로 이동
       const internalStep = mapSessionStepToInternalStep(session.currentStep)
       
@@ -165,7 +173,17 @@ export function MicroFlowPage() {
   useEffect(() => {
     const initialize = async () => {
       try {
-        // 세션이 있으면 세션 상태 확인
+        // localStorage에서 저장된 learningSessionId 확인 (페이지 새로고침 대응)
+        // learningSessionId만 복원하고, 세션 조회는 sessionId가 있을 때만 수행
+        const savedLearningSessionId = localStorage.getItem('learningSessionId')
+        if (savedLearningSessionId && !learningSessionId) {
+          const savedId = Number(savedLearningSessionId)
+          // learningSessionId만 복원 (세션 조회는 sessionId가 있을 때만)
+          setLearningSessionId(savedId)
+          console.log("저장된 learningSessionId 복원:", savedId)
+        }
+        
+        // 세션이 있으면 세션 상태 확인 (한 번만 조회)
         if (sessionId) {
           const session = await fetchSessionInfo(sessionId)
           setSessionInfo(session)
@@ -173,26 +191,17 @@ export function MicroFlowPage() {
           // 세션의 topicId 저장 (세션 조회로 확인한 topicId 사용)
           setTopicId(session.topicId)
           
+          // learningSessionId가 세션 정보에 있으면 저장
+          if (session.learningSessionId !== undefined && !learningSessionId) {
+            setLearningSessionId(session.learningSessionId)
+            localStorage.setItem('learningSessionId', session.learningSessionId.toString())
+          }
+          
           // currentStep에 따라 적절한 단계로 이동
           const internalStep = mapSessionStepToInternalStep(session.currentStep)
           setStep(internalStep)
           
-          // CONCEPT 단계일 때는 개념 데이터도 불러오기
-          if (session.currentStep === "CONCEPT" && session.topicId) {
-            try {
-              const conceptRes = await axios.get(`/study/${examType}/concept/${session.topicId}`, {
-                params: { sessionId }
-              })
-              setConceptData({
-                topicId: conceptRes.data.topicId,
-                sections: conceptRes.data.sections || [],
-                title: conceptRes.data.title || ""
-              })
-            } catch (err) {
-              console.error("개념 데이터 불러오기 실패:", err)
-              // 개념 데이터 불러오기 실패해도 계속 진행
-            }
-          }
+          // 개념 데이터는 별도의 useEffect에서 불러옴 (중복 방지)
         } else {
           // 세션이 없을 때는 subTopicId 사용 (fallback)
           setTopicId(subTopicId)
@@ -259,6 +268,8 @@ export function MicroFlowPage() {
           // learningSessionId가 응답에 포함되어 있으면 저장
           if (res.data.learningSessionId !== undefined) {
             setLearningSessionId(res.data.learningSessionId)
+            // localStorage에도 저장
+            localStorage.setItem('learningSessionId', res.data.learningSessionId.toString())
           }
         } catch (err) {
           console.error("미니체크 문제 불러오기 실패:", err)
@@ -288,6 +299,8 @@ export function MicroFlowPage() {
           // learningSessionId가 응답에 포함되어 있으면 저장
           if (res.data.learningSessionId !== undefined) {
             setLearningSessionId(res.data.learningSessionId)
+            // localStorage에도 저장
+            localStorage.setItem('learningSessionId', res.data.learningSessionId.toString())
           }
         } catch (err) {
           console.error("문제 불러오기 실패:", err)
@@ -299,51 +312,16 @@ export function MicroFlowPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, sessionId, topicId])
 
-  // 오답 문제 목록 불러오기 (세션 기반, REVIEW_WRONG 단계일 때만, 필기 전용)
-  useEffect(() => {
-    const loadWrongAnswers = async () => {
-      if (step === "wrong" && wrongAnswers.length === 0 && sessionId) {
-        try {
-          // 필기 모드: learningSessionId 사용
-          if (!learningSessionId) return
-          
-          const res = await axios.get(`/study/wrong/written/learning-session`, {
-            params: { learningSessionId }
-          })
-          
-          // 응답 구조: items 배열
-          const wrongQuestions = res.data.items.map((item: {
-            questionId: number
-            myAnswer?: string
-            correctAnswer?: string
-            baseExplanation?: string
-            text?: string
-            imageUrl?: string | null
-          }) => ({
-            questionId: item.questionId,
-            userAnswer: item.myAnswer || "", // 이미 문자열로 옴
-            correctAnswer: item.correctAnswer || "",
-            explanation: item.baseExplanation || "",
-            text: item.text || "",
-            imageUrl: item.imageUrl || null
-          }))
-          setWrongAnswers(wrongQuestions)
-        } catch (err) {
-          console.error("오답 문제 불러오기 실패:", err)
-          setError("오답 문제를 불러오는 중 오류가 발생했습니다")
-        }
-      }
-    }
-    loadWrongAnswers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, sessionId, learningSessionId])
+  // 오답 문제 목록은 MicroWrongAnswersWritten 컴포넌트에서 직접 가져옴
+  // 중복 호출 방지를 위해 여기서는 제거
 
-  // SUMMARY API 호출 (세션 기반, result 단계일 때만)
+  // SUMMARY API 호출 및 advance API 호출 (세션 기반, result 단계일 때만)
   useEffect(() => {
     const loadSummary = async () => {
       // learningSessionId가 있어야 summary API 호출 가능 (API 스펙상 sessionId는 LearningSession ID)
       if (step === "result" && !summaryData && learningSessionId && topicId) {
         try {
+          // SUMMARY API 호출
           const res = await axios.get(`/study/${examType}/summary`, {
             params: { 
               topicId: topicId || subTopicId, 
@@ -351,6 +329,30 @@ export function MicroFlowPage() {
             }
           })
           setSummaryData(res.data.payload || {})
+          
+          // SUMMARY 단계 완료: advance API 호출
+          // 세션이 있으면 advance API 호출
+          if (sessionId && learningSessionId) {
+            const session = await fetchSessionInfo(sessionId)
+            const currentStep = session.currentStep
+            
+            // SUMMARY 단계일 때만 advance 호출
+            if (currentStep === "SUMMARY") {
+              await axios.post("/study/session/advance", {
+                sessionId: learningSessionId,
+                step: "SUMMARY",
+                score: null,
+                detailsJson: null
+              })
+              // advance 호출 후 세션 상태 확인 (movedTo === "END", status === "DONE")
+              const updatedSession = await fetchSessionInfo(sessionId)
+              if (updatedSession.status === "DONE") {
+                // 세션이 종료됨 - localStorage에서 삭제
+                console.log("세션이 종료되었습니다. status:", updatedSession.status)
+                localStorage.removeItem('learningSessionId')
+              }
+            }
+          }
         } catch (err) {
           console.error("SUMMARY 불러오기 실패:", err)
           setError("요약 정보를 불러오는 중 오류가 발생했습니다")
@@ -359,7 +361,7 @@ export function MicroFlowPage() {
     }
     loadSummary()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, learningSessionId, examType, topicId, subTopicId])
+  }, [step, learningSessionId, examType, topicId, subTopicId, sessionId])
 
   // 로딩 중이면 공통 로딩 표시
   if (loading) return <div className="p-8 text-center">불러오는 중</div>
@@ -372,21 +374,55 @@ export function MicroFlowPage() {
 
   // 2. 개념
   // ConceptView는 개념 화면만 담당하고
-  // onNext가 호출될 때 개념 완료 API 호출 후 다음 단계로 이동
+  // onNext가 호출될 때 advance API 호출 후 다음 단계로 이동
   if (step === "concept") {
     return (
       <ConceptView
         data={conceptData}
         onNext={async () => {
           try {
-            // 세션이 있으면 개념 완료 API 호출
+            // 세션이 있으면 advance API 호출
             if (sessionId) {
-              await axios.post(`/study/${examType}/concept/complete`, null, {
-                params: { sessionId }
-              })
+              // 세션 정보에서 learningSessionId 가져오기
+              const session = await fetchSessionInfo(sessionId)
               
-              // 세션 상태 다시 확인하여 다음 단계 결정
-              await syncSessionAndNavigate(sessionId)
+              // learningSessionId가 세션 정보에 있으면 저장
+              if (session.learningSessionId !== undefined) {
+                setLearningSessionId(session.learningSessionId)
+                // localStorage에도 저장
+                localStorage.setItem('learningSessionId', session.learningSessionId.toString())
+              }
+              
+              // learningSessionId가 없으면 세션 시작 시점에 생성되지 않았을 수 있음
+              // localStorage에서도 확인
+              const savedLearningSessionId = localStorage.getItem('learningSessionId')
+              const targetLearningSessionId = session.learningSessionId || learningSessionId || (savedLearningSessionId ? Number(savedLearningSessionId) : null)
+              
+              if (targetLearningSessionId) {
+                try {
+                  // advance API 호출
+                  await axios.post("/study/session/advance", {
+                    sessionId: targetLearningSessionId,
+                    step: "CONCEPT",
+                    score: null,
+                    detailsJson: null
+                  })
+                  
+                  // advance 호출 후 항상 세션 상태를 다시 조회하여 다음 단계 결정
+                  await syncSessionAndNavigate(sessionId)
+                  return
+                } catch (advanceErr: any) {
+                  console.error("CONCEPT advance API 호출 실패:", advanceErr)
+                  // advance 실패 시 세션 상태 확인으로 fallback
+                  await syncSessionAndNavigate(sessionId)
+                  return
+                }
+              } else {
+                // learningSessionId가 없으면 세션 상태 확인으로 fallback
+                console.log("learningSessionId가 없습니다. 세션 상태를 확인합니다.")
+                await syncSessionAndNavigate(sessionId)
+                return
+              }
             } else {
               // 세션이 없으면 기존 방식 (fallback)
               const res = await axios.get(`/study/written/mini/${subTopicId}`)
@@ -394,7 +430,7 @@ export function MicroFlowPage() {
               setStep("mini")
             }
           } catch (err) {
-            console.error(err)
+            console.error("CONCEPT 단계 이동 실패:", err)
             setError("다음 단계로 이동하는 중 오류가 발생했습니다")
           }
         }}
@@ -425,11 +461,70 @@ export function MicroFlowPage() {
           // learningSessionId 저장 (필기/실기 모두)
           if (learningSessionIdFromMini !== undefined) {
             setLearningSessionId(learningSessionIdFromMini)
+            // localStorage에도 저장
+            localStorage.setItem('learningSessionId', learningSessionIdFromMini.toString())
           }
           
           try {
-            // 세션이 있으면 세션 상태 확인하여 다음 단계로 이동
+            // 세션이 있으면 세션 메타데이터 확인 후 advance API 호출
             if (sessionId) {
+              // learningSessionId 확인 (미니체크에서 받았거나 이미 저장된 값)
+              const targetLearningSessionId = learningSessionIdFromMini || learningSessionId
+              
+              if (targetLearningSessionId) {
+                // 세션 정보 가져오기
+                const session = await fetchSessionInfo(sessionId)
+                
+                // MINI 단계의 메타데이터 확인
+                const miniStep = session.steps.find(s => s.step === "MINI")
+                if (miniStep) {
+                  // 단계 상태 확인 (IN_PROGRESS 또는 READY 상태여야 함)
+                  if (miniStep.state !== "IN_PROGRESS" && miniStep.state !== "READY") {
+                    console.warn(`MINI 단계가 진행 가능한 상태가 아닙니다. 현재 상태: ${miniStep.state}`)
+                    await syncSessionAndNavigate(sessionId)
+                    return
+                  }
+                  
+                  // 메타데이터 파싱 (detailsJson 우선, 없으면 metadata 사용)
+                  const detailsJson = (miniStep as any).detailsJson || miniStep.metadata
+                  const metadata = detailsJson ? JSON.parse(detailsJson) : {}
+                  const totalAnswered = metadata.total || 0
+                  
+                  // 모든 문제를 풀었는지 확인 (MINI는 4문제)
+                  if (totalAnswered >= 4) {
+                    try {
+                      // MINI 단계 완료: advance API 호출
+                      await axios.post("/study/session/advance", {
+                        sessionId: targetLearningSessionId,
+                        step: "MINI",
+                        score: metadata.scorePct || 0,
+                        detailsJson: detailsJson
+                      })
+                      
+                      // advance 호출 후 항상 세션 상태를 다시 조회하여 다음 단계 결정
+                      await syncSessionAndNavigate(sessionId)
+                      return
+                    } catch (advanceErr: any) {
+                      // 에러 처리: 모든 문제를 풀지 않았거나 단계 상태가 잘못된 경우
+                      if (advanceErr.response?.status === 400) {
+                        const errorMessage = advanceErr.response?.data?.message || "모든 문제를 풀어야 합니다"
+                        setError(errorMessage)
+                        console.error("advance API 호출 실패:", errorMessage)
+                      } else if (advanceErr.response?.status === 403) {
+                        setError("세션 소유자가 아닙니다")
+                        console.error("advance API 호출 실패: 세션 소유자가 아님")
+                      } else {
+                        throw advanceErr
+                      }
+                      return
+                    }
+                  } else {
+                    // 아직 모든 문제를 풀지 않았음
+                    console.log(`MINI 단계 진행 중: ${totalAnswered}/4 문제 완료`)
+                  }
+                }
+              }
+              
               // 세션 상태 다시 확인하여 다음 단계 결정
               await syncSessionAndNavigate(sessionId)
             } else {
@@ -438,6 +533,8 @@ export function MicroFlowPage() {
               setMcqData(normalizeMcq(res.data.payload.items))
               if (res.data.learningSessionId !== undefined) {
                 setLearningSessionId(res.data.learningSessionId)
+                // localStorage에도 저장
+                localStorage.setItem('learningSessionId', res.data.learningSessionId.toString())
               }
               setStep("problem")
             }
@@ -514,29 +611,62 @@ export function MicroFlowPage() {
           })
           
           try {
-            // 세션이 있으면 세션 상태 확인
-            if (sessionId) {
-              // 틀린 문제가 없으면 오답 정리 단계를 건너뛰고 바로 다음 단계로
-              if (wrongAnswersList.length === 0 && learningSessionId) {
-                // 세션 상태 확인
-                const session = await fetchSessionInfo(sessionId)
-                const currentStep = session.currentStep
-                
-                // REVIEW_WRONG 단계 완료 처리
-                if (currentStep === "REVIEW_WRONG") {
-                  await axios.post("/study/session/advance", {
-                    sessionId: learningSessionId,
-                    step: "REVIEW_WRONG",
-                    score: null,
-                    detailsJson: null
-                  })
+            // 세션이 있으면 세션 메타데이터 확인 후 advance API 호출
+            if (sessionId && learningSessionId) {
+              // 세션 정보 가져오기
+              const session = await fetchSessionInfo(sessionId)
+              
+              // MCQ 단계의 메타데이터 확인
+              const mcqStep = session.steps.find(s => s.step === "MCQ")
+              if (mcqStep) {
+                // 단계 상태 확인 (IN_PROGRESS 또는 READY 상태여야 함)
+                if (mcqStep.state !== "IN_PROGRESS" && mcqStep.state !== "READY") {
+                  console.warn(`MCQ 단계가 진행 가능한 상태가 아닙니다. 현재 상태: ${mcqStep.state}`)
+                  await syncSessionAndNavigate(sessionId)
+                  return
                 }
                 
-                // 세션 상태 다시 확인하여 다음 단계 결정
-                await syncSessionAndNavigate(sessionId)
+                // 메타데이터 파싱 (detailsJson 우선, 없으면 metadata 사용)
+                const detailsJson = (mcqStep as any).detailsJson || mcqStep.metadata
+                const metadata = detailsJson ? JSON.parse(detailsJson) : {}
+                const totalAnswered = metadata.total || 0
+                
+                // 모든 문제를 풀었는지 확인 (MCQ는 5문제)
+                if (totalAnswered >= 5) {
+                  try {
+                    // MCQ 단계 완료: advance API 호출
+                    // 백엔드에서 오답이 없으면 자동으로 REVIEW_WRONG을 건너뛰고 SUMMARY로 이동
+                    await axios.post("/study/session/advance", {
+                      sessionId: learningSessionId,
+                      step: "MCQ",
+                      score: metadata.scorePct || 0,
+                      detailsJson: detailsJson
+                    })
+                    
+                    // advance 호출 후 항상 세션 상태를 다시 조회하여 다음 단계 결정
+                    // 백엔드가 오답 존재 여부를 자동으로 처리하므로 세션 상태만 확인
+                    await syncSessionAndNavigate(sessionId)
+                    return
+                  } catch (advanceErr: any) {
+                    // 에러 처리: 모든 문제를 풀지 않았거나 단계 상태가 잘못된 경우
+                    if (advanceErr.response?.status === 400) {
+                      const errorMessage = advanceErr.response?.data?.message || "모든 문제를 풀어야 합니다"
+                      setError(errorMessage)
+                      console.error("advance API 호출 실패:", errorMessage)
+                    } else if (advanceErr.response?.status === 403) {
+                      setError("세션 소유자가 아닙니다")
+                      console.error("advance API 호출 실패: 세션 소유자가 아님")
+                    } else {
+                      throw advanceErr
+                    }
+                    return
+                  }
+                } else {
+                  // 아직 모든 문제를 풀지 않았으면 세션 상태만 확인
+                  await syncSessionAndNavigate(sessionId)
+                }
               } else {
-                // 틀린 문제가 있으면 기존 방식대로 진행
-                setWrongAnswers(wrongAnswersList)
+                // MCQ 단계 정보가 없으면 세션 상태만 확인
                 await syncSessionAndNavigate(sessionId)
               }
             } else {
@@ -546,6 +676,7 @@ export function MicroFlowPage() {
                 setStep("result")
               } else {
                 // 틀린 문제가 있으면 오답 정리 단계로
+                // fallback 모드에서는 프론트엔드에서 계산한 오답 목록 사용
                 setWrongAnswers(wrongAnswersList)
                 setStep("wrong")
               }
@@ -577,6 +708,10 @@ export function MicroFlowPage() {
               score: null,
               detailsJson: null
             })
+            
+            // advance 호출 후 항상 세션 상태를 다시 조회하여 다음 단계 결정
+            await syncSessionAndNavigate(sessionId)
+            return
           }
           
           // 세션 상태 확인하여 다음 단계 결정
@@ -594,12 +729,13 @@ export function MicroFlowPage() {
       }
     }
 
-    // wrongAnswers는 이미 올바른 형태로 변환되어 있음 (questionId, userAnswer, correctAnswer, explanation)
     return (
       <MicroWrongAnswersWritten
-        wrongAnswers={wrongAnswers}
+        sessionId={sessionId}
+        learningSessionId={learningSessionId}
         topicName={conceptData?.title || ""}
         onContinue={handleContinue}
+        wrongAnswers={sessionId ? undefined : (wrongAnswers.length > 0 ? wrongAnswers : undefined)}
       />
     )
   }

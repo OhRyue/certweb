@@ -730,6 +730,8 @@ export function MainLearningDashboard() {
                                     
                                     // 응답으로 받은 sessionId를 포함해서 navigate
                                     const sessionId = res.data.sessionId
+                                    // sessionId는 learningSessionId이므로 localStorage에 저장
+                                    localStorage.setItem('learningSessionId', sessionId.toString())
                                     navigate(
                                       `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}&sessionId=${sessionId}`,
                                     )
@@ -826,6 +828,8 @@ export function MainLearningDashboard() {
                   })
                   
                   const sessionId = res.data.sessionId
+                  // sessionId는 learningSessionId이므로 localStorage에 저장
+                  localStorage.setItem('learningSessionId', sessionId.toString())
                   setResumeDialogOpen(false)
                   navigate(
                     `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,
@@ -856,6 +860,8 @@ export function MainLearningDashboard() {
                   })
                   
                   const sessionId = res.data.sessionId
+                  // sessionId는 learningSessionId이므로 localStorage에 저장
+                  localStorage.setItem('learningSessionId', sessionId.toString())
                   setResumeDialogOpen(false)
                   navigate(
                     `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,
