@@ -17,6 +17,7 @@ interface PracticalWrongAnswer {
   baseExplanation: string;
   imageUrl?: string | null;
   aiExplanation: string;
+  aiExplanationFailed?: boolean; // AI 해설 생성 실패 여부
 }
 
 interface MicroWrongAnswersPracticalProps {
@@ -145,6 +146,7 @@ export function MicroWrongAnswersPractical({
           text?: string;
           imageUrl?: string | null;
           type?: string | null;
+          aiExplanationFailed?: boolean; // AI 해설 생성 실패 여부
         }) => {
           let parsedAnswer = item.myAnswer || "";
           
@@ -313,7 +315,7 @@ export function MicroWrongAnswersPractical({
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   <h3 className="text-blue-900">해설</h3>
-                  {currentWrong.aiExplanation && (
+                  {!currentWrong.aiExplanationFailed && currentWrong.aiExplanation && (
                     <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                       <Sparkles className="w-3 h-3 mr-1" />
                       AI 해설
@@ -321,7 +323,9 @@ export function MicroWrongAnswersPractical({
                   )}
                 </div>
                 <p className="text-gray-700">
-                  {currentWrong.aiExplanation || currentWrong.baseExplanation || "해설이 없습니다."}
+                  {currentWrong.aiExplanationFailed
+                    ? (currentWrong.baseExplanation || "해설이 없습니다.")
+                    : (currentWrong.aiExplanation || currentWrong.baseExplanation || "해설이 없습니다.")}
                 </p>
               </div>
             </div>

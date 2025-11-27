@@ -31,7 +31,7 @@ export function ProblemSolvingPractical({
   const [isGrading, setIsGrading] = useState(false);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<any[]>([]);
-  const [gradingResults, setGradingResults] = useState<Record<number, { answerKey: string; baseExplanation: string; aiExplanation: string; isCorrect: boolean }>>({});
+  const [gradingResults, setGradingResults] = useState<Record<number, { answerKey: string; baseExplanation: string; aiExplanation: string; isCorrect: boolean; aiExplanationFailed?: boolean }>>({});
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
@@ -65,13 +65,15 @@ export function ProblemSolvingPractical({
       // 채점 결과 처리
       const gradingData = res.data;
       const isCorrect = gradingData.correct || false; // correct 필드로 정답 여부 확인
+      const aiExplanationFailed = gradingData.aiExplanationFailed || false; // AI 해설 생성 실패 여부
 
       // 채점 결과 저장
       const gradingResult = {
         answerKey: gradingData.answerKey || "",
         baseExplanation: gradingData.baseExplanation || "",
         aiExplanation: gradingData.aiExplanation || "",
-        isCorrect
+        isCorrect,
+        aiExplanationFailed
       };
 
       setGradingResults(prev => ({
@@ -309,7 +311,7 @@ export function ProblemSolvingPractical({
                       <h3 className={isCorrect ? "text-green-900" : "text-red-900"}>
                         {isCorrect ? "정답이에요!" : "아쉽네요!"}
                       </h3>
-                      {currentGradingResult.aiExplanation && (
+                      {!currentGradingResult.aiExplanationFailed && currentGradingResult.aiExplanation && (
                         <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                           <Sparkles className="w-3 h-3 mr-1" />
                           AI 해설
@@ -317,7 +319,9 @@ export function ProblemSolvingPractical({
                       )}
                     </div>
                     <p className="text-gray-700">
-                      {currentGradingResult.aiExplanation || currentGradingResult.baseExplanation || currentQuestion.explanation || "해설이 없습니다."}
+                      {currentGradingResult.aiExplanationFailed
+                        ? (currentGradingResult.baseExplanation || currentQuestion.explanation || "해설이 없습니다.")
+                        : (currentGradingResult.aiExplanation || currentGradingResult.baseExplanation || currentQuestion.explanation || "해설이 없습니다.")}
                     </p>
                   </div>
                 </div>
