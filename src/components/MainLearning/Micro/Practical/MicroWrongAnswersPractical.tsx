@@ -12,7 +12,8 @@ interface PracticalWrongAnswer {
   type: string; // SHORT, LONG
   text: string; // 문제 본문
   myAnswer: string; // 내가 입력한 답
-  correctAnswer: string; // 정답
+  correctAnswer: string; // 정답 (호환성을 위해 유지)
+  answerKey?: string; // 정답 (answer_key, 우선 사용)
   baseExplanation: string;
   imageUrl?: string | null;
   aiExplanation: string;
@@ -138,6 +139,7 @@ export function MicroWrongAnswersPractical({
           questionId: number;
           myAnswer: string;
           correctAnswer?: string;
+          answerKey?: string; // answer_key 필드 추가
           aiExplanation?: string;
           baseExplanation?: string;
           text?: string;
@@ -159,7 +161,9 @@ export function MicroWrongAnswersPractical({
           
           return {
             ...item,
-            myAnswer: parsedAnswer
+            myAnswer: parsedAnswer,
+            // answerKey가 있으면 우선 사용, 없으면 correctAnswer 사용
+            correctAnswer: item.answerKey || item.correctAnswer || ""
           };
         });
         
@@ -293,7 +297,9 @@ export function MicroWrongAnswersPractical({
                       <CheckCircle2 className="w-5 h-5 text-green-600" />
                       <span className="text-green-900">정답</span>
                     </div>
-                    <p className="text-green-700 ml-7 whitespace-pre-wrap">{currentWrong.correctAnswer}</p>
+                    <p className="text-green-700 ml-7 whitespace-pre-wrap">
+                      {currentWrong.answerKey || currentWrong.correctAnswer || "정답 정보가 없습니다."}
+                    </p>
                   </div>
                 </div>
               </div>

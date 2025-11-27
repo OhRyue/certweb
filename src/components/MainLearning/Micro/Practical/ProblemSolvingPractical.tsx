@@ -31,7 +31,7 @@ export function ProblemSolvingPractical({
   const [isGrading, setIsGrading] = useState(false);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<any[]>([]);
-  const [gradingResults, setGradingResults] = useState<Record<number, { baseExplanation: string; aiExplanation: string; isCorrect: boolean }>>({});
+  const [gradingResults, setGradingResults] = useState<Record<number, { answerKey: string; baseExplanation: string; aiExplanation: string; isCorrect: boolean }>>({});
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
@@ -68,6 +68,7 @@ export function ProblemSolvingPractical({
 
       // 채점 결과 저장
       const gradingResult = {
+        answerKey: gradingData.answerKey || "",
         baseExplanation: gradingData.baseExplanation || "",
         aiExplanation: gradingData.aiExplanation || "",
         isCorrect
@@ -271,6 +272,12 @@ export function ProblemSolvingPractical({
                       {isCorrect ? "정답입니다!" : "오답입니다!"}
                     </span>
                   </div>
+                  {!isCorrect && currentGradingResult.answerKey && (
+                    <div className="mt-3 pt-3 border-t border-gray-300">
+                      <p className="text-sm text-gray-600 mb-1">정답:</p>
+                      <p className="text-gray-900 whitespace-pre-wrap">{currentGradingResult.answerKey}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
