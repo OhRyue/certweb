@@ -6,7 +6,7 @@ import { ConceptView } from "../ConceptView"
 import { MiniCheck } from "../MiniCheck"
 import { ProblemSolvingPractical } from "./ProblemSolvingPractical"
 import { MicroWrongAnswersPractical } from "./MicroWrongAnswersPractical"
-import { MicroResult } from "../Written/MicroResult"
+import { MicroResult } from "../MicroResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
 
 // 세션 단계 타입
@@ -84,8 +84,8 @@ export function MicroFlowPage() {
   const [summaryData, setSummaryData] = useState<{
     miniTotal?: number
     miniCorrect?: number
-    practicalTotal?: number
-    practicalPassed?: number
+    mcqTotal?: number
+    mcqCorrect?: number
     summary?: string
     aiSummary?: string
   } | null>(null)  // SUMMARY API 응답 데이터
@@ -552,22 +552,22 @@ export function MicroFlowPage() {
   // 여기서 점수와 전체 문제 수를 보여주고
   // 다시 풀기 또는 대시보드로 이동 같은 행동 제공
   if (step === "result") {
-    // 실기 모드: practicalTotal, practicalPassed (60점 이상 문제 수)
-    const practicalTotal = summaryData?.practicalTotal || mcqData?.length || 0
-    const practicalPassed = summaryData?.practicalPassed || problemScore // 실기는 60점 이상 문제 수
+    // 실기 모드: mcqTotal, mcqCorrect (맞은 문제 수)
+    const mcqTotal = summaryData?.mcqTotal || mcqData?.length || 0
+    const mcqCorrect = summaryData?.mcqCorrect ?? problemScore // 맞은 문제 수
     
     return (
       <>
         <MicroResult
           topicName={conceptData?.title || ""}
           miniCheckScore={summaryData?.miniCorrect || miniScore}
-          problemScore={practicalPassed}
+          problemScore={mcqCorrect}
           totalProblems={
             (summaryData?.miniTotal || miniData?.length || 0) + 
-            practicalTotal
+            mcqTotal
           }
           miniTotal={summaryData?.miniTotal || miniData?.length}
-          mcqTotal={practicalTotal}
+          mcqTotal={mcqTotal}
           aiSummary={summaryData?.summary || summaryData?.aiSummary || ""}
           onRetry={() => setStep("concept")}
           // 메인 학습 대시보드로 이동

@@ -6,7 +6,7 @@ import { ConceptView } from "../ConceptView"
 import { MiniCheck } from "../MiniCheck"
 import { ProblemSolvingWritten } from "./ProblemSolvingWritten"
 import { MicroWrongAnswersWritten } from "./MicroWrongAnswersWritten"
-import { MicroResult } from "./MicroResult"
+import { MicroResult } from "..//MicroResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
 
 // 세션 단계 타입

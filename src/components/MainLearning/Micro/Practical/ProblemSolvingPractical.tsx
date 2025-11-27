@@ -31,7 +31,7 @@ export function ProblemSolvingPractical({
   const [isGrading, setIsGrading] = useState(false);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<any[]>([]);
-  const [gradingResults, setGradingResults] = useState<Record<number, { score: number; baseExplanation: string; aiExplanation: string; isCorrect: boolean }>>({});
+  const [gradingResults, setGradingResults] = useState<Record<number, { baseExplanation: string; aiExplanation: string; isCorrect: boolean }>>({});
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
@@ -64,11 +64,10 @@ export function ProblemSolvingPractical({
 
       // 채점 결과 처리
       const gradingData = res.data;
-      const isCorrect = gradingData.score > 0; // score > 0이면 정답으로 간주
+      const isCorrect = gradingData.correct || false; // correct 필드로 정답 여부 확인
 
       // 채점 결과 저장
       const gradingResult = {
-        score: gradingData.score || 0,
         baseExplanation: gradingData.baseExplanation || "",
         aiExplanation: gradingData.aiExplanation || "",
         isCorrect
@@ -90,8 +89,7 @@ export function ProblemSolvingPractical({
         selectedAnswer: userText,
         isCorrect: isCorrect,
         timeSpent: 0,
-        explanation: gradingData.aiExplanation || gradingData.baseExplanation || "",
-        score: gradingData.score || 0
+        explanation: gradingData.aiExplanation || gradingData.baseExplanation || ""
       };
 
       setAnswers(prev => [...prev, answerData]);
@@ -106,8 +104,7 @@ export function ProblemSolvingPractical({
         selectedAnswer: userText,
         isCorrect: false,
         timeSpent: 0,
-        explanation: "",
-        score: 0
+        explanation: ""
       };
       setAnswers(prev => [...prev, answerData]);
       setShowResult(true);
@@ -274,11 +271,6 @@ export function ProblemSolvingPractical({
                       {isCorrect ? "정답입니다!" : "오답입니다!"}
                     </span>
                   </div>
-                  {currentGradingResult.score > 0 && (
-                    <p className="text-gray-700">
-                      점수: <span className="text-purple-700 font-semibold">{currentGradingResult.score}</span>
-                    </p>
-                  )}
                 </div>
               )}
             </div>
