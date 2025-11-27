@@ -181,6 +181,7 @@ export function MainLearningDashboard() {
   // -------------------------------
   useEffect(() => {
     const fetchSubjects = async () => {
+      setLoading(true)  // 로딩 시작
       try {
         const res = await axios.get("/cert/topics", {
           params: {
@@ -197,6 +198,7 @@ export function MainLearningDashboard() {
         const adapted = toSubjectsTree(tree)
 
         setSubjects(adapted)
+        setError(null)  // 성공 시 에러 초기화
       } catch (err) {
         console.error(err)
         setError("데이터를 불러오는 중 오류가 발생했습니다")
@@ -308,8 +310,7 @@ export function MainLearningDashboard() {
     }
 
     fetchMicroStatuses()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, selectedExamType])  // subjects를 의존성에서 제거하여 무한 루프 방지 (내부에서 subjects 사용)
+  }, [loading, selectedExamType, subjects])  // subjects를 의존성에 추가하여 subjects가 로드/변경된 후 실행되도록 보장 (fetchedStatusesRef로 중복 호출 방지)
 
   // -------------------------------
   // Micro 학습 통계 조회
@@ -711,7 +712,7 @@ export function MainLearningDashboard() {
                                   const resumable = resumableMap.get(subTopic.id) || false
                                   
                                   // resumable이 true이거나 IN_PROGRESS일 때는 다이얼로그 표시
-                                  if (status === "IN_PROGRESS" || (resumable && (status === "COMPLETED" || status === "TRULY_COMPLETED"))) {
+                                  if (status === "IN_PROGRESS" || resumable) {
                                     setSelectedSubTopicId(subTopic.id)
                                     setResumeDialogOpen(true)
                                     return
@@ -765,11 +766,11 @@ export function MainLearningDashboard() {
                                   }
                                 })()}
                               </Button>
-                              {/* resumable이 true이거나 IN_PROGRESS일 때 빨간색 점 표시 */}
+                              {/* resumable이 true이거나 IN_PROGRESS일 때 빨간색 점 표시 (단, COMPLETED/TRULY_COMPLETED는 제외) */}
                               {(() => {
                                 const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
                                 const resumable = resumableMap.get(subTopic.id) || false
-                                const showDot = status === "IN_PROGRESS" || (resumable && (status === "COMPLETED" || status === "TRULY_COMPLETED"))
+                                const showDot = (status === "IN_PROGRESS" || resumable) && status !== "COMPLETED" && status !== "TRULY_COMPLETED"
                                 
                                 if (showDot) {
                                   return (
