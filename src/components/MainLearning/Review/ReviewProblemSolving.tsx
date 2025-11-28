@@ -4,45 +4,82 @@ import { Button } from "../../ui/button"
 import { Badge } from "../../ui/badge"
 import { Progress } from "../../ui/progress"
 import { motion } from "motion/react"
-import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react"
-import type { Question } from "../../../types"
+import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
+import axios from "../../api/axiosConfig"
 
-interface ReviewProblemSolvingProps {
-  questions: Question[]
-  onComplete: (score: number, answers: { questionId: number; selectedAnswer: number; isCorrect: boolean }[]) => void
+interface ReviewQuestion {
+  id: number
+  stem: string
+  choices: { label: string; content: string }[]
+  imageUrl: string | null
 }
 
-export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSolvingProps) {
+interface ReviewProblemSolvingProps {
+  questions: ReviewQuestion[]
+  rootTopicId: number
+  learningSessionId: number
+  onComplete: () => void
+}
+
+export function ReviewProblemSolving({ 
+  questions, 
+  rootTopicId, 
+  learningSessionId, 
+  onComplete 
+}: ReviewProblemSolvingProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [showResult, setShowResult] = useState(false)
-  const [score, setScore] = useState(0)
-  const [answers, setAnswers] = useState<
-    { questionId: string | number; selectedAnswer: number; isCorrect: boolean }[]
-  >([])
+  const [isGrading, setIsGrading] = useState(false)
+  const [gradeResult, setGradeResult] = useState<{
+    correct: boolean
+    correctLabel: string
+    explanation: string
+  } | null>(null)
 
   const currentQuestion = questions[currentIndex]
   const progress = ((currentIndex + 1) / questions.length) * 100
 
-  const handleAnswer = (index: number) => {
-    if (showResult) return
-    setSelectedAnswer(index)
-    setShowResult(true)
+  const handleAnswer = async (label: string) => {
+    if (showResult || isGrading) return
+    
+    setSelectedAnswer(label)
+    setIsGrading(true)
 
-    const isCorrect = index === currentQuestion.correctAnswer
-    if (isCorrect) {
-      setScore(prev => prev + 1)
+    try {
+      // grade-one API 호출 (한 문제씩 즉시 채점)
+      const res = await axios.post(
+        `/study/written/mcq/grade-one`,
+        {
+          topicId: rootTopicId,
+          questionId: currentQuestion.id,
+          label: label
+        },
+        {
+          params: { sessionId: learningSessionId }
+        }
+      )
+
+      const result = res.data
+      setGradeResult({
+        correct: result.correct,
+        correctLabel: result.correctLabel,
+        explanation: result.explanation || ""
+      })
+
+      setShowResult(true)
+    } catch (err) {
+      console.error("채점 API 오류:", err)
+      // 에러 발생 시 기본 처리
+      setGradeResult({
+        correct: false,
+        correctLabel: "",
+        explanation: "채점 중 오류가 발생했습니다."
+      })
+      setShowResult(true)
+    } finally {
+      setIsGrading(false)
     }
-
-    // 오답노트용 데이터 저장
-    setAnswers(prev => [
-      ...prev,
-      {
-        questionId: currentQuestion.id,
-        selectedAnswer: index,
-        isCorrect,
-      },
-    ])
   }
 
   const handleNext = () => {
@@ -50,13 +87,23 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
       setCurrentIndex(prev => prev + 1)
       setSelectedAnswer(null)
       setShowResult(false)
+      setGradeResult(null)
     } else {
-      // 문제 다 풀면 score + answers 함께 전달
-      onComplete(score, answers)
+      // 마지막 문제 완료 시 onComplete 호출
+      onComplete()
     }
   }
 
-  const isCorrect = selectedAnswer === currentQuestion.correctAnswer
+  if (!currentQuestion) {
+    return (
+      <div className="p-8 text-center">
+        <p>문제를 불러오는 중...</p>
+      </div>
+    )
+  }
+
+  const isCorrect = gradeResult?.correct || false
+  const correctLabel = gradeResult?.correctLabel || ""
 
   return (
     <div className="p-8">
@@ -83,7 +130,7 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
               문제 {currentIndex + 1} / {questions.length}
             </span>
             <span className="text-blue-600">
-              정답: {score} / {answers.length}
+              문제 {currentIndex + 1} / {questions.length}
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -97,40 +144,26 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
           transition={{ duration: 0.3 }}
         >
           <Card className="p-8 bg-gradient-to-br from-blue-50 to-sky-50 border-2 border-blue-200 mb-6">
-            <div className="flex items-start gap-3 mb-6">
-              <Badge
-                variant="secondary"
-                className={
-                  currentQuestion.difficulty === "easy"
-                    ? "bg-green-100 text-green-700"
-                    : currentQuestion.difficulty === "medium"
-                      ? "bg-yellow-100 text-yellow-700"
-                      : "bg-red-100 text-red-700"
-                }
-              >
-                {currentQuestion.difficulty === "easy"
-                  ? "쉬움"
-                  : currentQuestion.difficulty === "medium"
-                    ? "보통"
-                    : "어려움"}
-              </Badge>
-              {currentQuestion.tags.map(tag => (
-                <Badge key={tag} variant="outline">
-                  #{tag}
-                </Badge>
-              ))}
-            </div>
+            {currentQuestion.imageUrl && (
+              <div className="mb-6">
+                <img 
+                  src={currentQuestion.imageUrl} 
+                  alt="문제 이미지" 
+                  className="max-w-full h-auto rounded-lg"
+                />
+              </div>
+            )}
 
-            <h2 className="text-blue-900 mb-6">{currentQuestion.question}</h2>
+            <h2 className="text-blue-900 mb-6">{currentQuestion.stem}</h2>
 
             <div className="space-y-3">
-              {currentQuestion.options.map((option, index) => {
-                const isSelected = selectedAnswer === index
-                const isCorrectAnswer = index === currentQuestion.correctAnswer
+              {currentQuestion.choices.map((choice) => {
+                const isSelected = selectedAnswer === choice.label
+                const isCorrectAnswer = choice.label === correctLabel
 
                 let buttonClass = "w-full p-4 text-left border-2 transition-all"
 
-                if (!showResult) {
+                if (!showResult && !isGrading) {
                   buttonClass += " hover:border-blue-400 hover:bg-white/60 cursor-pointer"
                 } else if (isCorrectAnswer) {
                   buttonClass += " border-green-400 bg-green-50"
@@ -142,22 +175,23 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
 
                 return (
                   <motion.button
-                    key={index}
-                    onClick={() => handleAnswer(index)}
+                    key={choice.label}
+                    onClick={() => handleAnswer(choice.label)}
                     className={buttonClass}
-                    disabled={showResult}
-                    whileHover={!showResult ? { scale: 1.02 } : {}}
-                    whileTap={!showResult ? { scale: 0.98 } : {}}
+                    disabled={showResult || isGrading}
+                    whileHover={!showResult && !isGrading ? { scale: 1.02 } : {}}
+                    whileTap={!showResult && !isGrading ? { scale: 0.98 } : {}}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
-                          {index + 1}
+                          {choice.label}
                         </div>
-                        <span>{option}</span>
+                        <span>{choice.content}</span>
                       </div>
                       {showResult && isCorrectAnswer && <CheckCircle2 className="w-5 h-5 text-green-600" />}
                       {showResult && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-600" />}
+                      {isGrading && isSelected && <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />}
                     </div>
                   </motion.button>
                 )
@@ -166,7 +200,7 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
           </Card>
 
           {/* Explanation */}
-          {showResult && (
+          {showResult && gradeResult && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <Card
                 className={`p-6 mb-6 border-2 ${isCorrect ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300"
@@ -184,7 +218,9 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
                     <h3 className={isCorrect ? "text-green-900 mb-2" : "text-red-900 mb-2"}>
                       {isCorrect ? "정답이에요!" : "틀렸어요!"}
                     </h3>
-                    <p className="text-gray-700">{currentQuestion.explanation}</p>
+                    {gradeResult.explanation && (
+                      <p className="text-gray-700">{gradeResult.explanation}</p>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -195,7 +231,7 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
                   size="lg"
                   className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
                 >
-                  {currentIndex < questions.length - 1 ? "다음 문제" : "결과 보기"}
+                  {currentIndex < questions.length - 1 ? "다음 문제" : "오답 보기"}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
@@ -206,3 +242,4 @@ export function ReviewProblemSolving({ questions, onComplete }: ReviewProblemSol
     </div>
   )
 }
+

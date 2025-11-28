@@ -611,15 +611,52 @@ export function MainLearningDashboard() {
                         <div className="flex items-center gap-3">
                           {/* Reivew 총정리 진입 버튼
                               - 필기 실기 구분해서 다른 경로로 이동 
+                              - Micro 모드처럼 Dashboard에서 세션 시작 후 navigate
                           */}
                           <Button
-                            onClick={e => {
+                            onClick={async e => {
                               // MainTopic 펼치기 토글 클릭과 구분하기 위해 이벤트 전파 중단
                               e.stopPropagation()
-                              if (selectedExamType === "written") {
-                                navigate(`/learning/review-written?mainTopicId=${mainTopic.id}`)
-                              } else {
-                                navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
+                              
+                              try {
+                                // Review 모드 세션 시작 API 호출
+                                const requestBody: {
+                                  topicId: number
+                                  mode: "REVIEW"
+                                  examMode?: "PRACTICAL"
+                                  resume?: boolean
+                                } = {
+                                  topicId: mainTopic.id,  // mainTopicId는 rootTopicId
+                                  mode: "REVIEW",
+                                  resume: false
+                                }
+                                
+                                // 실기 Review는 examMode 필수
+                                if (selectedExamType === "practical") {
+                                  requestBody.examMode = "PRACTICAL"
+                                }
+                                
+                                const startRes = await axios.post("/study/session/start", requestBody)
+                                
+                                // 응답으로 받은 sessionId
+                                const sessionId = startRes.data.sessionId
+                                
+                                // localStorage에 저장 (필기/실기 구분)
+                                if (selectedExamType === "written") {
+                                  localStorage.setItem('reviewLearningSessionId', sessionId.toString())
+                                  navigate(`/learning/review-written?mainTopicId=${mainTopic.id}&sessionId=${sessionId}`)
+                                } else {
+                                  localStorage.setItem('practicalReviewLearningSessionId', sessionId.toString())
+                                  navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}&sessionId=${sessionId}`)
+                                }
+                              } catch (err) {
+                                console.error("Review 세션 시작 실패:", err)
+                                // 에러 발생 시에도 기존 방식으로 fallback
+                                if (selectedExamType === "written") {
+                                  navigate(`/learning/review-written?mainTopicId=${mainTopic.id}`)
+                                } else {
+                                  navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
+                                }
                               }
                             }}
                             className={`text-white ${mainTopic.reviewCompleted

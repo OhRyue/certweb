@@ -8,6 +8,9 @@ interface ReviewResultProps {
   topicName: string
   problemScore: number
   totalProblem: number
+  summaryText?: string
+  aiSummary?: string
+  loadingSummary?: boolean
   onBackToDashboard: () => void
   onRetry: () => void
 }
@@ -16,10 +19,15 @@ export function ReviewResult({
   topicName,
   problemScore,
   totalProblem,
+  summaryText = "",
+  aiSummary = "",
+  loadingSummary = false,
   onBackToDashboard,
   onRetry,
 }: ReviewResultProps) {
-  const percentage = Math.round((problemScore / totalProblem) * 100)
+  const mcqCorrect = problemScore
+  const mcqTotal = totalProblem
+  const percentage = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * 100) : 0
 
   const getMessage = () => {
     if (percentage >= 90) return { emoji: "🎉", text: "완벽해요!", color: "from-yellow-400 to-orange-400" }
@@ -85,7 +93,7 @@ export function ReviewResult({
                     <span className="text-gray-600">문제풀이</span>
                   </div>
                   <div className="text-purple-600 text-3xl">
-                    {problemScore} / {totalProblem}
+                    {mcqCorrect} / {mcqTotal}
                   </div>
                 </div>
               </div>
@@ -102,20 +110,29 @@ export function ReviewResult({
             <Card className="p-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 text-left">
               <div className="flex items-start gap-3">
                 <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0" />
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-blue-900">AI 학습 요약</h3>
                     <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
                       Beta
                     </Badge>
                   </div>
-                  <p className="text-gray-700">
-                    {percentage >= 80
-                      ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
-                      : percentage >= 60
-                      ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다."
-                      : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한 번 복습해보세요."}
-                  </p>
+                  {loadingSummary ? (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Sparkles className="w-4 h-4 animate-pulse" />
+                      <span>요약을 생성하는 중...</span>
+                    </div>
+                  ) : (aiSummary || summaryText) ? (
+                    <p className="text-gray-700 whitespace-pre-wrap">{aiSummary || summaryText}</p>
+                  ) : (
+                    <p className="text-gray-700">
+                      {percentage >= 80
+                        ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
+                        : percentage >= 60
+                        ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다."
+                        : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한 번 복습해보세요."}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
