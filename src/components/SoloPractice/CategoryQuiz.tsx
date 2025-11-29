@@ -1,66 +1,174 @@
-import { useState } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Checkbox } from "../ui/checkbox";
-import { Label } from "../ui/label";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Tag, Play, ChevronRight, ChevronDown } from "lucide-react";
-import { subjects } from "../../data/mockData";
-import { useNavigate } from "react-router-dom";
+// CategoryQuiz.tsx
+import { useState, useEffect } from "react"
+import axios from "../api/axiosConfig"
+import { Card } from "../ui/card"
+import { Button } from "../ui/button"
+import { Badge } from "../ui/badge"
+import { Checkbox } from "../ui/checkbox"
+import { Label } from "../ui/label"
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
+import { Tag, Play, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
+
+interface CategoryQuizProps {
+  onStart?: () => void
+  onBack?: () => void
+  targetCertification?: string
+}
 
 // 카테고리 기반 퀴즈 시작 화면
-// 좌측: 과목 선택
-// 우측: 문제 수 선택, 시작 버튼
-
-export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQuizProps) {
-  // 사용자가 선택한 detail id 목록
+export function CategoryQuiz({ }: CategoryQuizProps) {
+  const [subjects, setSubjects] = useState<any[]>([])
   const [selectedDetails, setSelectedDetails] = useState<number[]>([])
-  // 문제 수 라디오 버튼 상태 문자열 유지 후 사용 시 숫자로 변환
   const [questionCount, setQuestionCount] = useState("10")
-  // 아코디언 확장 상태들
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
-  // 필기 / 실기 토글 상태
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
-  // 필기/실기 전환 시 트리 확장 및 선택 초기화
+
+  const navigate = useNavigate()
+
+  // ------------------------------
+  // ⭐ API → 트리 구조 변환
+  // ------------------------------
+  const buildSubjectTree = (topics: any[]) => {
+    const subjectNodes = topics.filter(t => t.parentId === null)
+
+    return subjectNodes.map(subject => {
+      const mainTopics = topics.filter(t => t.parentId === subject.id)
+
+      return {
+        id: subject.id,
+        name: subject.title,
+        icon: subject.emoji,
+        examType: subject.examMode.toLowerCase(), // written/practical
+        color: "#A78BFA",
+        mainTopics: mainTopics.map(main => {
+          const subTopics = topics.filter(t => t.parentId === main.id)
+
+          return {
+            id: main.id,
+            name: main.title,
+            icon: main.emoji,
+            subTopics: subTopics.map(sub => {
+              const details = topics.filter(t => t.parentId === sub.id)
+
+              return {
+                id: sub.id,
+                name: sub.title,
+                details: details.map(detail => ({
+                  id: detail.id,
+                  name: detail.title
+                }))
+              }
+            })
+          }
+        })
+      }
+    })
+  }
+
+  // ------------------------------
+  // ⭐ API FETCH
+  // ------------------------------
+  const fetchTopics = async (type: "written" | "practical") => {
+    try {
+      const mode = type === "written" ? "WRITTEN" : "PRACTICAL"
+
+      const res = await axios.get("/cert/topics", {
+        params: {
+          certId: 1,
+          mode,
+          parentId: null
+        }
+      })
+
+      const tree = buildSubjectTree(res.data.topics)
+      setSubjects(tree)
+    } catch (err) {
+      console.error("❌ 토픽 로딩 실패", err)
+    }
+  }
+
+  useEffect(() => {
+    fetchTopics("written")
+  }, [])
+
+  // ------------------------------
+  // 필기 / 실기 토글
+  // ------------------------------
   const toggleExamType = (type: "written" | "practical") => {
     setSelectedExamType(type)
     setExpandedSubject(null)
     setExpandedMainTopic(null)
     setExpandedSubTopic(null)
     setSelectedDetails([])
-  }
-  // 현재 자격증과 시험 유형으로 과목 필터
-  const currentSubjects = subjects.filter(
-    s => s.category === targetCertification && s.examType === selectedExamType
-  )
-  // 개별 detail 토글 선택
-  const toggleDetail = (detailId: number) => {
-    if (selectedDetails.includes(detailId)) {
-      setSelectedDetails(selectedDetails.filter(d => d !== detailId))
-    } else {
-      setSelectedDetails([...selectedDetails, detailId])
-    }
-  }
-  // subject 기준으로 하위 모든 detail id 모으기
-  const getAllDetailIdsInSubject = (subject: any) => {
-    return subject.mainTopics.flatMap(main =>
-      main.subTopics.flatMap(sub => sub.details.map(d => d.id))
-    )
-  }
-  // mainTopic 기준으로 하위 모든 detail id 모으기
-  const getAllDetailIdsInMainTopic = (mainTopic: any) => {
-    return mainTopic.subTopics.flatMap(sub => sub.details.map(d => d.id))
+
+    fetchTopics(type)
   }
 
-  // subTopic 기준으로 하위 모든 detail id 모으기
+  // ------------------------------
+  // 선택 ID 집계 함수들
+  // ------------------------------
+  const getAllDetailIdsInSubject = (subject: any) => {
+    if (!subject || !subject.mainTopics || subject.mainTopics.length === 0) {
+      return []
+    }
+
+    return subject.mainTopics.flatMap(main => {
+      if (!main || !main.subTopics || main.subTopics.length === 0) {
+        return []
+      }
+      return main.subTopics.flatMap(sub => {
+        if (!sub || !sub.details || sub.details.length === 0) {
+          return [sub.id]
+        }
+        return sub.details.map(d => d.id)
+      })
+    })
+  }
+
+  const getAllDetailIdsInMainTopic = (mainTopic: any) => {
+    if (!mainTopic || !mainTopic.subTopics || mainTopic.subTopics.length === 0) {
+      return []
+    }
+    return mainTopic.subTopics.flatMap(sub => {
+      if (!sub || !sub.details || sub.details.length === 0) {
+        return [sub.id]
+      }
+      return sub.details.map(d => d.id)
+    })
+  }
+
   const getAllDetailIdsInSubTopic = (subTopic: any) => {
+    if (!subTopic || !subTopic.details || subTopic.details.length === 0) {
+      return [subTopic.id]
+    }
     return subTopic.details.map(d => d.id)
   }
 
-  const navigate = useNavigate()
+  // ------------------------------
+  // 특정 시험 타입만 필터링
+  // ------------------------------
+  const currentSubjects = subjects.filter(
+    s => s.examType === selectedExamType
+  )
+
+  // 전체 detail ID 가져오기
+  const getAllDetailIds = () => {
+    return currentSubjects.flatMap(subject => getAllDetailIdsInSubject(subject))
+  }
+
+  const toggleDetail = (detailId: number) => {
+    setSelectedDetails(prev => {
+      if (prev.includes(detailId)) {
+        return prev.filter(d => d !== detailId)
+      } else {
+        return [...prev, detailId]
+      }
+    })
+  }
 
   return (
     <div className="p-8">
@@ -78,49 +186,66 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
           </div>
         </div>
 
-        {/* 좌측 트리 설정 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 좌측 트리 섹션 */}
+          {/* 좌측 트리 */}
           <div className="lg:col-span-2">
-            <Card className="p-6 border-2 border-purple-200">
-              {/* 제목과 필기 실기 토글 */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-purple-900">학습 주제 선택</h2>
-                {/* 필기/실기 토글 */}
-                <div className="flex gap-2 bg-blue-100 p-1 rounded-xl">
-                  <Button
-                    variant={selectedExamType === "written" ? "default" : "ghost"}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "written"
-                      ? "bg-blue-500 text-white hover:bg-blue-600"
-                      : "text-blue-700 hover:bg-blue-100 hover:text-blue-700"
-                      }`}
-                    onClick={() => toggleExamType("written")}
-                  >
-                    📝 필기
-                  </Button>
-                  <Button
-                    variant={selectedExamType === "practical" ? "default" : "ghost"}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${selectedExamType === "practical"
-                      ? "bg-orange-500 text-white hover:bg-orange-600"
-                      : "text-orange-700 hover:bg-orange-100 hover:text-orange-700"
-                      }`}
-                    onClick={() => toggleExamType("practical")}
-                  >
-                    💻 실기
-                  </Button>
+            <Card className="p-0 px-4 pt-4 pb-3 border-2 border-purple-200">
+              <div className="space-y-2 mb-4">
+                {/* 제목 + 토글 */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl text-purple-900">학습 주제 선택</h2>
+
+                  <Tabs value={selectedExamType} onValueChange={v => toggleExamType(v as "written" | "practical")}>
+                    <TabsList className="bg-gradient-to-r from-purple-100 to-pink-100 p-1">
+                      <TabsTrigger
+                        value="written"
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-sky-500 data-[state=active]:text-white"
+                      >
+                        <FileText className="w-4 h-4 mr-2" /> 필기
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="practical"
+                        className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
+                      >
+                        <Keyboard className="w-4 h-4 mr-2" /> 실기
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </div>
+
+                {/* 설명 */}
+                <p className="text-sm text-gray-600">
+                  {selectedExamType === "written"
+                    ? "필기 과목의 세부 주제를 선택하세요"
+                    : "실기 과목의 세부 주제를 선택하세요"}
+                </p>
               </div>
-              {/* 안내 문구 */}
-              <p className="text-sm text-gray-600 mb-4">
-                {selectedExamType === "written"
-                  ? "필기 과목의 세부 주제를 선택하세요"
-                  : "실기 과목의 세부 주제를 선택하세요"}
-              </p>
-              {/* Subject 트리 렌더링 */}
+
+              {/* 전체 선택 + 트리 렌더링 */}
               <div className="space-y-4">
+                {/* 전체 선택 */}
+                <div className="flex justify-end">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={(() => {
+                        const allIds = getAllDetailIds()
+                        return allIds.length > 0 && allIds.every(id => selectedDetails.includes(id))
+                      })()}
+                      onCheckedChange={(checked) => {
+                        const allIds = getAllDetailIds()
+                        checked ? setSelectedDetails([...allIds]) : setSelectedDetails([])
+                      }}
+                    />
+                    <Label className="text-sm text-gray-600 cursor-pointer">
+                      전체 선택
+                    </Label>
+                  </div>
+                </div>
+
+                {/* 트리 렌더링 */}
+                <div className="space-y-4">
                 {currentSubjects.map(subject => (
                   <div key={subject.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                    {/* Subject 헤더 전체 선택 체크와 아이콘 */}
                     <div
                       onClick={() =>
                         setExpandedSubject(expandedSubject === subject.id ? null : subject.id)
@@ -129,19 +254,29 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Checkbox
+                          <div
                             onClick={(e) => e.stopPropagation()}
-                            checked={getAllDetailIdsInSubject(subject).every(id => selectedDetails.includes(id))}
-                            onCheckedChange={() => {
-                              const allIds = getAllDetailIdsInSubject(subject)
-                              const isAllSelected = allIds.every(id => selectedDetails.includes(id))
-                              if (isAllSelected) {
-                                setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
-                              } else {
-                                setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
-                              }
-                            }}
-                          />
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={(() => {
+                                const allIds = getAllDetailIdsInSubject(subject)
+                                return allIds.length > 0 && allIds.every(id =>
+                                  selectedDetails.includes(id)
+                                )
+                              })()}
+                              onCheckedChange={(checked) => {
+                                setSelectedDetails(prev => {
+                                  const allIds = getAllDetailIdsInSubject(subject)
+                                  if (checked) {
+                                    return [...new Set([...prev, ...allIds])]
+                                  } else {
+                                    return prev.filter(id => !allIds.includes(id))
+                                  }
+                                })
+                              }}
+                            />
+                          </div>
                           <div className="p-2 rounded-lg text-2xl" style={{ backgroundColor: subject.color + "20" }}>
                             {subject.icon}
                           </div>
@@ -149,93 +284,113 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                             <h3 className="text-purple-900">{subject.name}</h3>
                             <Badge
                               variant="secondary"
-                              className={subject.examType === "written"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-orange-100 text-orange-700"}
+                              className={
+                                subject.examType === "written"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-orange-100 text-orange-700"
+                              }
                             >
                               {subject.examType === "written" ? "📝 필기" : "⌨️ 실기"}
                             </Badge>
                           </div>
                         </div>
+
                         {expandedSubject === subject.id
                           ? <ChevronDown className="w-5 h-5 text-purple-600" />
                           : <ChevronRight className="w-5 h-5 text-purple-600" />}
                       </div>
                     </div>
-                    {/* 과목 펼침 시 메인 토픽 */}
+
+                    {/* 메인토픽 */}
                     {expandedSubject === subject.id && (
                       <div className="p-4 bg-white space-y-3">
                         {subject.mainTopics.map(mainTopic => (
-                          <div
-                            key={mainTopic.id}
-                            className="border-l-4 border-purple-300 pl-4"
-                          >
-                            {/* 메인토픽 헤더 전체 선택 토글 */}
+                          <div key={mainTopic.id} className="border-l-4 border-purple-300 pl-4">
                             <div
                               onClick={() =>
-                                setExpandedMainTopic(expandedMainTopic === mainTopic.id ? null : mainTopic.id)
+                                setExpandedMainTopic(
+                                  expandedMainTopic === mainTopic.id ? null : mainTopic.id
+                                )
                               }
                               className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
                             >
                               <div className="flex items-center gap-2">
                                 <Checkbox
-                                  onClick={(e) => e.stopPropagation()}
-                                  checked={getAllDetailIdsInMainTopic(mainTopic).every(id => selectedDetails.includes(id))}
-                                  onCheckedChange={() => {
+                                  checked={(() => {
                                     const allIds = getAllDetailIdsInMainTopic(mainTopic)
-                                    const isAllSelected = allIds.every(id => selectedDetails.includes(id))
-                                    if (isAllSelected) {
-                                      setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
-                                    } else {
-                                      setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
-                                    }
+                                    return allIds.length > 0 && allIds.every(id =>
+                                      selectedDetails.includes(id)
+                                    )
+                                  })()}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedDetails(prev => {
+                                      const allIds = getAllDetailIdsInMainTopic(mainTopic)
+                                      if (checked) {
+                                        return [...new Set([...prev, ...allIds])]
+                                      } else {
+                                        return prev.filter(id => !allIds.includes(id))
+                                      }
+                                    })
                                   }}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onMouseDown={(e) => e.stopPropagation()}
                                 />
-
                                 <span className="text-lg">{mainTopic.icon}</span>
                                 <h4 className="text-purple-800">{mainTopic.name}</h4>
                                 <Badge variant="outline" className="border-purple-300 text-purple-700">
                                   {mainTopic.subTopics.length}개
                                 </Badge>
                               </div>
+
                               {expandedMainTopic === mainTopic.id
                                 ? <ChevronDown className="w-4 h-4 text-purple-600" />
                                 : <ChevronRight className="w-4 h-4 text-purple-600" />}
                             </div>
-                            {/* 서브 토픽들 */}
+
+                            {/* 서브토픽 */}
                             {expandedMainTopic === mainTopic.id && (
                               <div className="ml-6 space-y-2 mt-2">
                                 {mainTopic.subTopics.map(subTopic => (
                                   <div key={subTopic.id} className="border-l-2 border-purple-200 pl-3">
                                     <div
                                       onClick={() =>
-                                        setExpandedSubTopic(expandedSubTopic === subTopic.id ? null : subTopic.id)
+                                        setExpandedSubTopic(
+                                          expandedSubTopic === subTopic.id ? null : subTopic.id
+                                        )
                                       }
                                       className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded transition-all"
                                     >
                                       <div className="flex items-center gap-2">
                                         <Checkbox
-                                          checked={getAllDetailIdsInSubTopic(subTopic).every(id => selectedDetails.includes(id))}
-                                          onCheckedChange={() => {
+                                          checked={(() => {
                                             const allIds = getAllDetailIdsInSubTopic(subTopic)
-                                            const isAllSelected = allIds.every(id => selectedDetails.includes(id))
-                                            if (isAllSelected) {
-                                              setSelectedDetails(selectedDetails.filter(id => !allIds.includes(id)))
-                                            } else {
-                                              setSelectedDetails([...new Set([...selectedDetails, ...allIds])])
-                                            }
+                                            return allIds.length > 0 && allIds.every(id =>
+                                              selectedDetails.includes(id)
+                                            )
+                                          })()}
+                                          onCheckedChange={(checked) => {
+                                            setSelectedDetails(prev => {
+                                              const allIds = getAllDetailIdsInSubTopic(subTopic)
+                                              if (checked) {
+                                                return [...new Set([...prev, ...allIds])]
+                                              } else {
+                                                return prev.filter(id => !allIds.includes(id))
+                                              }
+                                            })
                                           }}
+                                          onPointerDown={(e) => e.stopPropagation()}
+                                          onMouseDown={(e) => e.stopPropagation()}
                                         />
                                         <span className="text-sm text-purple-700">{subTopic.name}</span>
-                                        <Badge variant="outline" className="border-purple-200 text-purple-600 text-xs">
-                                          {subTopic.details.length}개
-                                        </Badge>
+
                                       </div>
+
                                       {expandedSubTopic === subTopic.id
                                         ? <ChevronDown className="w-3 h-3 text-purple-600" />
                                         : <ChevronRight className="w-3 h-3 text-purple-600" />}
                                     </div>
-                                    {/* 디테일 리스트 개별 선택 가능 */}
+
+                                    {/* 디테일 */}
                                     {expandedSubTopic === subTopic.id && (
                                       <div className="ml-4 space-y-1 mt-2">
                                         {subTopic.details.map(detail => (
@@ -270,40 +425,35 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                     )}
                   </div>
                 ))}
-              </div>
-              {/* 현재 유형에 데이터가 없을 때 안내 */}
-              {currentSubjects.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  해당 유형({selectedExamType === "written" ? "필기" : "실기"})의 학습 자료가 없습니다.
                 </div>
-              )}
+
+                {currentSubjects.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    해당 유형({selectedExamType === "written" ? "필기" : "실기"})의 학습 자료가 없습니다.
+                  </div>
+                )}
+              </div>
             </Card>
           </div>
 
-          {/* 우측 설정 섹션 */}
+          {/* 우측 */}
           <div className="space-y-6">
-            {/* 문제 수 선택 */}
+            {/* 문제 수 */}
             <Card className="p-6 border-2 border-purple-200">
               <h3 className="text-purple-900 mb-4">문제 수</h3>
               <RadioGroup value={questionCount} onValueChange={setQuestionCount}>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="10" id="count-10" />
-                    <Label htmlFor="count-10" className="cursor-pointer">
-                      10문제 (빠른 학습)
-                    </Label>
+                    <Label htmlFor="count-10">10문제 (빠른 학습)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="20" id="count-20" />
-                    <Label htmlFor="count-20" className="cursor-pointer">
-                      20문제 (표준)
-                    </Label>
+                    <Label htmlFor="count-20">20문제 (표준)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="50" id="count-50" />
-                    <Label htmlFor="count-50" className="cursor-pointer">
-                      50문제 (집중 학습)
-                    </Label>
+                    <Label htmlFor="count-50">50문제 (집중 학습)</Label>
                   </div>
                 </div>
               </RadioGroup>
@@ -326,18 +476,17 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
               </div>
             </Card>
 
-            {/* 시작 밑 뒤로 가기 버튼 */}
+            {/* 버튼 */}
             <div className="space-y-3">
               <Button
                 onClick={() => {
-                  // 퀴즈 플레이 화면으로 이동하면서 선택 데이터 전달
                   navigate("/solo/play", {
                     state: {
                       selectedDetails,
                       questionCount: parseInt(questionCount),
-                      examType: selectedExamType, // 필기 실기 정보 전달
-                      quizType: "category"        // 어떤 퀴즈에서 왔는지 명시
-                    },
+                      examType: selectedExamType,
+                      quizType: "category"
+                    }
                   })
                 }}
                 disabled={selectedDetails.length === 0}
@@ -346,6 +495,7 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                 <Play className="w-4 h-4 mr-2" />
                 퀴즈 시작
               </Button>
+
               <Button
                 onClick={() => navigate("/solo")}
                 variant="outline"
@@ -354,9 +504,10 @@ export function CategoryQuiz({ onStart, onBack, targetCertification }: CategoryQ
                 뒤로 가기
               </Button>
             </div>
+
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
