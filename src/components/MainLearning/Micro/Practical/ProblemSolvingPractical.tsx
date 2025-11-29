@@ -15,6 +15,8 @@ interface ProblemSolvingPracticalProps {
   topicName: string;
   topicId: number;
   sessionId?: number | null;
+  learningSessionId?: number | null; // 난이도 퀴즈용
+  isDifficultyQuiz?: boolean; // 난이도 퀴즈 여부
   onComplete: (score: number, answers: any[]) => void;
 }
 
@@ -23,6 +25,8 @@ export function ProblemSolvingPractical({
   topicName, 
   topicId,
   sessionId,
+  learningSessionId,
+  isDifficultyQuiz = false,
   onComplete 
 }: ProblemSolvingPracticalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -45,27 +49,46 @@ export function ProblemSolvingPractical({
 
     setIsGrading(true);
     try {
-      // grade-one API 호출 (즉시 채점)
-      // 실기 모드는 세션을 통해 제출하므로 sessionId 없이도 사용 가능
-      // sessionId가 있으면 쿼리 파라미터로 전달 (선택적)
-      const config = sessionId
-        ? { params: { sessionId } }
-        : {}
+      let res;
       
-      const res = await axios.post(
-        `/study/practical/grade-one`,
-        {
-          topicId: topicId,
-          questionId: questionId,
-          userText: userText
-        },
-        config
-      );
+      if (isDifficultyQuiz && learningSessionId) {
+        // 난이도 퀴즈 실기 채점 API
+        res = await axios.post(
+          `/study/assist/practical/difficulty/grade-one`,
+          {
+            userText: userText
+          },
+          {
+            params: {
+              learningSessionId: learningSessionId,
+              questionId: questionId
+            }
+          }
+        );
+      } else {
+        // 일반 실기 채점 API
+        const config = sessionId
+          ? { params: { sessionId } }
+          : {}
+        
+        res = await axios.post(
+          `/study/practical/grade-one`,
+          {
+            topicId: topicId,
+            questionId: questionId,
+            userText: userText
+          },
+          config
+        );
+      }
 
       // 채점 결과 처리
       const gradingData = res.data;
       const isCorrect = gradingData.correct || false; // correct 필드로 정답 여부 확인
-      const aiExplanationFailed = gradingData.aiExplanationFailed || false; // AI 해설 생성 실패 여부
+      // 난이도 퀴즈는 aiFailed, 일반은 aiExplanationFailed
+      const aiExplanationFailed = gradingData.aiFailed !== undefined 
+        ? gradingData.aiFailed 
+        : (gradingData.aiExplanationFailed || false);
 
       // 채점 결과 저장
       const gradingResult = {

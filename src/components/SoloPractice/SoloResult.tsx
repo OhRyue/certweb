@@ -6,8 +6,12 @@ import { Trophy, Star, Home, RotateCcw, Sparkles } from "lucide-react"
 
 interface ReviewResultProps {
   topicName: string
-  problemScore: number
-  totalProblem: number
+  problemScore?: number // API 데이터 사용 시 선택적
+  totalProblem?: number // API 데이터 사용 시 선택적
+  mcqTotal?: number // API에서 받은 총 문제 수
+  mcqCorrect?: number // API에서 받은 정답 수
+  aiSummary?: string // API에서 받은 AI 요약
+  loadingSummary?: boolean // 요약 로딩 중 여부
   onBackToDashboard: () => void
   onRetry: () => void
 }
@@ -16,10 +20,17 @@ export function ReviewResult({
   topicName,
   problemScore,
   totalProblem,
+  mcqTotal,
+  mcqCorrect,
+  aiSummary,
+  loadingSummary = false,
   onBackToDashboard,
   onRetry,
 }: ReviewResultProps) {
-  const percentage = Math.round((problemScore / totalProblem) * 100)
+  // API 데이터 우선 사용, 없으면 프론트 데이터 사용 (카테고리 퀴즈용)
+  const total = mcqTotal ?? totalProblem ?? 0
+  const correct = mcqCorrect ?? problemScore ?? 0
+  const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
 
   const getMessage = () => {
     if (percentage >= 90) return { emoji: "🎉", text: "완벽해요!", color: "from-yellow-400 to-orange-400" }
@@ -85,7 +96,7 @@ export function ReviewResult({
                     <span className="text-gray-600">문제풀이</span>
                   </div>
                   <div className="text-purple-600 text-3xl">
-                    {problemScore} / {totalProblem}
+                    {correct} / {total}
                   </div>
                 </div>
               </div>
@@ -109,13 +120,22 @@ export function ReviewResult({
                       Beta
                     </Badge>
                   </div>
-                  <p className="text-gray-700">
-                    {percentage >= 80
-                      ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
-                      : percentage >= 60
-                      ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다."
-                      : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한 번 복습해보세요."}
-                  </p>
+                  {loadingSummary ? (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Sparkles className="w-4 h-4 animate-pulse" />
+                      <span>요약을 생성하는 중...</span>
+                    </div>
+                  ) : aiSummary ? (
+                    <p className="text-gray-700 whitespace-pre-wrap">{aiSummary}</p>
+                  ) : (
+                    <p className="text-gray-700">
+                      {percentage >= 80
+                        ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
+                        : percentage >= 60
+                        ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다."
+                        : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한 번 복습해보세요."}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>

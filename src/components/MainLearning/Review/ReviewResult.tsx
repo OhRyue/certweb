@@ -122,16 +122,12 @@ export function ReviewResult({
                       <Sparkles className="w-4 h-4 animate-pulse" />
                       <span>요약을 생성하는 중...</span>
                     </div>
-                  ) : (aiSummary || summaryText) ? (
-                    <p className="text-gray-700 whitespace-pre-wrap">{aiSummary || summaryText}</p>
-                  ) : (
-                    <p className="text-gray-700">
-                      {percentage >= 80
-                        ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
-                        : percentage >= 60
-                        ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다."
-                        : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한 번 복습해보세요."}
+                  ) : summaryText || aiSummary ? (
+                    <p className="text-gray-700 whitespace-pre-wrap">
+                      {aiSummary || summaryText}
                     </p>
+                  ) : (
+                    <p className="text-gray-700">요약을 불러오지 못했습니다.</p>
                   )}
                 </div>
               </div>

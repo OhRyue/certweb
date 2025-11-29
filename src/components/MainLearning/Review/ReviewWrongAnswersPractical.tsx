@@ -20,23 +20,19 @@ interface PracticalWrongAnswer {
 }
 
 interface ReviewWrongAnswersPracticalProps {
-  sessionId: number | null;
   learningSessionId: number | null;
   topicName: string;
   onContinue: () => void;
-  wrongAnswers?: PracticalWrongAnswer[]; // props로 전달된 경우 API 호출 스킵
 }
 
 export function ReviewWrongAnswersPractical({ 
-  sessionId,
   learningSessionId,
   topicName, 
-  onContinue,
-  wrongAnswers: propWrongAnswers
+  onContinue
 }: ReviewWrongAnswersPracticalProps) {
-  const [wrongAnswers, setWrongAnswers] = useState<PracticalWrongAnswer[]>(propWrongAnswers || []);
+  const [wrongAnswers, setWrongAnswers] = useState<PracticalWrongAnswer[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(!propWrongAnswers); // props로 전달되면 로딩 불필요
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [wrongAnswersLoaded, setWrongAnswersLoaded] = useState(false); // 오답 목록 로딩 완료 여부
   const onContinueRef = useRef(onContinue);
@@ -45,36 +41,11 @@ export function ReviewWrongAnswersPractical({
     onContinueRef.current = onContinue;
   }, [onContinue]);
 
-  // props로 wrongAnswers가 전달되면 API 호출 스킵
+  // 실기 모드: API로 오답 목록 가져오기 (항상 API 사용)
   useEffect(() => {
-    if (propWrongAnswers && propWrongAnswers.length > 0) {
-      setWrongAnswers(propWrongAnswers);
-      setLoading(false);
-      setWrongAnswersLoaded(true);
-      return;
-    }
-  }, [propWrongAnswers]);
-
-  // 실기 모드: API로 오답 목록 가져오기 (props로 전달되지 않은 경우만)
-  useEffect(() => {
-    // props로 데이터가 전달되면 API 호출 스킵
-    if (propWrongAnswers && propWrongAnswers.length > 0) {
-      setLoading(false);
-      setWrongAnswersLoaded(true);
-      return;
-    }
-
     const fetchWrongAnswers = async () => {
-      // learningSessionId가 없으면 (review 모드 등) 다음 단계로 진행
+      // learningSessionId가 없으면 오답을 불러오지 않고 대기
       if (!learningSessionId) {
-        setLoading(false);
-        setWrongAnswersLoaded(true);
-        onContinueRef.current();
-        return;
-      }
-
-      if (!sessionId) {
-        setError("세션 ID가 없습니다");
         setLoading(false);
         setWrongAnswersLoaded(true);
         return;
@@ -85,7 +56,7 @@ export function ReviewWrongAnswersPractical({
       
       try {
         // 실기 Review 모드 오답 문제 조회 API
-        const res = await axios.get(`/study/wrong-recap/practical/learning-session`, {
+        const res = await axios.get(`/study/wrong/practical/learning-session`, {
           params: { 
             learningSessionId: learningSessionId
           }
@@ -153,7 +124,7 @@ export function ReviewWrongAnswersPractical({
     };
 
     fetchWrongAnswers();
-  }, [sessionId, learningSessionId, propWrongAnswers]);
+  }, [learningSessionId]);
 
   if (loading) {
     return (
@@ -175,9 +146,21 @@ export function ReviewWrongAnswersPractical({
     );
   }
 
-  // 오답이 없고 로딩이 완료된 경우에만 null 반환
+  // 오답이 없고 로딩이 완료된 경우: 사용자 선택으로만 다음 단계 진행
   if (wrongAnswers.length === 0 && wrongAnswersLoaded) {
-    return null;
+    return (
+      <div className="p-8 min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="text-gray-700">오답이 없습니다.</div>
+          <Button
+            onClick={onContinue}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+          >
+            결과 보기
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const currentWrong = wrongAnswers[currentIndex];

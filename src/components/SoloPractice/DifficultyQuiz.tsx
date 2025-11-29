@@ -30,6 +30,106 @@ export function DifficultyQuiz() {
 
   // 퀴즈 시작
   const navigate = useNavigate()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // 난이도를 API 형식으로 변환
+  const getDifficultyApiFormat = (difficulty: string): "EASY" | "NORMAL" | "HARD" => {
+    if (difficulty === "easy") return "EASY"
+    if (difficulty === "medium") return "NORMAL"
+    return "HARD"
+  }
+
+  // 퀴즈 시작 핸들러
+  const handleStartQuiz = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const difficultyParam = getDifficultyApiFormat(difficulty)
+      const count = parseInt(questionCount)
+      
+      // 필기/실기 모드에 따라 다른 API 호출
+      const apiEndpoint = selectedExamType === "practical" 
+        ? "/study/assist/practical/difficulty"
+        : "/study/assist/written/difficulty"
+      
+      const res = await axios.get(apiEndpoint, {
+        params: {
+          difficulty: difficultyParam,
+          count: count
+        }
+      })
+
+      // API 응답에서 데이터 추출
+      const sessionId = res.data.sessionId
+      const learningSessionId = res.data.learningSessionId
+      const items = res.data.payload?.items || []
+
+      // learningSessionId를 localStorage에 저장
+      if (learningSessionId) {
+        localStorage.setItem('difficultyQuizLearningSessionId', learningSessionId.toString())
+      }
+
+      // 문제를 Question 형식으로 변환
+      const questions = items.map((item: any) => {
+        if (selectedExamType === "practical") {
+          // 실기 모드: choices 없음
+          return {
+            id: String(item.questionId),
+            topicId: "",
+            tags: [],
+            difficulty: difficulty as "easy" | "medium" | "hard",
+            type: "typing" as const,
+            examType: "practical" as const,
+            question: item.text || "",
+            options: [],
+            correctAnswer: "",
+            explanation: "",
+            imageUrl: item.imageUrl || undefined
+          }
+        } else {
+          // 필기 모드: choices 배열을 options로 변환
+          const options = (item.choices || []).map((choice: any) => ({
+            label: choice.label || "",
+            text: choice.text || ""
+          }))
+          
+          return {
+            id: String(item.questionId),
+            topicId: "",
+            tags: [],
+            difficulty: difficulty as "easy" | "medium" | "hard",
+            type: "multiple" as const,
+            examType: "written" as const,
+            question: item.text || "",
+            options: options,
+            correctAnswer: 0, // API에서 받지 않으므로 0으로 설정 (채점 시 API에서 확인)
+            explanation: "",
+            imageUrl: item.imageUrl || undefined
+          }
+        }
+      })
+
+      // QuizFlowPage로 이동하면서 데이터 전달
+      navigate("/solo/play", {
+        state: {
+          difficulty,
+          questionCount: count,
+          examType: selectedExamType,
+          quizType: "difficulty",
+          questions: questions, // API에서 받은 문제
+          sessionId: sessionId,
+          learningSessionId: learningSessionId,
+          topicId: 0 // 난이도 퀴즈는 topicId가 없음
+        },
+      })
+    } catch (err: any) {
+      console.error("난이도 퀴즈 시작 실패:", err)
+      setError(err.response?.data?.message || "퀴즈를 시작하는 중 오류가 발생했습니다")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // 난이도 값을 API 형식으로 변환
   const getDifficultyApiValue = (difficulty: string): "EASY" | "NORMAL" | "HARD" => {
@@ -238,15 +338,20 @@ export function DifficultyQuiz() {
 
             {/* 버튼 */}
             <div className="space-y-3">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
               <Button
                 onClick={handleStartQuiz}
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    불러오는 중...
+                    시작 중...
                   </>
                 ) : (
                   <>
