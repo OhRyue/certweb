@@ -74,9 +74,9 @@ export function QuizFlowPage() {
   const detailIds = Array.isArray(selectedDetails) ? selectedDetails : []
 
   // 카테고리 퀴즈: mockData에서 필터링
-  // 난이도 퀴즈: API에서 받은 문제 사용 (필기/실기 모두)
+  // 난이도 퀴즈/약점 보완 퀴즈: API에서 받은 문제 사용 (필기/실기 모두)
   const relatedQuestions = useMemo(() => {
-    if (quizType === "difficulty" && apiQuestions) {
+    if ((quizType === "difficulty" || quizType === "weakness") && apiQuestions) {
       return apiQuestions as Question[]
     }
     // 카테고리 퀴즈: 기존 로직
@@ -99,16 +99,16 @@ export function QuizFlowPage() {
 
   // 점수 비율로 레벨업 조건 판단 (카테고리 퀴즈용)
   const totalProblems = relatedQuestions.length
-  const percentage = quizType === "difficulty" && summaryData
+  const percentage = (quizType === "difficulty" || quizType === "weakness") && summaryData
     ? (summaryData.mcqTotal && summaryData.mcqTotal > 0 
         ? Math.round((summaryData.mcqCorrect || 0) / summaryData.mcqTotal * 100) 
         : 0)
     : Math.round((problemScore / totalProblems) * 100)
 
-  // 난이도 퀴즈 결과 화면에서 summary API 호출
+  // 난이도 퀴즈/약점 보완 퀴즈 결과 화면에서 summary API 호출
   useEffect(() => {
     const loadSummary = async () => {
-      if (step === "result" && quizType === "difficulty" && learningSessionId && !summaryData) {
+      if (step === "result" && (quizType === "difficulty" || quizType === "weakness") && learningSessionId && !summaryData) {
         setLoadingSummary(true)
         try {
           const apiEndpoint = examType === "practical" 
@@ -182,19 +182,26 @@ export function QuizFlowPage() {
   // 문제 풀이 단계 필기/실기 분기
   if (step === "problem") {
     if (examType === "written") {
-      // 난이도 퀴즈 필기 모드: learningSession 기반 (API 채점 지원)
-      if (quizType === "difficulty" && sessionId !== undefined) {
+      // 난이도 퀴즈/약점 보완 퀴즈 필기 모드: learningSession 기반 (API 채점 지원)
+      if ((quizType === "difficulty" || quizType === "weakness") && sessionId !== undefined) {
         const userId = localStorage.getItem("userId") || "guest"
+        const quizTitle = quizType === "weakness" ? "약점 보완 퀴즈" : "난이도 퀴즈"
+        
+        // 채점 API 엔드포인트 결정
+        const gradeEndpoint = quizType === "weakness"
+          ? `/study/assist/written/weakness/grade-one`
+          : `/study/assist/written/difficulty/grade-one`
+        
         return (
           <ProblemSolvingWritten
             questions={relatedQuestions}
-            topicName="난이도 퀴즈"
+            topicName={quizTitle}
             topicId={topicId || 0}
             userId={userId}
             onSubmitOne={async ({ questionId, label }) => {
-              // 난이도 퀴즈 필기 채점 API
+              // 난이도/약점 보완 퀴즈 필기 채점 API
               const res = await axios.post(
-                `/study/assist/written/difficulty/grade-one`,
+                gradeEndpoint,
                 {
                   label: label
                 },
@@ -214,21 +221,32 @@ export function QuizFlowPage() {
               }
             }}
             onComplete={async (score, answers) => {
-              // 난이도 퀴즈 필기 모드: 세션 조회하여 step 결정 (advance 호출하지 않음)
-              // ASSIST_WRITTEN_DIFFICULTY 단계는 제출 시 자동으로 COMPLETE 처리됨
-              if (quizType === "difficulty" && learningSessionId) {
+              // 난이도/약점 보완 퀴즈 필기 모드: 세션 조회하여 step 결정 (advance 호출하지 않음)
+              if ((quizType === "difficulty" || quizType === "weakness") && learningSessionId) {
                 try {
                   // 세션 조회하여 현재 단계 확인
                   const sessionRes = await axios.get(`/study/session/${learningSessionId}`)
                   const session = sessionRes.data
                   const currentStep = session.currentStep
                   
-                  if (currentStep === "ASSIST_WRITTEN_DIFFICULTY_WRONG" || currentStep === "REVIEW_WRONG") {
+                  const wrongStep = quizType === "weakness"
+                    ? (currentStep === "ASSIST_WRITTEN_WEAKNESS_WRONG" || currentStep === "REVIEW_WRONG")
+                    : (currentStep === "ASSIST_WRITTEN_DIFFICULTY_WRONG" || currentStep === "REVIEW_WRONG")
+                  
+                  const summaryStep = quizType === "weakness"
+                    ? (currentStep === "ASSIST_WRITTEN_WEAKNESS_SUMMARY" || currentStep === "SUMMARY")
+                    : (currentStep === "ASSIST_WRITTEN_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY")
+                  
+                  if (wrongStep) {
                     setStep("wrong")
-                  } else if (currentStep === "ASSIST_WRITTEN_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY") {
+                  } else if (summaryStep) {
                     setStep("result")
                   } else if (session.status === "DONE") {
-                    localStorage.removeItem('difficultyQuizLearningSessionId')
+                    if (quizType === "difficulty") {
+                      localStorage.removeItem('difficultyQuizLearningSessionId')
+                    } else if (quizType === "weakness") {
+                      localStorage.removeItem('weaknessQuizLearningSessionId')
+                    }
                     setStep("result")
                   } else {
                     // 세션 상태를 확인할 수 없으면 에러 처리
@@ -262,32 +280,46 @@ export function QuizFlowPage() {
         )
       }
     } else if (examType === "practical") {
-      // 난이도 퀴즈 실기 모드: learningSession 기반 (API 채점 지원)
-      if (quizType === "difficulty" && sessionId !== undefined) {
+      // 난이도 퀴즈/약점 보완 퀴즈 실기 모드: learningSession 기반 (API 채점 지원)
+      if ((quizType === "difficulty" || quizType === "weakness") && sessionId !== undefined) {
+        const quizTitle = quizType === "weakness" ? "약점 보완 퀴즈" : "난이도 퀴즈"
+        
         return (
           <ProblemSolvingPractical
             questions={relatedQuestions}
-            topicName="난이도 퀴즈"
+            topicName={quizTitle}
             topicId={topicId || 0}
             sessionId={sessionId}
             learningSessionId={learningSessionId}
-            isDifficultyQuiz={true}
+            isDifficultyQuiz={quizType === "difficulty"}
+            quizType={quizType === "difficulty" || quizType === "weakness" ? quizType : null}
             onComplete={async (score, answers) => {
-              // 난이도 퀴즈 실기 모드: 세션 조회하여 step 결정 (advance 호출하지 않음)
-              // ASSIST_PRACTICAL_DIFFICULTY 단계는 제출 시 자동으로 COMPLETE 처리됨
-              if (quizType === "difficulty" && learningSessionId) {
+              // 난이도/약점 보완 퀴즈 실기 모드: 세션 조회하여 step 결정 (advance 호출하지 않음)
+              if ((quizType === "difficulty" || quizType === "weakness") && learningSessionId) {
                 try {
                   // 세션 조회하여 현재 단계 확인
                   const sessionRes = await axios.get(`/study/session/${learningSessionId}`)
                   const session = sessionRes.data
                   const currentStep = session.currentStep
                   
-                  if (currentStep === "ASSIST_PRACTICAL_DIFFICULTY_WRONG" || currentStep === "REVIEW_WRONG") {
+                  const wrongStep = quizType === "weakness"
+                    ? (currentStep === "ASSIST_PRACTICAL_WEAKNESS_WRONG" || currentStep === "REVIEW_WRONG")
+                    : (currentStep === "ASSIST_PRACTICAL_DIFFICULTY_WRONG" || currentStep === "REVIEW_WRONG")
+                  
+                  const summaryStep = quizType === "weakness"
+                    ? (currentStep === "ASSIST_PRACTICAL_WEAKNESS_SUMMARY" || currentStep === "SUMMARY")
+                    : (currentStep === "ASSIST_PRACTICAL_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY")
+                  
+                  if (wrongStep) {
                     setStep("wrong")
-                  } else if (currentStep === "ASSIST_PRACTICAL_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY") {
+                  } else if (summaryStep) {
                     setStep("result")
                   } else if (session.status === "DONE") {
-                    localStorage.removeItem('difficultyQuizLearningSessionId')
+                    if (quizType === "difficulty") {
+                      localStorage.removeItem('difficultyQuizLearningSessionId')
+                    } else if (quizType === "weakness") {
+                      localStorage.removeItem('weaknessQuizLearningSessionId')
+                    }
                     setStep("result")
                   } else {
                     // 세션 상태를 확인할 수 없으면 에러 처리
@@ -324,13 +356,15 @@ export function QuizFlowPage() {
     }
   }
 
-  // 오답 노트 단계 (난이도 퀴즈만)
-  if (step === "wrong" && quizType === "difficulty" && learningSessionId) {
+  // 오답 노트 단계 (난이도 퀴즈/약점 보완 퀴즈만)
+  if (step === "wrong" && (quizType === "difficulty" || quizType === "weakness") && learningSessionId) {
     if (examType === "written") {
+      const quizTitle = quizType === "weakness" ? "약점 보완 퀴즈" : "난이도 퀴즈"
+      
       return (
         <ReviewWrongAnswersWritten
           learningSessionId={learningSessionId}
-          topicName="난이도 퀴즈"
+          topicName={quizTitle}
           onContinue={async () => {
             // 오답 정리 완료 후 advance API 호출하여 요약 단계로 이동
             if (learningSessionId) {
@@ -344,10 +378,18 @@ export function QuizFlowPage() {
                 
                 // advance 성공 시에만 세션 조회하여 step 결정
                 const movedTo = advanceRes.data?.movedTo
-                if (movedTo === "ASSIST_WRITTEN_DIFFICULTY_SUMMARY" || movedTo === "SUMMARY") {
+                const summaryStep = quizType === "weakness"
+                  ? (movedTo === "ASSIST_WRITTEN_WEAKNESS_SUMMARY" || movedTo === "SUMMARY")
+                  : (movedTo === "ASSIST_WRITTEN_DIFFICULTY_SUMMARY" || movedTo === "SUMMARY")
+                
+                if (summaryStep) {
                   setStep("result")
                 } else if (movedTo === "END") {
-                  localStorage.removeItem('difficultyQuizLearningSessionId')
+                  if (quizType === "difficulty") {
+                    localStorage.removeItem('difficultyQuizLearningSessionId')
+                  } else if (quizType === "weakness") {
+                    localStorage.removeItem('weaknessQuizLearningSessionId')
+                  }
                   setStep("result")
                 } else {
                   // movedTo가 없으면 세션 재조회로 확인
@@ -355,10 +397,18 @@ export function QuizFlowPage() {
                   const updatedSession = updatedSessionRes.data
                   const currentStep = updatedSession.currentStep
                   
-                  if (currentStep === "ASSIST_WRITTEN_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY") {
+                  const checkSummaryStep = quizType === "weakness"
+                    ? (currentStep === "ASSIST_WRITTEN_WEAKNESS_SUMMARY" || currentStep === "SUMMARY")
+                    : (currentStep === "ASSIST_WRITTEN_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY")
+                  
+                  if (checkSummaryStep) {
                     setStep("result")
                   } else if (updatedSession.status === "DONE") {
-                    localStorage.removeItem('difficultyQuizLearningSessionId')
+                    if (quizType === "difficulty") {
+                      localStorage.removeItem('difficultyQuizLearningSessionId')
+                    } else if (quizType === "weakness") {
+                      localStorage.removeItem('weaknessQuizLearningSessionId')
+                    }
                     setStep("result")
                   } else {
                     console.error("세션 상태를 확인할 수 없습니다:", updatedSession)
@@ -375,24 +425,12 @@ export function QuizFlowPage() {
         />
       )
     } else if (examType === "practical") {
-      const quizTitle =
-        quizType === "difficulty"
-          ? "난이도별 퀴즈"
-          : quizType === "weakness"
-          ? "약점 퀴즈"
-          : "카테고리 퀴즈"
-
-      // topicId 추출: location.state에서 받거나, API 응답에서 추출하거나, 문제 데이터에서 추출
-      const extractedTopicId = topicId || 
-        apiResponse?.meta?.topicId || 
-        (apiQuestions && apiQuestions.length > 0 && (apiQuestions[0] as any).topicId) ||
-        (relatedQuestions && relatedQuestions.length > 0 && Number(relatedQuestions[0].topicId) || 0) ||
-        0
-
+      const quizTitle = quizType === "weakness" ? "약점 보완 퀴즈" : "난이도 퀴즈"
+      
       return (
         <ReviewWrongAnswersPractical
           learningSessionId={learningSessionId}
-          topicName="난이도 퀴즈"
+          topicName={quizTitle}
           onContinue={async () => {
             // 오답 정리 완료 후 advance API 호출하여 요약 단계로 이동
             if (learningSessionId) {
@@ -406,10 +444,18 @@ export function QuizFlowPage() {
                 
                 // advance 성공 시에만 세션 조회하여 step 결정
                 const movedTo = advanceRes.data?.movedTo
-                if (movedTo === "ASSIST_PRACTICAL_DIFFICULTY_SUMMARY" || movedTo === "SUMMARY") {
+                const summaryStep = quizType === "weakness"
+                  ? (movedTo === "ASSIST_PRACTICAL_WEAKNESS_SUMMARY" || movedTo === "SUMMARY")
+                  : (movedTo === "ASSIST_PRACTICAL_DIFFICULTY_SUMMARY" || movedTo === "SUMMARY")
+                
+                if (summaryStep) {
                   setStep("result")
                 } else if (movedTo === "END") {
-                  localStorage.removeItem('difficultyQuizLearningSessionId')
+                  if (quizType === "difficulty") {
+                    localStorage.removeItem('difficultyQuizLearningSessionId')
+                  } else if (quizType === "weakness") {
+                    localStorage.removeItem('weaknessQuizLearningSessionId')
+                  }
                   setStep("result")
                 } else {
                   // movedTo가 없으면 세션 재조회로 확인
@@ -417,10 +463,18 @@ export function QuizFlowPage() {
                   const updatedSession = updatedSessionRes.data
                   const currentStep = updatedSession.currentStep
                   
-                  if (currentStep === "ASSIST_PRACTICAL_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY") {
+                  const checkSummaryStep = quizType === "weakness"
+                    ? (currentStep === "ASSIST_PRACTICAL_WEAKNESS_SUMMARY" || currentStep === "SUMMARY")
+                    : (currentStep === "ASSIST_PRACTICAL_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY")
+                  
+                  if (checkSummaryStep) {
                     setStep("result")
                   } else if (updatedSession.status === "DONE") {
-                    localStorage.removeItem('difficultyQuizLearningSessionId')
+                    if (quizType === "difficulty") {
+                      localStorage.removeItem('difficultyQuizLearningSessionId')
+                    } else if (quizType === "weakness") {
+                      localStorage.removeItem('weaknessQuizLearningSessionId')
+                    }
                     setStep("result")
                   } else {
                     console.error("세션 상태를 확인할 수 없습니다:", updatedSession)
@@ -441,23 +495,27 @@ export function QuizFlowPage() {
 
   // 결과 화면
   if (step === "result") {
-    const topicName = quizType === "difficulty" ? "난이도 퀴즈" : "카테고리 퀴즈"
+    const topicName = quizType === "weakness" ? "약점 보완 퀴즈" 
+      : quizType === "difficulty" ? "난이도 퀴즈" 
+      : "카테고리 퀴즈"
     
     return (
       <>
         <ReviewResult
           topicName={topicName}
-          problemScore={quizType === "difficulty" ? undefined : problemScore}
-          totalProblem={quizType === "difficulty" ? undefined : totalProblems}
+          problemScore={(quizType === "difficulty" || quizType === "weakness") ? undefined : problemScore}
+          totalProblem={(quizType === "difficulty" || quizType === "weakness") ? undefined : totalProblems}
           mcqTotal={summaryData?.mcqTotal}
           mcqCorrect={summaryData?.mcqCorrect}
           aiSummary={summaryData?.aiSummary}
           loadingSummary={loadingSummary}
           onRetry={() => setStep("problem")}
           onBackToDashboard={() => {
-            // 난이도 퀴즈일 때 learningSessionId 정리 (필기/실기 모두)
+            // 난이도/약점 보완 퀴즈일 때 learningSessionId 정리 (필기/실기 모두)
             if (quizType === "difficulty") {
               localStorage.removeItem('difficultyQuizLearningSessionId')
+            } else if (quizType === "weakness") {
+              localStorage.removeItem('weaknessQuizLearningSessionId')
             }
             navigate("/solo")
           }}
