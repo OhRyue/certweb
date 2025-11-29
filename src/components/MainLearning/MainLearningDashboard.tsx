@@ -181,6 +181,7 @@ export function MainLearningDashboard() {
   // -------------------------------
   useEffect(() => {
     const fetchSubjects = async () => {
+      setLoading(true)  // 로딩 시작
       try {
         const res = await axios.get("/cert/topics", {
           params: {
@@ -197,6 +198,7 @@ export function MainLearningDashboard() {
         const adapted = toSubjectsTree(tree)
 
         setSubjects(adapted)
+        setError(null)  // 성공 시 에러 초기화
       } catch (err) {
         console.error(err)
         setError("데이터를 불러오는 중 오류가 발생했습니다")
@@ -308,8 +310,7 @@ export function MainLearningDashboard() {
     }
 
     fetchMicroStatuses()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, selectedExamType])  // subjects를 의존성에서 제거하여 무한 루프 방지 (내부에서 subjects 사용)
+  }, [loading, selectedExamType, subjects])  // subjects를 의존성에 추가하여 subjects가 로드/변경된 후 실행되도록 보장 (fetchedStatusesRef로 중복 호출 방지)
 
   // -------------------------------
   // Micro 학습 통계 조회
@@ -610,15 +611,52 @@ export function MainLearningDashboard() {
                         <div className="flex items-center gap-3">
                           {/* Reivew 총정리 진입 버튼
                               - 필기 실기 구분해서 다른 경로로 이동 
+                              - Micro 모드처럼 Dashboard에서 세션 시작 후 navigate
                           */}
                           <Button
-                            onClick={e => {
+                            onClick={async e => {
                               // MainTopic 펼치기 토글 클릭과 구분하기 위해 이벤트 전파 중단
                               e.stopPropagation()
-                              if (selectedExamType === "written") {
-                                navigate(`/learning/review-written?mainTopicId=${mainTopic.id}`)
-                              } else {
-                                navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
+                              
+                              try {
+                                // Review 모드 세션 시작 API 호출
+                                const requestBody: {
+                                  topicId: number
+                                  mode: "REVIEW"
+                                  examMode?: "PRACTICAL"
+                                  resume?: boolean
+                                } = {
+                                  topicId: mainTopic.id,  // mainTopicId는 rootTopicId
+                                  mode: "REVIEW",
+                                  resume: false
+                                }
+                                
+                                // 실기 Review는 examMode 필수
+                                if (selectedExamType === "practical") {
+                                  requestBody.examMode = "PRACTICAL"
+                                }
+                                
+                                const startRes = await axios.post("/study/session/start", requestBody)
+                                
+                                // 응답으로 받은 sessionId
+                                const sessionId = startRes.data.sessionId
+                                
+                                // localStorage에 저장 (필기/실기 구분)
+                                if (selectedExamType === "written") {
+                                  localStorage.setItem('reviewLearningSessionId', sessionId.toString())
+                                  navigate(`/learning/review-written?mainTopicId=${mainTopic.id}&sessionId=${sessionId}`)
+                                } else {
+                                  localStorage.setItem('practicalReviewLearningSessionId', sessionId.toString())
+                                  navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}&sessionId=${sessionId}`)
+                                }
+                              } catch (err) {
+                                console.error("Review 세션 시작 실패:", err)
+                                // 에러 발생 시에도 기존 방식으로 fallback
+                                if (selectedExamType === "written") {
+                                  navigate(`/learning/review-written?mainTopicId=${mainTopic.id}`)
+                                } else {
+                                  navigate(`/learning/review-practical?mainTopicId=${mainTopic.id}`)
+                                }
                               }
                             }}
                             className={`text-white ${mainTopic.reviewCompleted
@@ -711,7 +749,7 @@ export function MainLearningDashboard() {
                                   const resumable = resumableMap.get(subTopic.id) || false
                                   
                                   // resumable이 true이거나 IN_PROGRESS일 때는 다이얼로그 표시
-                                  if (status === "IN_PROGRESS" || (resumable && (status === "COMPLETED" || status === "TRULY_COMPLETED"))) {
+                                  if (status === "IN_PROGRESS" || resumable) {
                                     setSelectedSubTopicId(subTopic.id)
                                     setResumeDialogOpen(true)
                                     return
@@ -729,6 +767,8 @@ export function MainLearningDashboard() {
                                     
                                     // 응답으로 받은 sessionId를 포함해서 navigate
                                     const sessionId = res.data.sessionId
+                                    // sessionId는 learningSessionId이므로 localStorage에 저장
+                                    localStorage.setItem('learningSessionId', sessionId.toString())
                                     navigate(
                                       `/learning/micro?subTopicId=${subTopic.id}&type=${selectedExamType}&sessionId=${sessionId}`,
                                     )
@@ -765,11 +805,11 @@ export function MainLearningDashboard() {
                                   }
                                 })()}
                               </Button>
-                              {/* resumable이 true이거나 IN_PROGRESS일 때 빨간색 점 표시 */}
+                              {/* resumable이 true이거나 IN_PROGRESS일 때 빨간색 점 표시 (단, COMPLETED/TRULY_COMPLETED는 제외) */}
                               {(() => {
                                 const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
                                 const resumable = resumableMap.get(subTopic.id) || false
-                                const showDot = status === "IN_PROGRESS" || (resumable && (status === "COMPLETED" || status === "TRULY_COMPLETED"))
+                                const showDot = (status === "IN_PROGRESS" || resumable) && status !== "COMPLETED" && status !== "TRULY_COMPLETED"
                                 
                                 if (showDot) {
                                   return (
@@ -825,6 +865,8 @@ export function MainLearningDashboard() {
                   })
                   
                   const sessionId = res.data.sessionId
+                  // sessionId는 learningSessionId이므로 localStorage에 저장
+                  localStorage.setItem('learningSessionId', sessionId.toString())
                   setResumeDialogOpen(false)
                   navigate(
                     `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,
@@ -855,6 +897,8 @@ export function MainLearningDashboard() {
                   })
                   
                   const sessionId = res.data.sessionId
+                  // sessionId는 learningSessionId이므로 localStorage에 저장
+                  localStorage.setItem('learningSessionId', sessionId.toString())
                   setResumeDialogOpen(false)
                   navigate(
                     `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,

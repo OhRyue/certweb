@@ -1,57 +1,158 @@
 import { useState, useEffect, useRef } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
+import { Card } from "../../../ui/card";
+import { Button } from "../../../ui/button";
+import { Badge } from "../../../ui/badge";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
-import axios from "../api/axiosConfig";
-import type { Question } from "../../types";
+import axios from "../../../api/axiosConfig";
+import type { Question } from "../../../../types";
 
 interface WrongAnswer {
   questionId: number;
-  userAnswer: string; // "A", "B", "O", "X" 등
-  correctAnswer: string; // "A", "B", "O", "X" 등
-  explanation?: string; // 해설
+  userAnswer: string; // "A", "B", "O", "X"
+  correctAnswer?: string; // "A", "B", "O", "X"
+  explanation?: string;
+  text?: string;
+  imageUrl?: string | null;
 }
 
-interface MicroWrongAnswersProps {
-  wrongAnswers: WrongAnswer[];
+interface MicroWrongAnswersWrittenProps {
+  sessionId: number | null;
+  learningSessionId: number | null;
   topicName: string;
-  examType: "written" | "practical";
   onContinue: () => void;
+  wrongAnswers?: WrongAnswer[]; // props로 전달된 경우 API 호출 스킵
 }
 
-export function MicroWrongAnswers({ 
-  wrongAnswers, 
+export function MicroWrongAnswersWritten({ 
+  sessionId,
+  learningSessionId,
   topicName, 
-  examType,
-  onContinue 
-}: MicroWrongAnswersProps) {
+  onContinue,
+  wrongAnswers: propWrongAnswers
+}: MicroWrongAnswersWrittenProps) {
+  const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>(propWrongAnswers || []);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!propWrongAnswers); // props로 전달되면 로딩 불필요
   const [error, setError] = useState<string | null>(null);
-  const isPractical = examType === "practical";
-  // onContinue를 useRef로 안정적인 참조 유지
+  const [wrongAnswersLoaded, setWrongAnswersLoaded] = useState(false); // 오답 목록 로딩 완료 여부
   const onContinueRef = useRef(onContinue);
   
-  // onContinue가 변경될 때마다 ref 업데이트
   useEffect(() => {
     onContinueRef.current = onContinue;
   }, [onContinue]);
+
+  // props로 wrongAnswers가 전달되면 API 호출 스킵
+  useEffect(() => {
+    if (propWrongAnswers && propWrongAnswers.length > 0) {
+      setWrongAnswers(propWrongAnswers);
+      setLoading(false);
+      setWrongAnswersLoaded(true);
+      return;
+    }
+  }, [propWrongAnswers]);
+
+  // 필기 모드: API로 오답 목록 가져오기 (props로 전달되지 않은 경우만)
+  useEffect(() => {
+    // props로 데이터가 전달되면 API 호출 스킵
+    if (propWrongAnswers && propWrongAnswers.length > 0) {
+      setLoading(false);
+      setWrongAnswersLoaded(true);
+      return;
+    }
+
+    const fetchWrongAnswers = async () => {
+      // learningSessionId가 없으면 다음 단계로 진행
+      if (!learningSessionId) {
+        setLoading(false);
+        setWrongAnswersLoaded(true);
+        onContinueRef.current();
+        return;
+      }
+
+      if (!sessionId) {
+        setError("세션 ID가 없습니다");
+        setLoading(false);
+        setWrongAnswersLoaded(true);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // 백엔드가 오답 존재 여부를 자동으로 처리하므로 바로 API 호출
+        const res = await axios.get(`/study/wrong/written/learning-session`, {
+          params: { 
+            learningSessionId: learningSessionId
+          }
+        });
+        
+        const items = res.data.items || [];
+        
+        // 오답 목록 로딩 완료 표시
+        setWrongAnswersLoaded(true);
+        
+        // 오답이 없으면 다음 단계로 진행 (로딩 완료 후)
+        if (items.length === 0) {
+          setLoading(false);
+          onContinueRef.current();
+          return;
+        }
+        
+        // API 응답을 WrongAnswer 형태로 변환
+        const processedItems: WrongAnswer[] = items.map((item: {
+          questionId: number;
+          myAnswer?: string;
+          correctAnswer?: string;
+          baseExplanation?: string;
+          text?: string;
+          imageUrl?: string | null;
+        }) => ({
+          questionId: item.questionId,
+          userAnswer: item.myAnswer || "",
+          correctAnswer: item.correctAnswer || "",
+          explanation: item.baseExplanation || "", // 필기는 항상 baseExplanation 사용
+          text: item.text || "",
+          imageUrl: item.imageUrl || null
+        }));
+        
+        setWrongAnswers(processedItems);
+      } catch (err: unknown) {
+        console.error("오답 목록 불러오기 실패:", err);
+        const errorMessage = err && typeof err === 'object' && 'response' in err && 
+          typeof err.response === 'object' && err.response !== null && 'data' in err.response &&
+          typeof err.response.data === 'object' && err.response.data !== null && 'message' in err.response.data
+          ? String(err.response.data.message)
+          : "오답 목록을 불러오는 중 오류가 발생했습니다";
+        setError(errorMessage);
+        setWrongAnswersLoaded(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWrongAnswers();
+  }, [sessionId, learningSessionId, propWrongAnswers]);
   
   const currentWrong = wrongAnswers[currentIndex];
 
-  // 현재 문제의 상세 정보를 API로 받아오기
+  // 필기 모드: API로 문제 상세 정보 가져오기
   useEffect(() => {
+    // 오답 목록이 로딩되지 않았거나 로딩 중이면 실행하지 않음
+    if (!wrongAnswersLoaded || loading) return;
+    
+    // 오답이 없고 로딩이 완료된 경우에만 다음 단계로 진행
     if (wrongAnswers.length === 0) {
       onContinueRef.current();
       return;
     }
 
+    // currentWrong이 없으면 실행하지 않음
+    if (!currentWrong) return;
+
     const fetchQuestion = async () => {
-      if (!currentWrong) return;
-      
       setLoading(true);
       setError(null);
       
@@ -60,24 +161,10 @@ export function MicroWrongAnswers({
         const data = res.data;
         
         // API 응답을 Question 형태로 변환
-        console.log("choices 배열:", data.choices);
-        console.log("choices 배열 길이:", data.choices?.length);
-        if (data.choices && data.choices.length > 0) {
-          console.log("첫 번째 choice:", data.choices[0]);
-          console.log("첫 번째 choice의 키들:", Object.keys(data.choices[0]));
-        }
-        
-        const options = (data.choices || []).map((choice: any, index: number) => {
-          console.log(`선택지 ${index}:`, choice);
-          const option = {
-            label: choice.label || "",
-            text: choice.content || choice.text || ""
-          };
-          console.log(`선택지 ${index} 변환 결과:`, option);
-          return option;
-        });
-        
-        console.log("최종 변환된 options 배열:", options);
+        const options = (data.choices || []).map((choice: any) => ({
+          label: choice.label || "",
+          text: choice.text || ""
+        }));
         
         const question: Question = {
           id: String(data.questionId),
@@ -89,13 +176,8 @@ export function MicroWrongAnswers({
           question: data.stem,
           options: options,
           correctAnswer: data.correctAnswer,
-          explanation: data.explanation || "" // API 응답에서 직접 해설 가져오기
+          explanation: data.explanation || currentWrong.explanation || ""
         };
-        
-        // 디버깅: API 응답 확인
-        console.log("문제 상세 정보:", data);
-        console.log("변환된 선택지:", options);
-        console.log("변환된 문제:", question);
         
         setCurrentQuestion(question);
       } catch (err: any) {
@@ -107,9 +189,10 @@ export function MicroWrongAnswers({
     };
 
     fetchQuestion();
-  }, [currentIndex, currentWrong?.questionId, wrongAnswers.length]);
+  }, [currentIndex, currentWrong?.questionId, wrongAnswers.length, wrongAnswersLoaded]);
 
-  if (wrongAnswers.length === 0) {
+  // 오답이 없고 로딩이 완료된 경우에만 null 반환
+  if (wrongAnswers.length === 0 && wrongAnswersLoaded && !loading) {
     return null;
   }
 
@@ -154,8 +237,8 @@ export function MicroWrongAnswers({
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Badge className="bg-red-500 text-white">오답 노트</Badge>
-            <Badge variant="secondary" className={isPractical ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}>
-              {isPractical ? "실기" : "필기"}
+            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+              필기
             </Badge>
             <Badge variant="outline">{topicName}</Badge>
           </div>
@@ -214,12 +297,9 @@ export function MicroWrongAnswers({
                 <h2 className="text-red-900 mb-6">{currentQuestion.question}</h2>
 
                 {/* 필기 모드: 선택형 */}
-                {!isPractical && (
-                  <div className="space-y-3">
-                    {currentQuestion.options && currentQuestion.options.length > 0 ? (
-                      currentQuestion.options.map((option, index) => {
-                      // 라벨로 비교 (A, B, C, D 또는 O, X)
-                      // option은 { label, text } 형태의 객체이거나 string일 수 있음
+                <div className="space-y-3">
+                  {currentQuestion.options && currentQuestion.options.length > 0 ? (
+                    currentQuestion.options.map((option, index) => {
                       const optionObj = typeof option === 'object' && option !== null 
                         ? option as { label?: string; text?: string }
                         : null;
@@ -273,34 +353,10 @@ export function MicroWrongAnswers({
                         </div>
                       );
                     })
-                    ) : (
-                      <div className="text-gray-500 text-center py-4">선택지 정보를 불러올 수 없습니다.</div>
-                    )}
-                  </div>
-                )}
-
-                {/* 실기 모드: 타이핑 답안 */}
-                {isPractical && (
-                  <div className="space-y-4">
-                    {/* 내가 입력한 답 */}
-                    <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <XCircle className="w-5 h-5 text-red-600" />
-                        <span className="text-red-900">내가 입력한 답</span>
-                      </div>
-                      <p className="text-red-700 ml-7">{currentWrong.userAnswer}</p>
-                    </div>
-
-                    {/* 정답 */}
-                    <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        <span className="text-green-900">정답</span>
-                      </div>
-                      <p className="text-green-700 ml-7">{currentQuestion.correctAnswer}</p>
-                    </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-gray-500 text-center py-4">선택지 정보를 불러올 수 없습니다.</div>
+                  )}
+                </div>
               </div>
             </div>
           </Card>
@@ -310,15 +366,7 @@ export function MicroWrongAnswers({
             <div className="flex items-start gap-3">
               <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0" />
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-blue-900">해설</h3>
-                  {isPractical && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      AI 해설
-                    </Badge>
-                  )}
-                </div>
+                <h3 className="text-blue-900 mb-2">해설</h3>
                 <p className="text-gray-700">{currentQuestion.explanation}</p>
               </div>
             </div>
@@ -353,3 +401,6 @@ export function MicroWrongAnswers({
     </div>
   );
 }
+
+
+

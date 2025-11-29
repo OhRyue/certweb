@@ -1,35 +1,46 @@
 import { useState } from "react"
-import { Card } from "../ui/card"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
-import { Progress } from "../ui/progress"
-import { Input } from "../ui/input"
+import { Card } from "../../ui/card"
+import { Button } from "../../ui/button"
+import { Badge } from "../../ui/badge"
+import { Progress } from "../../ui/progress"
+import { Input } from "../../ui/input"
 import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
-import type { Question } from "../../types"
+import axios from "../../api/axiosConfig"
+
+interface ReviewQuestion {
+  id: number
+  stem: string
+  imageUrl: string | null
+  type?: string
+}
 
 interface ReviewProblemSolvingPracticalProps {
-  questions: Question[]
+  questions: ReviewQuestion[]
   topicName: string
-  onComplete: (
-    score: number,
-    answers: { questionId: string | number; selectedAnswer: string; isCorrect: boolean }[]
-  ) => void
+  rootTopicId: number
+  learningSessionId: number
+  onComplete: () => void
 }
 
 export function ReviewProblemSolvingPractical({
   questions,
   topicName,
+  rootTopicId,
+  learningSessionId,
   onComplete,
 }: ReviewProblemSolvingPracticalProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [typedAnswer, setTypedAnswer] = useState("")
   const [showResult, setShowResult] = useState(false)
   const [isGrading, setIsGrading] = useState(false)
-  const [score, setScore] = useState(0)
-  const [answers, setAnswers] = useState<
-    { questionId: string | number; selectedAnswer: string; isCorrect: boolean }[]
-  >([])
+  const [gradeResult, setGradeResult] = useState<{
+    correct: boolean
+    answerKey: string
+    baseExplanation: string
+    aiExplanation: string
+    aiExplanationFailed: boolean
+  } | null>(null)
 
   // 문제 비었을 때 방어
   if (!questions || questions.length === 0) {
@@ -42,27 +53,50 @@ export function ReviewProblemSolvingPractical({
 
   const currentQuestion = questions[currentIndex]
   const progress = ((currentIndex + 1) / questions.length) * 100
-  const isCorrect =
-    typedAnswer.trim().toLowerCase() ===
-    String(currentQuestion.correctAnswer).toLowerCase()
 
   const handleSubmit = async () => {
-    if (showResult || !typedAnswer.trim()) return
+    if (showResult || !typedAnswer.trim() || isGrading) return
+    
     setIsGrading(true)
-    await new Promise((r) => setTimeout(r, 1000))
-    setIsGrading(false)
-    setShowResult(true)
-    if (isCorrect) setScore((prev) => prev + 1)
 
-    // ✅ 오답노트용 데이터 저장
-    setAnswers((prev) => [
-      ...prev,
-      {
-        questionId: currentQuestion.id,
-        selectedAnswer: typedAnswer.trim(),
-        isCorrect,
-      },
-    ])
+    try {
+      // 실기 Review 모드 한 문제씩 채점 API 호출
+      const res = await axios.post(
+        `/study/practical/review/grade-one`,
+        {
+          rootTopicId: rootTopicId,
+          questionId: currentQuestion.id,
+          userText: typedAnswer.trim()
+        },
+        {
+          params: { sessionId: learningSessionId }
+        }
+      )
+
+      const result = res.data
+      setGradeResult({
+        correct: result.correct || false,
+        answerKey: result.answerKey || "",
+        baseExplanation: result.baseExplanation || "",
+        aiExplanation: result.aiExplanation || "",
+        aiExplanationFailed: false  // API 응답에 없으면 false
+      })
+
+      setShowResult(true)
+    } catch (err) {
+      console.error("채점 API 오류:", err)
+      // 에러 발생 시 기본 처리
+      setGradeResult({
+        correct: false,
+        answerKey: "",
+        baseExplanation: "채점 중 오류가 발생했습니다.",
+        aiExplanation: "",
+        aiExplanationFailed: false
+      })
+      setShowResult(true)
+    } finally {
+      setIsGrading(false)
+    }
   }
 
   const handleNext = () => {
@@ -70,9 +104,10 @@ export function ReviewProblemSolvingPractical({
       setCurrentIndex((prev) => prev + 1)
       setTypedAnswer("")
       setShowResult(false)
+      setGradeResult(null)
     } else {
-      // ✅ 오답 데이터 포함하여 전달
-      onComplete(score, answers)
+      // 마지막 문제 완료 시 onComplete 호출
+      onComplete()
     }
   }
 
@@ -101,7 +136,7 @@ export function ReviewProblemSolvingPractical({
               문제 {currentIndex + 1} / {questions.length}
             </span>
             <span className="text-orange-600">
-              정답: {score} / {currentIndex}
+              문제 {currentIndex + 1} / {questions.length}
             </span>
           </div>
           <Progress value={progress} className="h-2" />
@@ -115,7 +150,16 @@ export function ReviewProblemSolvingPractical({
           transition={{ duration: 0.3 }}
         >
           <Card className="p-8 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 mb-6">
-            <h2 className="text-orange-900 mb-6">{currentQuestion.question}</h2>
+            {currentQuestion.imageUrl && (
+              <div className="mb-6">
+                <img 
+                  src={currentQuestion.imageUrl} 
+                  alt="문제 이미지" 
+                  className="max-w-full h-auto rounded-lg"
+                />
+              </div>
+            )}
+            <h2 className="text-orange-900 mb-6">{currentQuestion.stem}</h2>
 
             <div className="space-y-4">
               <Input
@@ -151,31 +195,31 @@ export function ReviewProblemSolvingPractical({
                 </motion.div>
               )}
 
-              {showResult && (
+              {showResult && gradeResult && (
                 <div
                   className={`p-4 rounded-lg border-2 ${
-                    isCorrect
+                    gradeResult.correct
                       ? "bg-green-50 border-green-300"
                       : "bg-red-50 border-red-300"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    {isCorrect ? (
+                    {gradeResult.correct ? (
                       <CheckCircle2 className="w-5 h-5 text-green-600" />
                     ) : (
                       <XCircle className="w-5 h-5 text-red-600" />
                     )}
                     <span
-                      className={isCorrect ? "text-green-900" : "text-red-900"}
+                      className={gradeResult.correct ? "text-green-900" : "text-red-900"}
                     >
-                      {isCorrect ? "정답입니다!" : "오답입니다!"}
+                      {gradeResult.correct ? "정답입니다!" : "오답입니다!"}
                     </span>
                   </div>
-                  {!isCorrect && (
+                  {!gradeResult.correct && gradeResult.answerKey && (
                     <p className="text-gray-700">
                       정답:{" "}
                       <span className="text-green-700">
-                        {currentQuestion.correctAnswer}
+                        {gradeResult.answerKey}
                       </span>
                     </p>
                   )}
@@ -184,21 +228,21 @@ export function ReviewProblemSolvingPractical({
             </div>
           </Card>
 
-          {showResult && (
+          {showResult && gradeResult && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
               <Card
                 className={`p-6 mb-6 border-2 ${
-                  isCorrect
+                  gradeResult.correct
                     ? "bg-green-50 border-green-300"
                     : "bg-red-50 border-red-300"
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0">
-                    {isCorrect ? (
+                    {gradeResult.correct ? (
                       <CheckCircle2 className="w-6 h-6 text-green-600" />
                     ) : (
                       <XCircle className="w-6 h-6 text-red-600" />
@@ -207,23 +251,31 @@ export function ReviewProblemSolvingPractical({
                   <div className="flex-1">
                     <h3
                       className={
-                        isCorrect
+                        gradeResult.correct
                           ? "text-green-900 mb-2"
                           : "text-red-900 mb-2"
                       }
                     >
-                      {isCorrect ? "정답이에요!" : "틀렸어요!"}
+                      {gradeResult.correct ? "정답이에요!" : "틀렸어요!"}
                     </h3>
-                    <Badge
-                      variant="secondary"
-                      className="bg-orange-100 text-orange-700"
-                    >
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      AI 해설
-                    </Badge>
-                    <p className="text-gray-700 mt-2">
-                      {currentQuestion.explanation}
-                    </p>
+                    {(gradeResult.aiExplanation || gradeResult.baseExplanation) && (
+                      <>
+                        {!gradeResult.aiExplanationFailed && gradeResult.aiExplanation && (
+                          <Badge
+                            variant="secondary"
+                            className="bg-orange-100 text-orange-700 mb-2"
+                          >
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            AI 해설
+                          </Badge>
+                        )}
+                        <p className="text-gray-700 mt-2 whitespace-pre-wrap">
+                          {gradeResult.aiExplanationFailed
+                            ? (gradeResult.baseExplanation || "해설이 없습니다.")
+                            : (gradeResult.aiExplanation || gradeResult.baseExplanation || "해설이 없습니다.")}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               </Card>

@@ -1,18 +1,20 @@
 import { useState } from "react";
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Progress } from "../ui/progress";
-import { Input } from "../ui/input";
+import { Card } from "../../../ui/card";
+import { Button } from "../../../ui/button";
+import { Badge } from "../../../ui/badge";
+import { Progress } from "../../../ui/progress";
+import { Input } from "../../../ui/input"
+import { Textarea } from "../../../ui/textarea";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react";
-import type { Question } from "../../types";
-import axios from "../api/axiosConfig";
+import type { Question } from "../../../../types";
+import axios from "../../../api/axiosConfig";
 
 interface ProblemSolvingPracticalProps {
   questions: Question[];
   topicName: string;
   topicId: number;
+  sessionId?: number | null;
   onComplete: (score: number, answers: any[]) => void;
 }
 
@@ -20,6 +22,7 @@ export function ProblemSolvingPractical({
   questions, 
   topicName, 
   topicId,
+  sessionId,
   onComplete 
 }: ProblemSolvingPracticalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -28,7 +31,7 @@ export function ProblemSolvingPractical({
   const [isGrading, setIsGrading] = useState(false);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<any[]>([]);
-  const [gradingResults, setGradingResults] = useState<Record<number, { score: number; baseExplanation: string; aiExplanation: string; isCorrect: boolean }>>({});
+  const [gradingResults, setGradingResults] = useState<Record<number, { answerKey: string; baseExplanation: string; aiExplanation: string; isCorrect: boolean; aiExplanationFailed?: boolean }>>({});
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
@@ -43,22 +46,34 @@ export function ProblemSolvingPractical({
     setIsGrading(true);
     try {
       // grade-one API 호출 (즉시 채점)
-      const res = await axios.post(`/study/practical/grade-one`, {
-        topicId: topicId,
-        questionId: questionId,
-        userText: userText
-      });
+      // 실기 모드는 세션을 통해 제출하므로 sessionId 없이도 사용 가능
+      // sessionId가 있으면 쿼리 파라미터로 전달 (선택적)
+      const config = sessionId
+        ? { params: { sessionId } }
+        : {}
+      
+      const res = await axios.post(
+        `/study/practical/grade-one`,
+        {
+          topicId: topicId,
+          questionId: questionId,
+          userText: userText
+        },
+        config
+      );
 
       // 채점 결과 처리
       const gradingData = res.data;
-      const isCorrect = gradingData.score > 0; // score > 0이면 정답으로 간주
+      const isCorrect = gradingData.correct || false; // correct 필드로 정답 여부 확인
+      const aiExplanationFailed = gradingData.aiExplanationFailed || false; // AI 해설 생성 실패 여부
 
       // 채점 결과 저장
       const gradingResult = {
-        score: gradingData.score || 0,
+        answerKey: gradingData.answerKey || "",
         baseExplanation: gradingData.baseExplanation || "",
         aiExplanation: gradingData.aiExplanation || "",
-        isCorrect
+        isCorrect,
+        aiExplanationFailed
       };
 
       setGradingResults(prev => ({
@@ -77,8 +92,7 @@ export function ProblemSolvingPractical({
         selectedAnswer: userText,
         isCorrect: isCorrect,
         timeSpent: 0,
-        explanation: gradingData.aiExplanation || gradingData.baseExplanation || "",
-        score: gradingData.score || 0
+        explanation: gradingData.aiExplanation || gradingData.baseExplanation || ""
       };
 
       setAnswers(prev => [...prev, answerData]);
@@ -93,8 +107,7 @@ export function ProblemSolvingPractical({
         selectedAnswer: userText,
         isCorrect: false,
         timeSpent: 0,
-        explanation: "",
-        score: 0
+        explanation: ""
       };
       setAnswers(prev => [...prev, answerData]);
       setShowResult(true);
@@ -197,19 +210,31 @@ export function ProblemSolvingPractical({
                 <label className="block text-sm mb-2 text-purple-800">
                   답안을 입력하세요
                 </label>
-                <Input
-                  type="text"
-                  value={typedAnswer}
-                  onChange={(e) => setTypedAnswer(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !showResult && !isGrading) {
-                      handleSubmitTypedAnswer();
-                    }
-                  }}
-                  placeholder="정답을 입력하세요..."
-                  disabled={showResult || isGrading}
-                  className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400"
-                />
+                {/* questionType이 LONG이면 Textarea, SHORT이면 Input */}
+                {(currentQuestion as any).questionType === "LONG" ? (
+                  <Textarea
+                    value={typedAnswer}
+                    onChange={(e) => setTypedAnswer(e.target.value)}
+                    placeholder="정답을 입력하세요..."
+                    disabled={showResult || isGrading}
+                    className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400 min-h-32"
+                    rows={6}
+                  />
+                ) : (
+                  <Input
+                    type="text"
+                    value={typedAnswer}
+                    onChange={(e) => setTypedAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !showResult && !isGrading) {
+                        handleSubmitTypedAnswer();
+                      }
+                    }}
+                    placeholder="정답을 입력하세요..."
+                    disabled={showResult || isGrading}
+                    className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400"
+                  />
+                )}
               </div>
 
               {!showResult && !isGrading && (
@@ -249,10 +274,11 @@ export function ProblemSolvingPractical({
                       {isCorrect ? "정답입니다!" : "오답입니다!"}
                     </span>
                   </div>
-                  {currentGradingResult.score > 0 && (
-                    <p className="text-gray-700">
-                      점수: <span className="text-purple-700 font-semibold">{currentGradingResult.score}</span>
-                    </p>
+                  {!isCorrect && currentGradingResult.answerKey && (
+                    <div className="mt-3 pt-3 border-t border-gray-300">
+                      <p className="text-sm text-gray-600 mb-1">정답:</p>
+                      <p className="text-gray-900 whitespace-pre-wrap">{currentGradingResult.answerKey}</p>
+                    </div>
                   )}
                 </div>
               )}
@@ -285,7 +311,7 @@ export function ProblemSolvingPractical({
                       <h3 className={isCorrect ? "text-green-900" : "text-red-900"}>
                         {isCorrect ? "정답이에요!" : "아쉽네요!"}
                       </h3>
-                      {currentGradingResult.aiExplanation && (
+                      {!currentGradingResult.aiExplanationFailed && currentGradingResult.aiExplanation && (
                         <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                           <Sparkles className="w-3 h-3 mr-1" />
                           AI 해설
@@ -293,7 +319,9 @@ export function ProblemSolvingPractical({
                       )}
                     </div>
                     <p className="text-gray-700">
-                      {currentGradingResult.aiExplanation || currentGradingResult.baseExplanation || currentQuestion.explanation || "해설이 없습니다."}
+                      {currentGradingResult.aiExplanationFailed
+                        ? (currentGradingResult.baseExplanation || currentQuestion.explanation || "해설이 없습니다.")
+                        : (currentGradingResult.aiExplanation || currentGradingResult.baseExplanation || currentQuestion.explanation || "해설이 없습니다.")}
                     </p>
                   </div>
                 </div>
