@@ -52,6 +52,18 @@ interface MicroStatsResponse {
   completionRate: number
 }
 
+// Review 학습 진행 상태 타입
+type ReviewStatus = "NOT_STARTED" | "COMPLETED" | "TRULY_COMPLETED"
+
+// Review 학습 진행 상태 API 응답 타입
+interface ReviewStatusResponse {
+  statuses: Array<{
+    rootTopicId: number
+    status: ReviewStatus
+    resumable: boolean
+  }>
+}
+
 interface RawTopic {
   id: number                    // PK
   parentId: number | null       // 상위 토픽 id, 최상위 과목인 경우 null
@@ -169,9 +181,11 @@ export function MainLearningDashboard() {
   const [microStatuses, setMicroStatuses] = useState<Map<number, MicroStatus>>(new Map())  // SubTopic ID별 Micro 학습 진행 상태
   const [resumableMap, setResumableMap] = useState<Map<number, boolean>>(new Map())  // SubTopic ID별 resumable 상태
   const [microStats, setMicroStats] = useState<MicroStatsResponse | null>(null)  // Micro 학습 통계
+  const [reviewStatuses, setReviewStatuses] = useState<Map<number, ReviewStatus>>(new Map())  // MainTopic ID별 Review 학습 진행 상태
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false)  // 이어서 학습 다이얼로그 열림 상태
   const [selectedSubTopicId, setSelectedSubTopicId] = useState<number | null>(null)  // 다이얼로그에서 선택된 SubTopic ID
   const fetchedStatusesRef = useRef<string>("")  // 이미 조회한 상태 추적 (examType + topicIds 조합)
+  const fetchedReviewStatusesRef = useRef<string>("")  // 이미 조회한 Review 상태 추적 (examType + rootTopicIds 조합)
 
   // -------------------------------
   // 백엔드에서 트리 구조 가져오기
@@ -338,6 +352,100 @@ export function MainLearningDashboard() {
 
     fetchMicroStats()
   }, [loading, selectedExamType])
+
+  // -------------------------------
+  // Review 학습 진행 상태 조회
+  //  - subjects가 로드된 후 모든 MainTopic의 Review 진행 상태를 한 번에 조회
+  //  - GET /api/study/topic-progress/review-status
+  // -------------------------------
+  useEffect(() => {
+    const fetchReviewStatuses = async () => {
+      // 로딩 중이거나 subjects가 없으면 리턴
+      if (loading || subjects.length === 0) return
+
+      try {
+        // 현재 선택된 시험 타입의 모든 MainTopic ID 수집 (rootTopicId)
+        const currentSubjects = subjects.filter(s => s.examType === selectedExamType)
+        const rootTopicIds: number[] = []
+        
+        currentSubjects.forEach(subject => {
+          subject.mainTopics.forEach(mt => {
+            rootTopicIds.push(mt.id)
+          })
+        })
+
+        if (rootTopicIds.length === 0) return
+
+        // 이미 조회한 rootTopicIds인지 확인 (무한 루프 방지)
+        const rootTopicIdsKey = rootTopicIds.sort((a, b) => a - b).join(",")
+        const currentHash = `${selectedExamType}-${rootTopicIdsKey}`
+        
+        // 같은 조합이면 이미 조회한 것으로 간주 (무한 루프 방지)
+        if (fetchedReviewStatusesRef.current === currentHash) {
+          return
+        }
+
+        // 조회 시작 전에 해시 저장 (중복 호출 방지)
+        fetchedReviewStatusesRef.current = currentHash
+
+        // API 호출
+        const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+        const res = await axios.get<ReviewStatusResponse>("/study/topic-progress/review-status", {
+          params: {
+            rootTopicIds: rootTopicIds,
+            mode
+          }
+        })
+
+        // Map으로 변환하여 저장
+        const statusMap = new Map<number, ReviewStatus>()
+        res.data.statuses.forEach(item => {
+          statusMap.set(item.rootTopicId, item.status)
+        })
+
+        setReviewStatuses(statusMap)
+
+        // subjects의 reviewCompleted 상태 업데이트 (함수형 업데이트로 무한 루프 방지)
+        setSubjects(prevSubjects => {
+          // 변경사항이 있는지 확인
+          let hasChanges = false
+          const updated = prevSubjects.map(subject => {
+            if (subject.examType !== selectedExamType) return subject
+
+            const updatedMainTopics = subject.mainTopics.map(mt => {
+              const status = statusMap.get(mt.id)
+              // TRULY_COMPLETED 또는 COMPLETED일 때 완료로 표시
+              const reviewCompleted = status === "TRULY_COMPLETED" || status === "COMPLETED"
+              if (mt.reviewCompleted !== reviewCompleted) {
+                hasChanges = true
+              }
+              return {
+                ...mt,
+                reviewCompleted
+              }
+            })
+
+            return {
+              ...subject,
+              mainTopics: updatedMainTopics
+            }
+          })
+
+          // 변경사항이 없으면 이전 상태 반환 (무한 루프 방지)
+          if (!hasChanges) {
+            return prevSubjects
+          }
+
+          return updated
+        })
+      } catch (err) {
+        console.error("Review 학습 진행 상태 조회 실패:", err)
+        // 에러가 발생해도 UI는 계속 표시 (기본값 사용)
+      }
+    }
+
+    fetchReviewStatuses()
+  }, [loading, selectedExamType, subjects])  // subjects를 의존성에 추가하여 subjects가 로드/변경된 후 실행되도록 보장 (fetchedReviewStatusesRef로 중복 호출 방지)
 
   // 로딩 주 상태 표시
   if (loading) {
@@ -659,10 +767,16 @@ export function MainLearningDashboard() {
                                 }
                               }
                             }}
-                            className={`text-white ${mainTopic.reviewCompleted
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                              : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
-                              }`}
+                            className={(() => {
+                              const reviewStatus = reviewStatuses.get(mainTopic.id) || "NOT_STARTED"
+                              if (reviewStatus === "TRULY_COMPLETED") {
+                                return "text-white bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                              } else if (reviewStatus === "COMPLETED") {
+                                return "text-white bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600"
+                              } else {
+                                return "text-white bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                              }
+                            })()}
                           >
                             <ListChecks className="w-4 h-4 mr-2" />
                             Review 총정리
