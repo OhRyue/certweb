@@ -7,7 +7,7 @@ import { Badge } from "../ui/badge"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
-import { Tag, Play, ChevronRight, ChevronDown, FileText, Keyboard } from "lucide-react"
+import { Tag, Play, ChevronRight, ChevronDown, FileText, Keyboard, Loader2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 
@@ -26,6 +26,8 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
   const [expandedSubTopic, setExpandedSubTopic] = useState<number | null>(null)
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const navigate = useNavigate()
 
@@ -168,6 +170,101 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
         return [...prev, detailId]
       }
     })
+  }
+
+  // ------------------------------
+  // ⭐ 퀴즈 시작 핸들러 (learningSession 기반)
+  // ------------------------------
+  const handleStartQuiz = async () => {
+    if (selectedDetails.length === 0) return
+    
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const count = parseInt(questionCount)
+      
+      // 필기/실기 모드에 따라 다른 API 호출
+      const apiEndpoint = selectedExamType === "practical" 
+        ? "/study/assist/practical/category"
+        : "/study/assist/written/category"
+      
+      const res = await axios.get(apiEndpoint, {
+        params: {
+          topicIds: selectedDetails,
+          count: count
+        }
+      })
+
+      // API 응답에서 데이터 추출
+      const sessionId = res.data.sessionId
+      const learningSessionId = res.data.learningSessionId
+      const items = res.data.payload?.items || []
+
+      // learningSessionId를 localStorage에 저장
+      if (learningSessionId) {
+        localStorage.setItem('categoryQuizLearningSessionId', learningSessionId.toString())
+      }
+
+      // 문제를 Question 형식으로 변환
+      const questions = items.map((item: any) => {
+        if (selectedExamType === "practical") {
+          // 실기 모드: choices 없음
+          return {
+            id: String(item.questionId),
+            topicId: "",
+            tags: [],
+            difficulty: "medium" as const,
+            type: "typing" as const,
+            examType: "practical" as const,
+            question: item.text || "",
+            options: [],
+            correctAnswer: "",
+            explanation: "",
+            imageUrl: item.imageUrl || undefined
+          }
+        } else {
+          // 필기 모드: choices 배열을 options로 변환
+          const options = (item.choices || []).map((choice: any) => ({
+            label: choice.label || "",
+            text: choice.text || ""
+          }))
+          
+          return {
+            id: String(item.questionId),
+            topicId: "",
+            tags: [],
+            difficulty: "medium" as const,
+            type: "multiple" as const,
+            examType: "written" as const,
+            question: item.text || "",
+            options: options,
+            correctAnswer: 0, // API에서 받지 않으므로 0으로 설정 (채점 시 API에서 확인)
+            explanation: "",
+            imageUrl: item.imageUrl || undefined
+          }
+        }
+      })
+
+      // QuizFlowPage로 이동하면서 데이터 전달
+      navigate("/solo/play", {
+        state: {
+          selectedDetails,
+          questionCount: count,
+          examType: selectedExamType,
+          quizType: "category",
+          questions: questions, // API에서 받은 문제
+          sessionId: sessionId,
+          learningSessionId: learningSessionId,
+          topicId: 0 // 카테고리 퀴즈는 여러 topicId를 사용하므로 0으로 설정
+        },
+      })
+    } catch (err: any) {
+      console.error("카테고리 퀴즈 시작 실패:", err)
+      setError(err.response?.data?.message || "퀴즈를 시작하는 중 오류가 발생했습니다")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -476,24 +573,31 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
               </div>
             </Card>
 
+            {/* 에러 메시지 */}
+            {error && (
+              <Card className="p-4 bg-red-50 border-2 border-red-200">
+                <p className="text-red-600 text-sm">{error}</p>
+              </Card>
+            )}
+
             {/* 버튼 */}
             <div className="space-y-3">
               <Button
-                onClick={() => {
-                  navigate("/solo/play", {
-                    state: {
-                      selectedDetails,
-                      questionCount: parseInt(questionCount),
-                      examType: selectedExamType,
-                      quizType: "category"
-                    }
-                  })
-                }}
-                disabled={selectedDetails.length === 0}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                onClick={handleStartQuiz}
+                disabled={selectedDetails.length === 0 || isLoading}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50"
               >
-                <Play className="w-4 h-4 mr-2" />
-                퀴즈 시작
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    시작 중...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    퀴즈 시작
+                  </>
+                )}
               </Button>
 
               <Button

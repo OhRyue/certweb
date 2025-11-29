@@ -57,10 +57,13 @@ export function ProblemSolvingPractical({
       const actualQuizType = quizType || (isDifficultyQuiz ? "difficulty" : null);
       
       if (actualQuizType && learningSessionId) {
-        // 난이도/약점 보완 퀴즈 실기 채점 API
-        const gradeEndpoint = actualQuizType === "weakness"
-          ? `/study/assist/practical/weakness/grade-one`
-          : `/study/assist/practical/difficulty/grade-one`;
+        // 카테고리/난이도/약점 보완 퀴즈 실기 채점 API
+        let gradeEndpoint = `/study/assist/practical/category/grade-one`;
+        if (actualQuizType === "weakness") {
+          gradeEndpoint = `/study/assist/practical/weakness/grade-one`;
+        } else if (actualQuizType === "difficulty") {
+          gradeEndpoint = `/study/assist/practical/difficulty/grade-one`;
+        }
         
         res = await axios.post(
           gradeEndpoint,
