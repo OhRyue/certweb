@@ -16,25 +16,21 @@ interface WrongAnswer {
   imageUrl?: string | null;
 }
 
-interface MicroWrongAnswersWrittenProps {
-  sessionId: number | null;
+interface ReviewWrongAnswersWrittenProps {
   learningSessionId: number | null;
   topicName: string;
   onContinue: () => void;
-  wrongAnswers?: WrongAnswer[]; // props로 전달된 경우 API 호출 스킵
 }
 
 export function ReviewWrongAnswersWritten({ 
-  sessionId,
   learningSessionId,
   topicName, 
-  onContinue,
-  wrongAnswers: propWrongAnswers
-}: MicroWrongAnswersWrittenProps) {
-  const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>(propWrongAnswers || []);
+  onContinue
+}: ReviewWrongAnswersWrittenProps) {
+  const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [loading, setLoading] = useState(!propWrongAnswers); // props로 전달되면 로딩 불필요
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [wrongAnswersLoaded, setWrongAnswersLoaded] = useState(false); // 오답 목록 로딩 완료 여부
   const onContinueRef = useRef(onContinue);
@@ -43,38 +39,14 @@ export function ReviewWrongAnswersWritten({
     onContinueRef.current = onContinue;
   }, [onContinue]);
 
-  // props로 wrongAnswers가 전달되면 API 호출 스킵
+  // 필기 모드: API로 오답 목록 가져오기 (항상 API 사용)
   useEffect(() => {
-    if (propWrongAnswers && propWrongAnswers.length > 0) {
-      setWrongAnswers(propWrongAnswers);
-      setLoading(false);
-      setWrongAnswersLoaded(true);
-      return;
-    }
-  }, [propWrongAnswers]);
-
-  // 필기 모드: API로 오답 목록 가져오기 (props로 전달되지 않은 경우만)
-  useEffect(() => {
-    // props로 데이터가 전달되면 API 호출 스킵
-    if (propWrongAnswers && propWrongAnswers.length > 0) {
-      setLoading(false);
-      setWrongAnswersLoaded(true);
-      return;
-    }
-
     const fetchWrongAnswers = async () => {
       // learningSessionId가 없으면 다음 단계로 진행
       if (!learningSessionId) {
         setLoading(false);
         setWrongAnswersLoaded(true);
         onContinueRef.current();
-        return;
-      }
-
-      if (!sessionId) {
-        setError("세션 ID가 없습니다");
-        setLoading(false);
-        setWrongAnswersLoaded(true);
         return;
       }
 
@@ -134,7 +106,7 @@ export function ReviewWrongAnswersWritten({
     };
 
     fetchWrongAnswers();
-  }, [sessionId, learningSessionId, propWrongAnswers]);
+  }, [learningSessionId]);
   
   const currentWrong = wrongAnswers[currentIndex];
 

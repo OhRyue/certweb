@@ -26,6 +26,7 @@ export function ReviewFlowPracticalPage() {
     mcqCorrect?: number
     mcqTotal?: number
   } | null>(null)
+  const [summaryLoaded, setSummaryLoaded] = useState(false)
 
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -97,10 +98,11 @@ export function ReviewFlowPracticalPage() {
       if (!rootTopicId || !finalLearningSessionId) return
 
       try {
-        // 실기 Review 모드 요약 조회 API
-        const res = await axios.get(`/study/practical/summary`, {
+        // 실기 Review 모드 SUMMARY 조회 API
+        // GET /study/practical/review/summary
+        const res = await axios.get(`/study/practical/review/summary`, {
           params: {
-            topicId: rootTopicId,
+            rootTopicId: rootTopicId,
             sessionId: finalLearningSessionId
           }
         })
@@ -108,20 +110,17 @@ export function ReviewFlowPracticalPage() {
         const payload = res.data.payload || {}
         // API 응답 구조에 맞게 데이터 매핑 (오직 API 데이터만 사용)
         setSummaryData({
-          summaryText: payload.summary || "",  // AI 요약 텍스트
-          aiSummary: payload.summary || "",    // AI 요약 텍스트 (동일)
-          mcqCorrect: payload.practicalPassed || 0,  // PRACTICAL 정답 수
-          mcqTotal: payload.practicalTotal || 0  // PRACTICAL 문제 수 (API에서만 가져옴)
+          summaryText: payload.aiSummary,
+          aiSummary: payload.aiSummary,
+          mcqCorrect: payload.mcqCorrect,
+          mcqTotal: payload.mcqTotal
         })
+        setSummaryLoaded(true)
       } catch (err: any) {
         console.error("요약 불러오기 실패:", err)
-        // API 실패 시 빈 데이터 설정 (mock 데이터 사용 안 함)
-        setSummaryData({
-          summaryText: "",
-          aiSummary: "",
-          mcqCorrect: 0,
-          mcqTotal: 0
-        })
+        // API 실패 시 요약 데이터 없음으로 처리
+        setSummaryData(null)
+        setSummaryLoaded(true)
       }
     }
 
@@ -244,7 +243,6 @@ export function ReviewFlowPracticalPage() {
   if (step === "wrong") {
     return (
       <ReviewWrongAnswersPractical
-        sessionId={null}
         learningSessionId={finalLearningSessionId}
         topicName={topicName}
         onContinue={async () => {
@@ -315,7 +313,7 @@ export function ReviewFlowPracticalPage() {
           totalProblem={summaryData?.mcqTotal || 0}
           summaryText={summaryData?.summaryText}
           aiSummary={summaryData?.aiSummary}
-          loadingSummary={!summaryData}
+          loadingSummary={!summaryLoaded}
           onRetry={() => setStep("problem")}
           onBackToDashboard={async () => {
             // SUMMARY 화면 종료 시 advance API 호출 및 세션 완료 처리

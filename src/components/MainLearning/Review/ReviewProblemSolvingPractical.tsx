@@ -79,7 +79,7 @@ export function ReviewProblemSolvingPractical({
         answerKey: result.answerKey || "",
         baseExplanation: result.baseExplanation || "",
         aiExplanation: result.aiExplanation || "",
-        aiExplanationFailed: false  // API 응답에 없으면 false
+        aiExplanationFailed: result.aiExplanationFailed || false
       })
 
       setShowResult(true)

@@ -26,7 +26,6 @@ export function ReviewFlowPage() {
     mcqCorrect?: number
     mcqTotal?: number
   } | null>(null)
-  const [wrongAnswers, setWrongAnswers] = useState<any[]>([])
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -83,31 +82,6 @@ export function ReviewFlowPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, rootTopicId, finalLearningSessionId])
 
-  // 2. 오답 목록 조회 (wrong 단계일 때만)
-  useEffect(() => {
-    const loadWrongAnswers = async () => {
-      if (step !== "wrong") return
-      if (!finalLearningSessionId) return
-
-      try {
-        const res = await axios.get(`/study/wrong/written/learning-session`, {
-          params: {
-            learningSessionId: finalLearningSessionId
-          }
-        })
-        
-        const items = res.data.items || []
-        setWrongAnswers(items)
-      } catch (err: any) {
-        console.error("오답 목록 불러오기 실패:", err)
-        setWrongAnswers([])
-      }
-    }
-
-    loadWrongAnswers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, finalLearningSessionId])
-
   // 3. SUMMARY API 호출 (result 단계일 때만)
   useEffect(() => {
     const loadSummary = async () => {
@@ -127,7 +101,7 @@ export function ReviewFlowPage() {
           summaryText: payload.summaryText || "",
           aiSummary: payload.aiSummary || "",
           mcqCorrect: payload.mcqCorrect || 0,
-          mcqTotal: payload.mcqTotal || questions.length
+          mcqTotal: payload.mcqTotal || 0
         })
       } catch (err: any) {
         console.error("요약 불러오기 실패:", err)
@@ -135,7 +109,7 @@ export function ReviewFlowPage() {
           summaryText: "",
           aiSummary: "",
           mcqCorrect: 0,
-          mcqTotal: questions.length
+          mcqTotal: 0
         })
       }
     }
@@ -143,8 +117,6 @@ export function ReviewFlowPage() {
     loadSummary()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, rootTopicId, finalLearningSessionId])
-
-  const totalProblems = questions.length
 
   // 문제 풀이 단계
   if (step === "problem") {
@@ -232,55 +204,48 @@ export function ReviewFlowPage() {
 
   // 오답노트 단계
   if (step === "wrong") {
-    // 오답 목록을 ReviewWrongAnswersWritten이 기대하는 형식으로 변환
-    const formattedWrongAnswers = wrongAnswers.map((item: any) => ({
-      questionId: item.questionId,
-      userAnswer: item.myAnswer || "",
-      correctAnswer: item.correctAnswer || "",
-      explanation: item.baseExplanation || "",
-      text: item.text || "",
-      imageUrl: item.imageUrl || null
-    }))
-
     return (
       <ReviewWrongAnswersWritten
-        sessionId={null}
         learningSessionId={finalLearningSessionId}
         topicName={topicName}
-        wrongAnswers={formattedWrongAnswers}
         onContinue={async () => {
           // 오답 노트 완료 시 advance API 호출
           if (finalLearningSessionId && rootTopicId) {
             try {
-              // 세션 조회하여 REVIEW_WRONG 단계의 메타데이터 가져오기
-              const sessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
-              const session = sessionRes.data
-              
-              // REVIEW_WRONG 단계의 메타데이터 추출
-              const reviewWrongStep = session.steps?.find((s: any) => s.step === "REVIEW_WRONG")
-              const metadata = reviewWrongStep?.detailsJson ? JSON.parse(reviewWrongStep.detailsJson) : {}
-              
               // advance 호출하여 REVIEW_WRONG 단계 완료
-              await axios.post("/study/session/advance", {
+              const advanceRes = await axios.post("/study/session/advance", {
                 sessionId: finalLearningSessionId,
                 step: "REVIEW_WRONG",
-                score: metadata.scorePct || null,
-                detailsJson: reviewWrongStep?.detailsJson || null
+                score: null,
+                detailsJson: null
               })
               
-              // advance 호출 후 세션을 다시 조회하여 실제 step 변경 확인
-              const updatedSessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
-              const updatedSession = updatedSessionRes.data
-              
-              // 현재 단계 확인하여 다음 단계 결정
-              const currentStep = updatedSession.currentStep
-              
-              if (currentStep === "SUMMARY") {
+              // advance 응답의 movedTo 필드 우선 사용
+              const movedTo = advanceRes.data?.movedTo
+              if (movedTo === "SUMMARY") {
+                setStep("result")
+              } else if (movedTo === "END") {
+                // 세션 완료 처리
+                localStorage.removeItem('reviewLearningSessionId')
                 setStep("result")
               } else {
-                // 백엔드가 자동으로 처리하므로, SUMMARY가 아니면 기본적으로 결과 화면으로 이동
-                console.warn("예상치 못한 단계:", currentStep)
-                setStep("result")
+                // movedTo가 없으면 세션 재조회로 확인
+                const updatedSessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
+                const updatedSession = updatedSessionRes.data
+                const currentStep = updatedSession.currentStep
+                
+                if (currentStep === "SUMMARY") {
+                  setStep("result")
+                } else if (updatedSession.status === "DONE") {
+                  localStorage.removeItem('reviewLearningSessionId')
+                  setStep("result")
+                } else if (currentStep === "REVIEW_WRONG") {
+                  // 백엔드가 REVIEW_WRONG 유지 시, 그대로 오답 단계 유지
+                  setStep("wrong")
+                } else {
+                  // 예외 상황: 기본적으로 결과 화면으로 이동
+                  setStep("result")
+                }
               }
             } catch (err: any) {
               console.error("advance API 호출 실패:", err)
@@ -303,7 +268,7 @@ export function ReviewFlowPage() {
         <ReviewResult
           topicName={topicName}
           problemScore={summaryData?.mcqCorrect || 0}
-          totalProblem={summaryData?.mcqTotal || totalProblems}
+          totalProblem={summaryData?.mcqTotal || 0}
           summaryText={summaryData?.summaryText}
           aiSummary={summaryData?.aiSummary}
           loadingSummary={!summaryData}
