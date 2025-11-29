@@ -4,12 +4,14 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { motion } from "motion/react"
-import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react"
+import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
 import type { Question } from "../../types"
+import axios from "../api/axiosConfig"
 
 // props로 받을 타입 정의
 interface ReviewProblemSolvingProps {
   questions: Question[]   // 문제 배열
+  quizType?: "category" | "difficulty" | "weakness"  // 퀴즈 타입
   // 모든 문제 완료 시 호출되는 콜백
   onComplete: (
     score: number,      // 맞은 개수
@@ -19,14 +21,18 @@ interface ReviewProblemSolvingProps {
 
 // 카테고리 퀴즈의 필기(객관식) 문제 풀이 컴포넌트
 
-export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingProps) {
+export function ProblemSolving({ questions, quizType, onComplete }: ReviewProblemSolvingProps) {
   const [currentIndex, setCurrentIndex] = useState(0)                             // 현재 문제 인덱스(0부터 시작)
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)       // 사용자가 선택한 보기 번호
   const [showResult, setShowResult] = useState(false)                             // 결과(정답 여부) 보여줄지 여부
+  const [isSubmitting, setIsSubmitting] = useState(false)                         // 채점 제출 중 상태
   const [score, setScore] = useState(0)                                           // 맞힌 문제 개수
   const [answers, setAnswers] = useState<                                         // 사용자가 풀었던 모든 문제 기록(오답노트용)
-    { questionId: string | number; selectedAnswer: number; isCorrect: boolean }[]
+    { questionId: string | number; selectedAnswer: number; isCorrect: boolean; explanation?: string; correctLabel?: string }[]
   >([])
+  const [gradingResults, setGradingResults] = useState<                          // 채점 결과 저장
+    Record<string | number, { isCorrect: boolean; explanation: string; correctLabel: string }>
+  >({})
 
   // 문제 배열이 비었을 때 예외 처리
   if (!questions || questions.length === 0) {
@@ -49,35 +55,99 @@ export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingPr
     )
   }
 
-  // 현재 선택한 답이 정답인지 여부
-  const isCorrect = selectedAnswer === currentQuestion.correctAnswer
+  // 현재 문제의 채점 결과 가져오기
+  const currentGradingResult = gradingResults[currentQuestion.id]
+  const isCorrect = currentGradingResult?.isCorrect || false
+  const correctAnswerIndex = currentGradingResult?.correctLabel
+    ? currentQuestion.options.findIndex((opt: any) => {
+        const optLabel = typeof opt === 'object' ? opt.label : String.fromCharCode(65 + currentQuestion.options.indexOf(opt))
+        return optLabel === currentGradingResult.correctLabel
+      })
+    : null
+
   // 진행률 계산
   const progress = ((currentIndex + 1) / questions.length) * 100
 
-  // 보기 클릭 시 실행되는 함수
-  const handleAnswer = (index: number) => {
+  // 보기 클릭 시 실행되는 함수 (한 문제마다 즉시 채점)
+  const handleAnswer = async (index: number) => {
     // 이미 답을 골랐으면 무시
-    if (showResult) return
+    if (showResult || isSubmitting) return
+    
     // 현재 선택한 보기 저장
     setSelectedAnswer(index)
-    // 결과 표시 켜기
-    setShowResult(true)
-    
-    // 정답 여부 판단
-    const isCorrect = index === currentQuestion.correctAnswer
-    if (isCorrect) {    // 정답이면 점수 1 증가
-      setScore(prev => prev + 1)
-    }
+    setIsSubmitting(true)
 
-    // 오답노트용 데이터 저장
-    setAnswers(prev => [
-      ...prev,
-      {
-        questionId: currentQuestion.id,   // 문제 id
-        selectedAnswer: index,            // 선택한 보기 번호
-        isCorrect,                        // 정답 여부
-      },
-    ])
+    try {
+      // 선택한 답안의 label 추출
+      const option = currentQuestion.options[index]
+      const label = typeof option === 'object' ? option.label : String.fromCharCode(65 + index)
+
+      // 한 문제씩 채점 API 호출
+      const response = await axios.post("/study/assist/written/submit", {
+        answers: [{
+          questionId: Number(currentQuestion.id),
+          label: label
+        }]
+      })
+
+      // 채점 결과 처리
+      const gradingItem = response.data.payload?.items?.[0]
+      const isCorrect = gradingItem?.correct || false
+
+      // 점수 업데이트
+      if (isCorrect) {
+        setScore(prev => prev + 1)
+      }
+
+      // 채점 결과를 상태에 저장
+      setGradingResults(prev => ({
+        ...prev,
+        [currentQuestion.id]: {
+          isCorrect: isCorrect,
+          explanation: gradingItem?.explanation || "",
+          correctLabel: gradingItem?.correctLabel || label
+        }
+      }))
+
+      // 답안 저장
+      setAnswers(prev => [
+        ...prev,
+        {
+          questionId: currentQuestion.id,
+          selectedAnswer: index,
+          isCorrect: isCorrect,
+          explanation: gradingItem?.explanation || "",
+          correctLabel: gradingItem?.correctLabel || label
+        },
+      ])
+
+      // 결과 표시
+      setShowResult(true)
+    } catch (err: any) {
+      console.error("채점 API 오류:", err)
+      // 에러 발생 시 기본 처리
+      setGradingResults(prev => ({
+        ...prev,
+        [currentQuestion.id]: {
+          isCorrect: false,
+          explanation: "",
+          correctLabel: ""
+        }
+      }))
+      setAnswers(prev => [
+        ...prev,
+        {
+          questionId: currentQuestion.id,
+          selectedAnswer: index,
+          isCorrect: false,
+          explanation: "",
+          correctLabel: ""
+        },
+      ])
+      setShowResult(true)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // "다음 문제" 버튼 눌렀을 때
@@ -88,7 +158,7 @@ export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingPr
       setSelectedAnswer(null)
       setShowResult(false)
     } else {
-      // 마지막 문제면 결과 반환
+      // 마지막 문제면 완료 콜백 호출
       onComplete(score, answers)
     }
   }
@@ -98,11 +168,17 @@ export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingPr
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          {/* 카테고리 뱃지 */}
+          {/* 퀴즈 타입 뱃지 */}
           <div className="flex items-center gap-2 mb-3">
-            <Badge className="bg-blue-500 text-white">총정리</Badge>
+            <Badge className="bg-blue-500 text-white">
+              {quizType === "difficulty" 
+                ? "난이도" 
+                : quizType === "weakness" 
+                ? "약점 보완" 
+                : "카테고리"}
+            </Badge>
             <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-              객관식
+              필기기
             </Badge>
           </div>
 
@@ -168,12 +244,18 @@ export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingPr
 
             <div className="space-y-3">
               {currentQuestion.options.map((option, index) => {
+                // option이 객체인지 문자열인지 확인하여 처리
+                const optionLabel = typeof option === 'object' ? option.label : String.fromCharCode(65 + index)
+                const optionText = typeof option === 'object' ? option.text : option
                 const isSelected = selectedAnswer === index
-                const isCorrectAnswer = index === currentQuestion.correctAnswer
+                // 채점 결과가 있으면 그것을 사용, 없으면 임시로 표시
+                const isCorrectAnswer = correctAnswerIndex !== null 
+                  ? index === correctAnswerIndex 
+                  : showResult && isSelected && isCorrect
 
                 let buttonClass = "w-full p-4 text-left border-2 transition-all"
 
-                if (!showResult) {
+                if (!showResult || isSubmitting) {
                   buttonClass += " hover:border-blue-400 hover:bg-white/60 cursor-pointer"
                 } else if (isCorrectAnswer) {
                   buttonClass += " border-green-400 bg-green-50"
@@ -188,16 +270,16 @@ export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingPr
                     key={index}
                     onClick={() => handleAnswer(index)}
                     className={buttonClass}
-                    disabled={showResult}
-                    whileHover={!showResult ? { scale: 1.02 } : {}}
-                    whileTap={!showResult ? { scale: 0.98 } : {}}
+                    disabled={showResult || isSubmitting}
+                    whileHover={!showResult && !isSubmitting ? { scale: 1.02 } : {}}
+                    whileTap={!showResult && !isSubmitting ? { scale: 0.98 } : {}}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0">
-                          {index + 1}
+                          {optionLabel}
                         </div>
-                        <span>{option}</span>
+                        <span>{optionText}</span>
                       </div>
                       {showResult && isCorrectAnswer && <CheckCircle2 className="w-5 h-5 text-green-600" />}
                       {showResult && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-600" />}
@@ -211,37 +293,55 @@ export function ProblemSolving({ questions, onComplete }: ReviewProblemSolvingPr
           {/* Explanation */}
           {showResult && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <Card
-                className={`p-6 mb-6 border-2 ${isCorrect ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300"
-                  }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    {isCorrect ? (
-                      <CheckCircle2 className="w-6 h-6 text-green-600" />
-                    ) : (
-                      <XCircle className="w-6 h-6 text-red-600" />
-                    )}
+              {isSubmitting ? (
+                <Card className="p-6 mb-6 border-2 bg-blue-50 border-blue-300">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                    <div>
+                      <h3 className="text-blue-900 mb-1">채점 중...</h3>
+                      <p className="text-gray-700">문제를 채점하고 있습니다.</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className={isCorrect ? "text-green-900 mb-2" : "text-red-900 mb-2"}>
-                      {isCorrect ? "정답이에요!" : "틀렸어요!"}
-                    </h3>
-                    <p className="text-gray-700">{currentQuestion.explanation}</p>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              ) : (
+                <>
+                  <Card
+                    className={`p-6 mb-6 border-2 ${isCorrect ? "bg-green-50 border-green-300" : "bg-red-50 border-red-300"
+                      }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0">
+                        {isCorrect ? (
+                          <CheckCircle2 className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <XCircle className="w-6 h-6 text-red-600" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className={isCorrect ? "text-green-900 mb-2" : "text-red-900 mb-2"}>
+                          {isCorrect ? "정답이에요!" : "틀렸어요!"}
+                        </h3>
+                        {currentGradingResult?.explanation ? (
+                          <p className="text-gray-700 whitespace-pre-line">{currentGradingResult.explanation}</p>
+                        ) : (
+                          <p className="text-gray-700">{currentQuestion.explanation || ""}</p>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
 
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleNext}
-                  size="lg"
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
-                >
-                  {currentIndex < questions.length - 1 ? "다음 문제" : "결과 보기"}
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </div>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleNext}
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+                    >
+                      {currentIndex < questions.length - 1 ? "다음 문제" : "결과 보기"}
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </div>
+                </>
+              )}
             </motion.div>
           )}
         </motion.div>

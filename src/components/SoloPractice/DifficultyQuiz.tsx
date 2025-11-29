@@ -1,15 +1,18 @@
 import { useState } from "react"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
-import { BarChart2, Play, TrendingUp } from "lucide-react"
+import { BarChart2, Play, TrendingUp, Loader2 } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
 import { Label } from "../ui/label"
 import { useNavigate } from "react-router-dom"
+import axios from "../api/axiosConfig"
 
 export function DifficultyQuiz() {
   const [difficulty, setDifficulty] = useState("easy")      // 난이도 상태
   const [questionCount, setQuestionCount] = useState("20")  // 문제 수 상태
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")  // 필기 / 실기 토글
+  const [isLoading, setIsLoading] = useState(false)        // 로딩 상태
+  const [error, setError] = useState<string | null>(null)   // 에러 상태
 
   // 난이도 통계
   const difficultyStats = [
@@ -27,6 +30,62 @@ export function DifficultyQuiz() {
 
   // 퀴즈 시작
   const navigate = useNavigate()
+
+  // 난이도 값을 API 형식으로 변환
+  const getDifficultyApiValue = (difficulty: string): "EASY" | "NORMAL" | "HARD" => {
+    switch (difficulty) {
+      case "easy":
+        return "EASY"
+      case "medium":
+        return "NORMAL"
+      case "hard":
+        return "HARD"
+      default:
+        return "EASY"
+    }
+  }
+
+  // 퀴즈 시작 핸들러
+  const handleStartQuiz = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const apiDifficulty = getDifficultyApiValue(difficulty)
+      const count = parseInt(questionCount)
+
+      // 필기/실기에 따라 다른 API 엔드포인트 호출
+      const apiEndpoint = selectedExamType === "written" 
+        ? "/study/assist/written/difficulty"
+        : "/study/assist/practical/difficulty"
+
+      const response = await axios.get(apiEndpoint, {
+        params: {
+          difficulty: apiDifficulty,
+          count: count,
+        },
+      })
+
+      // API 응답 데이터를 navigate state에 포함
+      navigate("/solo/play", {
+        state: {
+          difficulty,
+          questionCount: count,
+          examType: selectedExamType,
+          quizType: "difficulty",
+          apiResponse: response.data, // API 응답 전체 포함
+          questions: response.data.payload?.items || [], // 문제 목록
+        },
+      })
+    } catch (err: any) {
+      console.error("퀴즈 시작 API 오류:", err)
+      setError(
+        err.response?.data?.message || 
+        "퀴즈를 불러오는 중 오류가 발생했습니다. 다시 시도해주세요."
+      )
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="p-8">
@@ -170,28 +229,36 @@ export function DifficultyQuiz() {
               </div>
             </Card>
 
+            {/* 에러 메시지 */}
+            {error && (
+              <Card className="p-4 bg-red-50 border-2 border-red-200">
+                <p className="text-red-600 text-sm">{error}</p>
+              </Card>
+            )}
+
             {/* 버튼 */}
             <div className="space-y-3">
               <Button
-                onClick={() => {
-                  // 퀴즈 플레이 화면으로 이동하면서 선택 데이터 전달
-                  navigate("/solo/play", {
-                    state: {
-                      difficulty,
-                      questionCount: parseInt(questionCount),
-                      examType: selectedExamType,
-                      quizType: "difficulty", // 난이도 퀴즈에서 왔다
-                    },
-                  })
-                }}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                onClick={handleStartQuiz}
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Play className="w-4 h-4 mr-2" />
-                퀴즈 시작
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    불러오는 중...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    퀴즈 시작
+                  </>
+                )}
               </Button>
               <Button
                 onClick={() => navigate("/solo")}
                 variant="outline"
+                disabled={isLoading}
                 className="w-full border-2"
               >
                 뒤로 가기
