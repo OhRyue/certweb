@@ -81,12 +81,61 @@ export function WeaknessQuiz() {
         },
       });
 
-      // API 응답 데이터를 navigate state에 포함
+      // API 응답에서 데이터 추출
+      const sessionId = response.data.sessionId;
+      const learningSessionId = response.data.learningSessionId;
+      const items = response.data.payload?.items || [];
+
+      // learningSessionId를 localStorage에 저장
+      if (learningSessionId) {
+        localStorage.setItem('weaknessQuizLearningSessionId', learningSessionId.toString());
+      }
+
       // 약점도가 높은 순서로 정렬한 후 상위 3개 태그 선택
       const topWeakTags = [...weaknessTags]
         .sort((a, b) => b.weaknessLevel - a.weaknessLevel)
         .slice(0, 3)
         .map(t => t.tag);
+
+      // 문제를 Question 형식으로 변환
+      const questions = items.map((item: any) => {
+        if (examType === "practical") {
+          // 실기 모드: choices 없음
+          return {
+            id: String(item.questionId),
+            topicId: "",
+            tags: [],
+            difficulty: "medium" as const,
+            type: "typing" as const,
+            examType: "practical" as const,
+            question: item.text || "",
+            options: [],
+            correctAnswer: "",
+            explanation: "",
+            imageUrl: item.imageUrl || undefined
+          };
+        } else {
+          // 필기 모드: choices 배열을 options로 변환
+          const options = (item.choices || []).map((choice: any) => ({
+            label: choice.label || "",
+            text: choice.text || ""
+          }));
+          
+          return {
+            id: String(item.questionId),
+            topicId: "",
+            tags: [],
+            difficulty: "medium" as const,
+            type: "multiple" as const,
+            examType: "written" as const,
+            question: item.text || "",
+            options: options,
+            correctAnswer: 0, // API에서 받지 않으므로 0으로 설정 (채점 시 API에서 확인)
+            explanation: "",
+            imageUrl: item.imageUrl || undefined
+          };
+        }
+      });
 
       navigate("/solo/play", {
         state: {
@@ -94,8 +143,10 @@ export function WeaknessQuiz() {
           questionCount: count,
           examType: examType,
           quizType: "weakness",
-          apiResponse: response.data, // API 응답 전체 포함
-          questions: response.data.payload?.items || [], // 문제 목록
+          questions: questions, // API에서 받은 문제
+          sessionId: sessionId,
+          learningSessionId: learningSessionId,
+          topicId: 0 // 약점 보완 퀴즈는 topicId가 없음
         },
       });
     } catch (err: any) {

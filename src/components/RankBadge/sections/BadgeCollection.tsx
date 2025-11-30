@@ -4,22 +4,25 @@ import { Card } from "../../ui/card"
 import { Badge as UiBadge } from "../../ui/badge"
 import { Progress } from "../../ui/progress"
 import { Award, CheckCircle, Lock } from "lucide-react"
-import { mockBadges, getRarityColor, getRarityLabel } from "../hooks/useRankingData"
+import { getRarityColor, getRarityLabel } from "../hooks/useRankingData"
 
 export function BadgeCollection() {
   const [badgeFilter, setBadgeFilter] = useState("all")
 
+  // TODO: 뱃지 API 연동 필요
+  const badges: any[] = []
+
   const filteredBadges =
     badgeFilter === "all"
-      ? mockBadges
+      ? badges
       : badgeFilter === "earned"
-      ? mockBadges.filter(b => b.earned)
+      ? badges.filter(b => b.earned)
       : badgeFilter === "locked"
-      ? mockBadges.filter(b => !b.earned)
-      : mockBadges.filter(b => b.category === badgeFilter)
+      ? badges.filter(b => !b.earned)
+      : badges.filter(b => b.category === badgeFilter)
 
-  const earned = mockBadges.filter(b => b.earned).length
-  const total = mockBadges.length
+  const earned = badges.filter(b => b.earned).length
+  const total = badges.length
 
   return (
     <div className="space-y-6">
@@ -32,9 +35,9 @@ export function BadgeCollection() {
               <p className="text-sm text-gray-600">{earned} / {total} 획득</p>
             </div>
           </div>
-          <div className="text-3xl">{Math.round(earned / total * 100)}%</div>
+          <div className="text-3xl">{total > 0 ? Math.round(earned / total * 100) : 0}%</div>
         </div>
-        <Progress value={earned / total * 100} className="h-3" />
+        <Progress value={total > 0 ? earned / total * 100 : 0} className="h-3" />
       </Card>
 
       <Card className="p-4 border-2 border-purple-200 bg-white/80 backdrop-blur">

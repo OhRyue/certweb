@@ -1,14 +1,12 @@
 import { useState } from "react"
 import { Card } from "../../ui/card"
 import { Calendar, TrendingUp, Users } from "lucide-react"
-import { mockRankings } from "../hooks/useRankingData"
 import { GlobalRanking } from "../ranking/GlobalRanking"
 import { WeeklyRanking } from "../ranking/WeeklyRanking"
 import { HallOfFame } from "../ranking/HallofFame"
 
 export function RankingSection() {
   const [rankingTab, setRankingTab] = useState("overall")
-  const current = mockRankings[rankingTab as "overall" | "weekly" | "hallOfFame"]
 
   return (
     <div className="space-y-6">
@@ -50,9 +48,9 @@ export function RankingSection() {
         </div>
       </Card>
 
-      {rankingTab === "overall" && <GlobalRanking data={current as any[]} />}
-      {rankingTab === "weekly" && <WeeklyRanking data={current as any[]} />}
-      {rankingTab === "hallOfFame" && <HallOfFame data={mockRankings.hallOfFame} />}
+      {rankingTab === "overall" && <GlobalRanking />}
+      {rankingTab === "weekly" && <WeeklyRanking />}
+      {rankingTab === "hallOfFame" && <HallOfFame />}
     </div>
   )
 }

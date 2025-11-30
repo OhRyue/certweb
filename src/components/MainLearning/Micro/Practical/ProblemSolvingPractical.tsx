@@ -15,8 +15,9 @@ interface ProblemSolvingPracticalProps {
   topicName: string;
   topicId: number;
   sessionId?: number | null;
-  learningSessionId?: number | null; // 난이도 퀴즈용
-  isDifficultyQuiz?: boolean; // 난이도 퀴즈 여부
+  learningSessionId?: number | null; // 난이도 퀴즈/약점 보완 퀴즈용
+  isDifficultyQuiz?: boolean; // 난이도 퀴즈 여부 (하위 호환성 유지)
+  quizType?: "difficulty" | "weakness" | null; // 퀴즈 타입 (우선순위 높음)
   onComplete: (score: number, answers: any[]) => void;
 }
 
@@ -27,6 +28,7 @@ export function ProblemSolvingPractical({
   sessionId,
   learningSessionId,
   isDifficultyQuiz = false,
+  quizType = null,
   onComplete 
 }: ProblemSolvingPracticalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -51,10 +53,20 @@ export function ProblemSolvingPractical({
     try {
       let res;
       
-      if (isDifficultyQuiz && learningSessionId) {
-        // 난이도 퀴즈 실기 채점 API
+      // quizType이 있으면 우선 사용, 없으면 isDifficultyQuiz로 판단 (하위 호환성)
+      const actualQuizType = quizType || (isDifficultyQuiz ? "difficulty" : null);
+      
+      if (actualQuizType && learningSessionId) {
+        // 카테고리/난이도/약점 보완 퀴즈 실기 채점 API
+        let gradeEndpoint = `/study/assist/practical/category/grade-one`;
+        if (actualQuizType === "weakness") {
+          gradeEndpoint = `/study/assist/practical/weakness/grade-one`;
+        } else if (actualQuizType === "difficulty") {
+          gradeEndpoint = `/study/assist/practical/difficulty/grade-one`;
+        }
+        
         res = await axios.post(
-          `/study/assist/practical/difficulty/grade-one`,
+          gradeEndpoint,
           {
             userText: userText
           },
