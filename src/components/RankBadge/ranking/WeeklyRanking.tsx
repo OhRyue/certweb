@@ -1,17 +1,75 @@
 import { motion } from "motion/react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import { TrendingUp } from "lucide-react"
-import { mockRankings, getRankColor, getRankIcon } from "../hooks/useRankingData"
+import { getRankColor, getRankIcon } from "../hooks/useRankingData"
+import { getRankings } from "../../api/rankingApi"
+
+interface RankingDisplayUser {
+  rank: number
+  userId: string
+  xp: number
+  score: number
+  streak: number
+  isCurrentUser: boolean
+}
 
 export function WeeklyRanking() {
-  const data = mockRankings.overall 
+  const [data, setData] = useState<RankingDisplayUser[]>([])
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(true)
   const itemsPerPage = 10
-  const totalPages = Math.ceil(data.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedData = data.slice(startIndex, startIndex + itemsPerPage)
+
+  useEffect(() => {
+    fetchRankings()
+  }, [currentPage])
+
+  const fetchRankings = async () => {
+    try {
+      setLoading(true)
+      const response = await getRankings({
+        scope: "WEEKLY",
+        page: currentPage - 1, // API는 0-based, UI는 1-based
+        size: itemsPerPage,
+      })
+
+      // 전체 데이터 변환 (현재 사용자 표시 포함)
+      const allData = response.top.map((user) => ({
+        rank: user.rank ?? 0,
+        userId: user.userId ?? "",
+        xp: user.xp ?? 0,
+        score: user.score ?? 0,
+        streak: user.streak ?? 0,
+        isCurrentUser: response.me?.userId === user.userId,
+      }))
+
+      setData(allData)
+      setTotalPages(response.totalPages || 1)
+    } catch (error) {
+      console.error("주간 랭킹 데이터 불러오기 실패:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 사용자 아바타 생성 함수 (userId 기반)
+  const getUserAvatar = (userId: string) => {
+    const avatars = ["🦸‍♂️", "🧙‍♀️", "🦊", "🐻", "🐱", "🎓", "💪", "🐝", "🎯", "😊"]
+    const hash = userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return avatars[hash % avatars.length]
+  }
+
+  // 사용자 이름 생성 함수 (userId 기반)
+  const getUserName = (userId: string) => {
+    return userId.length > 10 ? `${userId.substring(0, 8)}...` : userId
+  }
+
+  // 레벨 계산 함수 (XP 기반)
+  const calculateLevel = (xp: number) => {
+    return Math.floor(xp / 500) + 1
+  }
 
   const renderPagination = (
     currentPageNum: number,
@@ -68,57 +126,57 @@ export function WeeklyRanking() {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-gray-600">주간 랭킹을 불러오는 중...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
-      {paginatedData.map((user, index) => (
-        <motion.div key={user.rank} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
-          <Card className={`p-4 border-2 transition-all ${user.isCurrentUser ? "border-purple-400 bg-gradient-to-r from-purple-50 to-pink-50 shadow-lg" : "border-gray-200 bg-white/80 backdrop-blur hover:border-yellow-300 hover:shadow-md"}`}>
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0">
-                {user.rank <= 3 ? (
-                  <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${getRankColor(user.rank)} flex items-center justify-center text-white shadow-lg`}>
-                    {getRankIcon(user.rank)}
-                  </div>
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 flex items-center justify-center text-gray-700">
-                    #{user.rank}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3 flex-1">
-                <div className="text-3xl">{user.avatar}</div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-gray-900">{user.name}</p>
-                    {user.isCurrentUser && <Badge className="bg-purple-500 text-white text-xs">나</Badge>}
-                  </div>
-                  <p className="text-sm text-gray-600">Level {user.level}</p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p className="text-purple-600">{user.xp.toLocaleString()} XP</p>
-                <div className="flex items-center gap-1 justify-end text-xs">
-                  {user.change > 0 ? (
-                    <>
-                      <TrendingUp className="w-3 h-3 text-green-600" />
-                      <span className="text-green-600">+{user.change}</span>
-                    </>
-                  ) : user.change < 0 ? (
-                    <>
-                      <TrendingUp className="w-3 h-3 text-red-600 rotate-180" />
-                      <span className="text-red-600">{user.change}</span>
-                    </>
+      {data.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="text-gray-600">주간 랭킹 데이터가 없습니다.</p>
+        </Card>
+      ) : (
+        data.map((user, index) => (
+          <motion.div key={`${user.userId}-${user.rank}`} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
+            <Card className={`p-4 border-2 transition-all ${user.isCurrentUser ? "border-purple-400 bg-gradient-to-r from-purple-50 to-pink-50 shadow-lg" : "border-gray-200 bg-white/80 backdrop-blur hover:border-yellow-300 hover:shadow-md"}`}>
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  {user.rank <= 3 ? (
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${getRankColor(user.rank)} flex items-center justify-center text-white shadow-lg`}>
+                      {getRankIcon(user.rank)}
+                    </div>
                   ) : (
-                    <span className="text-gray-400">-</span>
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 flex items-center justify-center text-gray-700">
+                      #{user.rank}
+                    </div>
                   )}
                 </div>
+
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="text-3xl">{getUserAvatar(user.userId)}</div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-900">{getUserName(user.userId)}</p>
+                      {user.isCurrentUser && <Badge className="bg-purple-500 text-white text-xs">나</Badge>}
+                    </div>
+                      <p className="text-sm text-gray-600">Level {calculateLevel(user.xp ?? 0)}</p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-purple-600">{(user.xp ?? 0).toLocaleString()} XP</p>
+                  <p className="text-xs text-gray-500">{user.streak ?? 0}일 연속</p>
+                </div>
               </div>
-            </div>
-          </Card>
-        </motion.div>
-      ))}
+            </Card>
+          </motion.div>
+        ))
+      )}
 
       {/* ✅ 페이지네이션 */}
       {renderPagination(currentPage, totalPages, setCurrentPage)}
