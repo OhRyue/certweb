@@ -1,35 +1,50 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// App.tsx
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { LoginScreen } from "./components/LoginScreen"
+import { SignUpScreen } from "./components/SignUpScreen"
+import { ForgotPasswordScreen } from "./components/ForgotPasswordScreen"
+import { PrivateRoute } from "./PrivateRoute"
+import InnerApp from "./InnerApp"
+import { Toaster } from "./components/ui/sonner"
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("accessToken"))
+
+  useEffect(() => {
+    // accessToken 존재 여부로 로그인 유지
+    const token = localStorage.getItem("accessToken")
+    if (token) setIsLoggedIn(true)
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.clear()
+    setIsLoggedIn(false)
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <BrowserRouter>
+      <Routes>
+
+        {/* 로그인 페이지 */}
+        <Route
+          path="/login"
+          element={
+            isLoggedIn
+              ? <Navigate to="/" replace />
+              : <LoginScreen onLogin={() => setIsLoggedIn(true)} />
+          }
+        />
+
+        <Route path="/signup" element={<SignUpScreen />} />
+        <Route path="/forgotPassword" element={<ForgotPasswordScreen />} />
+
+        {/* 보호 영역 */}
+        <Route element={<PrivateRoute isLoggedIn={isLoggedIn} />}>
+          <Route path="/*" element={<InnerApp onLogout={handleLogout} />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+
   )
 }
-
-export default App

@@ -1,0 +1,164 @@
+import { Card } from "../../../ui/card"
+import { Button } from "../../../ui/button"
+import { Badge } from "../../../ui/badge"
+import { Trophy, Award, RotateCcw, Home } from "lucide-react"
+
+export function BattleResult({
+  myScore,
+  opponentScore,
+  opponentName,
+  onRematch,
+  onBackToDashboard
+}) {
+  const isWin = myScore > opponentScore
+  const isDraw = myScore === opponentScore
+  const xpGained = isWin ? 100 : isDraw ? 50 : 30
+
+  return (
+    <div className="p-8">
+      <div className="max-w-3xl mx-auto">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-4 bg-gradient-to-br from-purple-400 to-pink-400">
+            <Trophy className="w-12 h-12 text-white" />
+          </div>
+
+          <h1 className={`mb-2 ${
+            isWin ? "text-green-600" : isDraw ? "text-yellow-600" : "text-gray-600"
+          }`}>
+            {isWin ? "승리!" : isDraw ? "무승부" : "패배"}
+          </h1>
+
+          <p className="text-gray-600">
+            {isWin
+              ? "축하합니다! 멋진 승리입니다!"
+              : isDraw
+                ? "막상막하의 대결이었습니다!"
+                : "다음엔 더 잘할 수 있을 거예요!"}
+          </p>
+        </div>
+
+        {/* Score */}
+        <Card className="p-8 mb-6 border-2 border-purple-200">
+          <div className="grid grid-cols-2 gap-8 mb-6">
+            <div className="text-center">
+              <div className="text-4xl mb-3">👨‍💻</div>
+              <p className="text-sm text-gray-600 mb-2">나</p>
+
+              <div className={`text-4xl mb-2 ${isWin ? "text-green-600" : "text-gray-800"}`}>
+                {myScore}
+              </div>
+
+              {isWin && (
+                <Badge className="bg-green-500 text-white">
+                  <Trophy className="w-3 h-3 mr-1" /> 승리
+                </Badge>
+              )}
+            </div>
+
+            <div className="text-center">
+              <div className="text-4xl mb-3">🤖</div>
+              <p className="text-sm text-gray-600 mb-2">{opponentName}</p>
+
+              <div className={`text-4xl mb-2 ${
+                !isWin && !isDraw ? "text-red-600" : "text-gray-800"
+              }`}>
+                {opponentScore}
+              </div>
+
+              {!isWin && !isDraw && (
+                <Badge className="bg-red-500 text-white">
+                  <Trophy className="w-3 h-3 mr-1" /> 승리
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full flex">
+              <div
+                className="bg-gradient-to-r from-purple-500 to-pink-500"
+                style={{ width: `${(myScore / (myScore + opponentScore)) * 100}%` }}
+              />
+              <div
+                className="bg-gradient-to-r from-blue-500 to-cyan-500"
+                style={{ width: `${(opponentScore / (myScore + opponentScore)) * 100}%` }}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Rewards */}
+        <Card className="p-6 mb-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+          <div className="flex items-center gap-4 mb-4">
+            <Award className="w-6 h-6 text-purple-600" />
+            <h2 className="text-purple-900">획득 보상</h2>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-white/60 rounded-lg">
+              <div className="text-2xl mb-2">⭐</div>
+              <p className="text-sm text-gray-600 mb-1">XP</p>
+              <p className="text-purple-600">+{xpGained}</p>
+            </div>
+
+            <div className="text-center p-4 bg-white/60 rounded-lg">
+              <div className="text-2xl mb-2">🏆</div>
+              <p className="text-sm text-gray-600 mb-1">랭킹</p>
+              <p className="text-purple-600">{isWin ? "+5" : "-2"}</p>
+            </div>
+
+            <div className="text-center p-4 bg-white/60 rounded-lg">
+              <div className="text-2xl mb-2">📊</div>
+              <p className="text-sm text-gray-600 mb-1">승률</p>
+              <p className="text-purple-600">{isWin ? "+1.2%" : "-0.8%"}</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Stats */}
+        <Card className="p-6 mb-6 border-2 border-purple-200">
+          <div className="flex items-center gap-4 mb-4">
+            <TrendingUp className="w-6 h-6 text-purple-600" />
+            <h3 className="text-purple-900">대전 통계</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+              <span className="text-gray-700">점수 차이</span>
+              <span className="text-gray-800">{Math.abs(myScore - opponentScore)}점</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+              <span className="text-gray-700">정답률</span>
+              <span className="text-gray-800">{Math.round((myScore / 150) * 100)}%</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+              <span className="text-gray-700">배틀 시간</span>
+              <span className="text-gray-800">4분 32초</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <Button
+            onClick={onRematch}
+            variant="outline"
+            className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" /> 재대결
+          </Button>
+
+          <Button
+            onClick={onBackToDashboard}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+          >
+            <Home className="w-4 h-4 mr-2" /> 대전 메뉴로
+          </Button>
+        </div>
+
+      </div>
+    </div>
+  )
+}
