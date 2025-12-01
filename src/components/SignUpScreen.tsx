@@ -593,33 +593,6 @@ export function SignUpScreen() {
                                             나중에 설정에서 변경할 수 있어요
                                         </p>
                                     </div>
-
-                                    {/* 가입 혜택 */}
-                                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border-2 border-purple-200">
-                                        <h3 className="text-purple-900 mb-3 flex items-center gap-2">
-                                            🎁 가입 축하 혜택
-                                        </h3>
-                                        <div className="space-y-2">
-                                            {[
-                                                "7일 무료 프리미엄 체험",
-                                                "1,000 포인트 즉시 지급",
-                                                "AI 해설 무제한 이용",
-                                                "배틀 모드 즉시 참여",
-                                                "커스텀 아바타 아이템 증정"
-                                            ].map((benefit, index) => (
-                                                <motion.div
-                                                    key={index}
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: index * 0.1 }}
-                                                    className="flex items-center gap-2 text-sm text-gray-700"
-                                                >
-                                                    <CheckCircle2 className="w-4 h-4 text-purple-600" />
-                                                    {benefit}
-                                                </motion.div>
-                                            ))}
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 mt-6">
