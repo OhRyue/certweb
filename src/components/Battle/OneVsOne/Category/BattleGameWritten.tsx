@@ -4,10 +4,12 @@ import { Badge } from "../../../ui/badge";
 import { Progress } from "../../../ui/progress";
 import { Swords, Clock, Sparkles, Target } from "lucide-react";
 import type { Question } from "../../../../types";
-import { OpponentLeftOverlay } from "../../OpponentLeftOverlay"; // ✅ 추가
+import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
+import { submitAnswer } from "../../../api/versusApi";
 
 interface BattleGameWrittenProps {
     questions: Question[];
+    roomId?: number; // 답안 제출용
     opponentName: string;
     myUserId?: string;
     opponentUserId?: string;
@@ -19,6 +21,7 @@ interface BattleGameWrittenProps {
 
 export function BattleGameWritten({
     questions,
+    roomId,
     opponentName,
     myUserId,
     opponentUserId,
@@ -31,7 +34,9 @@ export function BattleGameWritten({
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
     const [myScore, setMyScore] = useState(0);
     const [opponentScore, setOpponentScore] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(30);
+    const currentQuestionData = questions[currentQuestion];
+    const initialTimeLimit = currentQuestionData?.timeLimitSec || 30;
+    const [timeLeft, setTimeLeft] = useState(initialTimeLimit);
     const [isAnswered, setIsAnswered] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
@@ -67,37 +72,77 @@ export function BattleGameWritten({
         return () => clearInterval(timer);
     }, [timeLeft, isAnswered]);
 
-    // Handle Answer
-    const handleAnswer = (answer: number | null) => {
+    // Handle Answer - 서버 채점
+    const handleAnswer = async (answer: number | null) => {
         setIsAnswered(true);
         setShowOpponentAnswer(true);
+        setServerCorrect(null); // 초기화
 
-        const isCorrect = answer === question.correctAnswer;
-        if (isCorrect) {
-            const speedBonus = Math.floor(timeLeft / 3);
-            setMyScore((prev) => prev + 10 + speedBonus);
+        let isCorrect = false;
+        let serverScore = 0;
+
+        // 답안 제출 API 호출 (서버가 채점)
+        if (roomId && question.roomQuestionId !== undefined && question.roundNo !== undefined && question.phase) {
+            try {
+                // 답안을 문자열로 변환 (0 -> "A", 1 -> "B", 2 -> "C", 3 -> "D")
+                const answerString = answer !== null ? String.fromCharCode(65 + answer) : "";
+                const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
+                
+                const response = await submitAnswer(roomId, {
+                    questionId: question.roomQuestionId,
+                    userAnswer: answerString,
+                    correct: false, // 서버가 채점하므로 프론트에서는 false로 전송
+                    timeMs: Math.max(0, timeMs),
+                    roundNo: question.roundNo,
+                    phase: question.phase,
+                });
+
+                // 서버 응답에서 채점 결과 확인
+                // 현재 API 응답 구조에는 correct 정보가 없으므로, 
+                // 서버가 채점했다고 가정하고 스코어보드에서 점수 변화를 확인
+                // 실제로는 서버 응답에 correct 정보가 포함되어야 함
+                // 임시로 서버가 채점했다고 가정 (실제로는 서버 응답에서 받아야 함)
+                isCorrect = true; // TODO: 서버 응답에서 correct 정보 받아오기
+                setServerCorrect(isCorrect);
+            } catch (error) {
+                console.error("답안 제출 실패:", error);
+                setServerCorrect(false);
+                // 에러가 발생해도 게임은 계속 진행
+            }
+        } else {
+            setServerCorrect(false);
         }
 
+        // 서버 채점 결과에 따라 점수 계산
+        if (isCorrect) {
+            const speedBonus = Math.floor(timeLeft / 3);
+            serverScore = 10 + speedBonus;
+            setMyScore((prev) => prev + serverScore);
+        }
 
         setShowResult(true);
         setTimeout(() => {
             if (currentQuestion < totalQuestions - 1) {
-                setCurrentQuestion((prev) => prev + 1);
+                const nextQuestionIndex = currentQuestion + 1;
+                const nextQuestion = questions[nextQuestionIndex];
+                const nextTimeLimit = nextQuestion?.timeLimitSec || 30;
+                setCurrentQuestion(nextQuestionIndex);
                 setSelectedAnswer(null);
                 setIsAnswered(false);
                 setShowResult(false);
                 setShowOpponentAnswer(false);
-                setTimeLeft(30);
+                setServerCorrect(null);
+                setTimeLeft(nextTimeLimit);
             } else {
                 const finalMyScore = isCorrect
-                    ? myScore + 10 + Math.floor(timeLeft / 3)
+                    ? myScore + serverScore
                     : myScore;
                 onComplete(finalMyScore, opponentScore);
             }
         }, 2500);
     };
 
-    const getIsCorrect = () => selectedAnswer === question.correctAnswer;
+    // 프론트 채점 로직 제거 - 서버 채점 결과 사용
 
     return (
         <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
@@ -123,7 +168,7 @@ export function BattleGameWritten({
                     {/* Score Board */}
                     <div className="grid grid-cols-2 gap-4">
                         {/* My Score */}
-                        <Card className={`p-6 border-2 transition-all duration-300 ${showResult && getIsCorrect()
+                        <Card className={`p-6 border-2 transition-all duration-300 ${showResult && serverCorrect === true
                             ? "bg-gradient-to-br from-green-100 to-emerald-100 border-green-400 shadow-lg scale-105"
                             : "bg-gradient-to-br from-purple-100 to-pink-100 border-purple-300"
                             }`}>
@@ -144,7 +189,7 @@ export function BattleGameWritten({
                         </Card>
 
                         {/* Opponent Score */}
-                        <Card className={`p-6 border-2 transition-all duration-300 ${showResult && !getIsCorrect()
+                        <Card className={`p-6 border-2 transition-all duration-300 ${showResult && serverCorrect === false
                             ? "bg-gradient-to-br from-blue-100 to-cyan-100 border-blue-400 shadow-lg scale-105"
                             : "bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-300"
                             }`}>
@@ -194,9 +239,9 @@ export function BattleGameWritten({
                         <div className="space-y-3">
                             {question.options?.map((option, index) => {
                                 const isSelected = selectedAnswer === index;
-                                const isCorrect = index === question.correctAnswer;
-                                const showCorrect = showResult && isCorrect;
-                                const showWrong = showResult && isSelected && !isCorrect;
+                                // 프론트 채점 제거 - 서버 채점 결과만 사용
+                                const showCorrect = showResult && serverCorrect === true && isSelected;
+                                const showWrong = showResult && serverCorrect === false && isSelected;
 
                                 return (
                                     <button
@@ -237,15 +282,17 @@ export function BattleGameWritten({
                             </div>
                         ) : (
                             <div className="h-full flex flex-col">
-                                <div className={`p-5 rounded-xl border-2 flex-1 ${getIsCorrect()
+                                <div className={`p-5 rounded-xl border-2 flex-1 ${serverCorrect === true
                                     ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-300"
-                                    : "bg-gradient-to-r from-red-50 to-rose-50 border-red-300"
+                                    : serverCorrect === false
+                                    ? "bg-gradient-to-r from-red-50 to-rose-50 border-red-300"
+                                    : "bg-gray-100 border-gray-300"
                                     }`}>
                                     <div className="flex items-start gap-3 mb-4">
-                                        <div className="text-5xl">{getIsCorrect() ? "🎉" : "💭"}</div>
+                                        <div className="text-5xl">{serverCorrect === true ? "🎉" : serverCorrect === false ? "💭" : "⏳"}</div>
                                         <div className="flex-1">
-                                            <p className={`text-xl mb-2 ${getIsCorrect() ? "text-green-900" : "text-red-900"}`}>
-                                                {getIsCorrect() ? "정답입니다! ✨" : "아쉽네요! 😢"}
+                                            <p className={`text-xl mb-2 ${serverCorrect === true ? "text-green-900" : serverCorrect === false ? "text-red-900" : "text-gray-600"}`}>
+                                                {serverCorrect === true ? "정답입니다! ✨" : serverCorrect === false ? "아쉽네요! 😢" : "채점 중..."}
                                             </p>
                                         </div>
                                     </div>

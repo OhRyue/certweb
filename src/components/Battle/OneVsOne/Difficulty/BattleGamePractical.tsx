@@ -33,7 +33,9 @@ export function BattleGamePractical({
   const [typingAnswer, setTypingAnswer] = useState("");
   const [myScore, setMyScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
+  const currentQuestionData = questions[currentQuestion];
+  const initialTimeLimit = currentQuestionData?.timeLimitSec || 30;
+  const [timeLeft, setTimeLeft] = useState(initialTimeLimit);
   const [isAnswered, setIsAnswered] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
@@ -88,12 +90,15 @@ export function BattleGamePractical({
     setShowResult(true);
     setTimeout(() => {
       if (currentQuestion < totalQuestions - 1) {
-        setCurrentQuestion((prev) => prev + 1);
+        const nextQuestionIndex = currentQuestion + 1;
+        const nextQuestion = questions[nextQuestionIndex];
+        const nextTimeLimit = nextQuestion?.timeLimitSec || 30;
+        setCurrentQuestion(nextQuestionIndex);
         setTypingAnswer("");
         setIsAnswered(false);
         setShowResult(false);
         setShowOpponentAnswer(false);
-        setTimeLeft(30);
+        setTimeLeft(nextTimeLimit);
         setIsCorrect(false);
       } else {
         const finalMyScore = answeredCorrectly

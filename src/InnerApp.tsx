@@ -39,8 +39,10 @@ import { DifficultyMatching } from "./components/Battle/OneVsOne/Difficulty/Diff
 //기타
 import { BattleResult } from "./components/Battle/OneVsOne/Category/BattleResult"
 // 토너먼트
-// import { Tournament } from "./components/Battle/Tournament"
-// import { TournamentBracket } from "./components/Battle/TournamentBracket"
+import { Tournament } from "./components/Battle/Tournament/Tournament"
+import { TournamentBracket } from "./components/Battle/Tournament/TournamentBracket"
+import { TournamentMatching } from "./components/Battle/Tournament/TournamentMatching"
+import { TournamentGameFlow } from "./components/Battle/Tournament/TournamentGameFlow"
 // 골든벨
 import { GoldenBell } from "./components/Battle/Goldenbell/GoldenBell"
 import { GoldenBellGameWrapper } from "./components/Battle/Goldenbell/GoldenBellGameWrapper"
@@ -174,16 +176,22 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
 
           {/* 배틀 */}
           <Route path="/battle" element={<BattleDashboard />} />
+          <Route path="/battle/result" element={<BattleResult />} />
+          
+          {/* 1:1 배틀 */}
           <Route path="/battle/onevsone/dashboard" element={<OneVsOneDashboard />} />
           <Route path="battle/onevsone/category/select" element={<CategoryBattleSelect />} />
           <Route path="/battle/onevsone/category/matching" element={<CategoryMatching />} />
           <Route path="/battle/onevsone/difficulty/start" element={<DifficultyBattleFlow />} />
           <Route path="/battle/onevsone/category/start" element={<BattleFlow />} />
-          <Route path="/battle/result" element={<BattleResult />} />
           <Route path="battle/onevsone/difficulty/select" element={<DifficultyBattleSelect />} />
           <Route path="battle/onevsone/difficulty/matching" element={<DifficultyMatching />} />
-          {/* <Route path="/battle/tournament" element={<Tournament />} /> */}
-          {/* <Route path="/battle/tournament/bracket" element={<TournamentBracket />} /> */}
+          {/* 토너먼트 */}
+          <Route path="/battle/tournament" element={<Tournament />} />
+          <Route path="/battle/tournament/matching" element={<TournamentMatching />} />
+          <Route path="/battle/tournament/game/practical" element={<TournamentGameFlow />} />
+          <Route path="/battle/tournament/game/written" element={<TournamentGameFlow />} />
+          <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
           <Route path="/battle/goldenbell" element={<GoldenBell />} />
           <Route
             path="/battle/goldenbell/game/:sessionId"

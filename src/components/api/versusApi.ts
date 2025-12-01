@@ -19,6 +19,13 @@ export interface MatchRequestParams {
   examMode: ExamMode;
 }
 
+// 토너먼트 매칭 요청 파라미터
+export interface TournamentMatchRequestParams {
+  mode: "TOURNAMENT";
+  certId: string;
+  examMode: ExamMode;
+}
+
 // 매칭 요청 응답
 export interface MatchRequestResponse {
   matchId: string;
@@ -40,6 +47,16 @@ export interface MatchRequestResponse {
  */
 export async function requestMatch(params: MatchRequestParams): Promise<MatchRequestResponse> {
   const response = await axios.post<MatchRequestResponse>("/versus/match/request", params);
+  return response.data;
+}
+
+/**
+ * 토너먼트 매칭 요청
+ * @param params 토너먼트 매칭 요청 파라미터
+ * @returns 매칭 상태 응답 데이터
+ */
+export async function requestTournamentMatch(params: TournamentMatchRequestParams): Promise<MatchStatusResponse> {
+  const response = await axios.post<MatchStatusResponse>("/versus/match/request", params);
   return response.data;
 }
 
@@ -252,5 +269,33 @@ export async function getRoomQuestions(roomId: number): Promise<RoomQuestion[]> 
   const response = await axios.get<RoomQuestion[]>(`/versus/rooms/${roomId}/questions`);
   // order 기준으로 정렬하여 반환
   return response.data.sort((a, b) => a.order - b.order);
+}
+
+// 답안 제출 요청 파라미터
+export interface SubmitAnswerParams {
+  questionId: number;
+  userAnswer: string; // 반드시 제공 (예: "A", "B", "C", "D")
+  correct: boolean;
+  timeMs: number; // 소요 시간 (밀리초)
+  roundNo: number;
+  phase: "MAIN";
+}
+
+// 답안 제출 응답
+export interface SubmitAnswerResponse {
+  roomId: number;
+  status: string;
+  items: ScoreboardItem[];
+}
+
+/**
+ * 답안 제출
+ * @param roomId 방 ID
+ * @param params 답안 제출 파라미터
+ * @returns 스코어보드 응답 데이터
+ */
+export async function submitAnswer(roomId: number, params: SubmitAnswerParams): Promise<SubmitAnswerResponse> {
+  const response = await axios.post<SubmitAnswerResponse>(`/versus/rooms/${roomId}/answers`, params);
+  return response.data;
 }
 
