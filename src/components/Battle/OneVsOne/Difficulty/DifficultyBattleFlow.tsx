@@ -5,6 +5,8 @@ import { BattleGamePractical } from "./BattleGamePractical"
 import { BattleResult } from "./BattleResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
 import { questions as allQuestions } from "../../../../data/mockData"
+import { getRoomDetail, getSavedRoomId } from "../../../api/versusApi"
+import axios from "../../../api/axiosConfig"
 import type { Question } from "../../../../types"
 
 type ExamType = "written" | "practical"
@@ -15,16 +17,63 @@ export function DifficultyBattleFlow() {
   const { state } = useLocation() as {
     state?: {
       opponentName?: string
+      opponentId?: string
+      myUserId?: string
+      roomId?: number
       difficulty?: "easy" | "medium" | "hard"
       examType?: ExamType
       questionCount?: number
     }
   }
 
-  const opponentName = state?.opponentName ?? "상대"
+  const [myUserId, setMyUserId] = useState<string | null>(state?.myUserId || null)
+  const [opponentUserId, setOpponentUserId] = useState<string | null>(state?.opponentId || null)
+  const [myRank, setMyRank] = useState<number | null>(null)
+  const [opponentRank, setOpponentRank] = useState<number | null>(null)
+
+  const opponentName = opponentUserId || state?.opponentName || "상대"
   const difficulty = state?.difficulty ?? "medium"
   const examType: ExamType = state?.examType ?? "written"
   const questionCount = state?.questionCount ?? 20
+  const roomId = state?.roomId || getSavedRoomId()
+
+  // 방 정보 조회하여 참가자 정보 가져오기
+  useEffect(() => {
+    const fetchRoomInfo = async () => {
+      if (!roomId) return
+
+      try {
+        const roomDetail = await getRoomDetail(roomId)
+        
+        // 현재 사용자 정보 가져오기
+        if (!myUserId) {
+          const profileRes = await axios.get("/account/profile")
+          const currentUserId = profileRes.data.userId || profileRes.data.id
+          setMyUserId(currentUserId)
+        }
+
+        const currentUserId = myUserId || state?.myUserId
+        if (!currentUserId) return
+
+        // 참가자 목록에서 자신과 상대 구분
+        const myParticipant = roomDetail.participants.find(p => p.userId === currentUserId)
+        const opponentParticipant = roomDetail.participants.find(p => p.userId !== currentUserId)
+
+        if (myParticipant) {
+          setMyRank(myParticipant.rank)
+        }
+
+        if (opponentParticipant) {
+          setOpponentUserId(opponentParticipant.userId)
+          setOpponentRank(opponentParticipant.rank)
+        }
+      } catch (err) {
+        console.error("방 정보 조회 실패", err)
+      }
+    }
+
+    fetchRoomInfo()
+  }, [roomId, myUserId, state?.myUserId])
 
   useEffect(() => {
     if (!state) navigate("/battle/onevsone/difficulty/matching")
@@ -56,6 +105,10 @@ export function DifficultyBattleFlow() {
       <GameComponent
         questions={filtered}
         opponentName={opponentName}
+        myUserId={myUserId || undefined}
+        opponentUserId={opponentUserId || undefined}
+        myRank={myRank}
+        opponentRank={opponentRank}
         onComplete={(me, opp) => {
           setMyScore(me)
           setOpponentScore(opp)

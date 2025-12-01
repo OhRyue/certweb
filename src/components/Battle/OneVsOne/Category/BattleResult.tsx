@@ -12,7 +12,6 @@ export function BattleResult({
 }) {
   const isWin = myScore > opponentScore;
   const isDraw = myScore === opponentScore;
-  const xpGained = isWin ? 100 : isDraw ? 50 : 30;
 
   return (
     <div className="p-8">
@@ -86,54 +85,6 @@ export function BattleResult({
           </div>
         </Card>
 
-        {/* Rewards */}
-        <Card className="p-6 mb-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
-          <div className="flex items-center gap-4 mb-4">
-            <Award className="w-6 h-6 text-purple-600" />
-            <h2 className="text-purple-900">획득 보상</h2>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-white/60 rounded-lg">
-              <div className="text-2xl mb-2">⭐</div>
-              <p className="text-sm text-gray-600 mb-1">XP</p>
-              <p className="text-purple-600">+{xpGained}</p>
-            </div>
-            <div className="text-center p-4 bg-white/60 rounded-lg">
-              <div className="text-2xl mb-2">🏆</div>
-              <p className="text-sm text-gray-600 mb-1">랭킹</p>
-              <p className="text-purple-600">{isWin ? "+5" : "-2"}</p>
-            </div>
-            <div className="text-center p-4 bg-white/60 rounded-lg">
-              <div className="text-2xl mb-2">📊</div>
-              <p className="text-sm text-gray-600 mb-1">승률</p>
-              <p className="text-purple-600">{isWin ? "+1.2%" : "-0.8%"}</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Stats */}
-        <Card className="p-6 mb-6 border-2 border-purple-200">
-          <div className="flex items-center gap-4 mb-4">
-            <TrendingUp className="w-6 h-6 text-purple-600" />
-            <h3 className="text-purple-900">대전 통계</h3>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-              <span className="text-gray-700">점수 차이</span>
-              <span className="text-gray-800">{Math.abs(myScore - opponentScore)}점</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-              <span className="text-gray-700">정답률</span>
-              <span className="text-gray-800">{Math.round((myScore / 150) * 100)}%</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-              <span className="text-gray-700">배틀 시간</span>
-              <span className="text-gray-800">4분 32초</span>
-            </div>
-          </div>
-        </Card>
 
         {/* Actions */}
         <div className="grid grid-cols-2 gap-4">

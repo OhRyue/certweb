@@ -10,23 +10,15 @@ interface TournamentBracketProps {
 }
 
 export function TournamentBracket({ tournamentId, onStartMatch, onBack }: TournamentBracketProps) {
-  const bracket = {
-    name: "데이터베이스 마스터 토너먼트",
-    currentRound: "8강",
-    quarterFinals: [
-      { id: "q1", player1: "공부왕", player2: "코딩마스터", winner: "공부왕", score: "80 - 65" },
-      { id: "q2", player1: "DB전문가", player2: "알고킹", winner: null, score: null },
-      { id: "q3", player1: "네트워크천재", player2: "OOP마스터", winner: "네트워크천재", score: "75 - 70" },
-      { id: "q4", player1: "SQL고수", player2: "정규화왕", winner: "정규화왕", score: "85 - 60" },
-    ],
-    semiFinals: [
-      { id: "s1", player1: "공부왕", player2: "TBD", winner: null, score: null },
-      { id: "s2", player1: "네트워크천재", player2: "정규화왕", winner: null, score: null },
-    ],
+  const bracket: any = {
+    name: "",
+    currentRound: "",
+    quarterFinals: [],
+    semiFinals: [],
     finals: {
-      id: "f1",
-      player1: "TBD",
-      player2: "TBD",
+      id: "",
+      player1: "",
+      player2: "",
       winner: null,
       score: null,
     },
@@ -154,18 +146,7 @@ export function TournamentBracket({ tournamentId, onStartMatch, onBack }: Tourna
               <h3 className="text-orange-900">참가자 정보</h3>
             </div>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">총 참가자</span>
-                <span className="text-gray-800">8명</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">남은 참가자</span>
-                <span className="text-gray-800">5명</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">내 순위</span>
-                <span className="text-orange-600">8강 진출</span>
-              </div>
+              {/* TODO: 실제 데이터로 대체 필요 */}
             </div>
           </Card>
 
@@ -175,24 +156,7 @@ export function TournamentBracket({ tournamentId, onStartMatch, onBack }: Tourna
               <h3 className="text-purple-900">우승 보상</h3>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🥇</span>
-                <div className="text-sm">
-                  <p className="text-gray-800">1위: 1000 XP + 골드 뱃지</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🥈</span>
-                <div className="text-sm">
-                  <p className="text-gray-800">2위: 500 XP + 실버 뱃지</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🥉</span>
-                <div className="text-sm">
-                  <p className="text-gray-800">3-4위: 250 XP</p>
-                </div>
-              </div>
+              {/* TODO: 실제 보상 데이터로 대체 필요 */}
             </div>
           </Card>
         </div>

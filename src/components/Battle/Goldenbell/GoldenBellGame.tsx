@@ -16,14 +16,8 @@ interface GoldenBellGameProps {
   onExit: () => void;
 }
 
-// Mock questions
-const mockQuestions = [
-  { question: "데이터베이스 정규화의 목적은 데이터 중복을 제거하는 것이다", answer: "O", type: "ox" as const },
-  { question: "Primary Key는 NULL 값을 가질 수 있다", answer: "X", type: "ox" as const },
-  { question: "SQL에서 데이터를 조회하는 명령어는?", answer: "SELECT", type: "short" as const },
-  { question: "하나의 엔티티가 다른 엔티티와 관계를 맺는 최대 개수를 의미하는 용어는?", answer: "카디널리티", type: "short" as const },
-  { question: "인덱스를 과도하게 사용하면 성능이 저하될 수 있다", answer: "O", type: "ox" as const },
-];
+// TODO: 실제 문제 데이터로 대체 필요
+const mockQuestions: any[] = [];
 
 export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,9 +34,9 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
   const [showFeedback, setShowFeedback] = useState(false);
   const [countdown, setCountdown] = useState(3);
 
-  const currentQuestion = mockQuestions[currentQuestionIndex];
+  const currentQuestion = mockQuestions[currentQuestionIndex] || null;
   const survivorsCount = characters.filter(c => c.status !== "eliminated").length;
-  const maxTime = currentQuestion?.type === "ox" ? 10 : 15;
+  const maxTime = currentQuestion?.type === "ox" ? 10 : currentQuestion?.type === "short" ? 15 : 10;
 
   // Initialize characters in 8x2 grid
   useEffect(() => {
@@ -487,7 +481,7 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
 
             {/* Question Modal Overlay - Layer 4 */}
             <AnimatePresence mode="wait">
-              {gameStage === "answering" && currentQuestion && (
+              {gameStage === "answering" && currentQuestion && currentQuestion.question && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}

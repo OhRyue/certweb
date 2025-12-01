@@ -9,51 +9,8 @@ interface TournamentProps {
 }
 
 export function Tournament({ onJoin, onBack }: TournamentProps) {
-  const availableTournaments = [
-    {
-      id: "t1",
-      name: "데이터베이스 마스터 토너먼트",
-      category: "데이터베이스",
-      difficulty: "보통",
-      participants: 6,
-      maxParticipants: 8,
-      prize: "1000 XP + 골드 뱃지",
-      startTime: "10분 후",
-      status: "모집중",
-    },
-    {
-      id: "t2",
-      name: "네트워크 챌린지",
-      category: "네트워크",
-      difficulty: "어려움",
-      participants: 8,
-      maxParticipants: 8,
-      prize: "2000 XP + 플래티넘 뱃지",
-      startTime: "진행중",
-      status: "진행중",
-    },
-    {
-      id: "t3",
-      name: "초보자 환영 토너먼트",
-      category: "전체",
-      difficulty: "쉬움",
-      participants: 3,
-      maxParticipants: 8,
-      prize: "500 XP + 브론즈 뱃지",
-      startTime: "30분 후",
-      status: "모집중",
-    },
-  ];
-
-  const myTournaments = [
-    {
-      id: "mt1",
-      name: "OOP 마스터 토너먼트",
-      round: "4강",
-      nextMatch: "5분 후",
-      status: "대기중",
-    },
-  ];
+  const availableTournaments: any[] = [];
+  const myTournaments: any[] = [];
 
   return (
     <div className="p-8">

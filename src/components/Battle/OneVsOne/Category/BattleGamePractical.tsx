@@ -11,6 +11,10 @@ import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
 interface BattleGamePracticalProps {
   questions: Question[];
   opponentName: string;
+  myUserId?: string;
+  opponentUserId?: string;
+  myRank?: number | null;
+  opponentRank?: number | null;
   onComplete: (myScore: number, opponentScore: number) => void;
   onExit: () => void;
 }
@@ -18,6 +22,10 @@ interface BattleGamePracticalProps {
 export function BattleGamePractical({
   questions,
   opponentName,
+  myUserId,
+  opponentUserId,
+  myRank,
+  opponentRank,
   onComplete,
   onExit,
 }: BattleGamePracticalProps) {
@@ -67,7 +75,8 @@ export function BattleGamePractical({
     setIsAnswered(true);
     setShowOpponentAnswer(true);
 
-    const answeredCorrectly = typingAnswer.trim().length > 0 && Math.random() > 0.3;
+    // TODO: 실제 채점 로직으로 대체 필요
+    const answeredCorrectly = typingAnswer.trim().length > 0;
     setIsCorrect(answeredCorrectly);
 
     if (answeredCorrectly) {
@@ -75,12 +84,6 @@ export function BattleGamePractical({
       setMyScore((prev) => prev + 10 + speedBonus);
     }
 
-    const opponentCorrect = Math.random() > 0.3;
-    const opponentTime = Math.floor(Math.random() * 25) + 5;
-    if (opponentCorrect) {
-      const opponentSpeedBonus = Math.floor(opponentTime / 3);
-      setOpponentScore((prev) => prev + 10 + opponentSpeedBonus);
-    }
 
     setShowResult(true);
     setTimeout(() => {
@@ -96,10 +99,7 @@ export function BattleGamePractical({
         const finalMyScore = answeredCorrectly
           ? myScore + 10 + Math.floor(timeLeft / 3)
           : myScore;
-        const finalOpponentScore = opponentCorrect
-          ? opponentScore + 10 + Math.floor(opponentTime / 3)
-          : opponentScore;
-        onComplete(finalMyScore, finalOpponentScore);
+        onComplete(finalMyScore, opponentScore);
       }
     }, 2500);
   };
@@ -137,7 +137,10 @@ export function BattleGamePractical({
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm text-gray-700">나</p>
+                  <p className="text-sm text-gray-700 font-semibold">{myUserId || "나"}</p>
+                  {myRank !== null && myRank !== undefined && (
+                    <p className="text-xs text-purple-600">순위: {myRank}위</p>
+                  )}
                   <p className="text-3xl text-purple-700">{myScore}점</p>
                 </div>
                 <div className="text-5xl">👨‍💻</div>
@@ -156,7 +159,10 @@ export function BattleGamePractical({
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm text-gray-700 mb-1">{opponentName}</p>
+                  <p className="text-sm text-gray-700 mb-1 font-semibold">{opponentUserId || opponentName}</p>
+                  {opponentRank !== null && opponentRank !== undefined && (
+                    <p className="text-xs text-blue-600">순위: {opponentRank}위</p>
+                  )}
                   <p className="text-3xl text-blue-700">{opponentScore}점</p>
                 </div>
                 <div className="text-5xl relative">

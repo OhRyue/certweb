@@ -6,36 +6,8 @@ import { useNavigate } from "react-router-dom";
 
 export function GoldenBell() {
   const navigate = useNavigate()
-  const activeSessions = [
-    {
-      id: "g1",
-      name: "정보처리기사 골든벨",
-      category: "정보처리기사",
-      participants: 18,
-      maxParticipants: 20,
-      currentRound: "대기중",
-      prize: "5000 XP + 골든벨 뱃지",
-      startTime: "5분 후",
-      status: "모집중",
-    },
-    {
-      id: "g2",
-      name: "데이터베이스 골든벨",
-      category: "데이터베이스",
-      participants: 20,
-      maxParticipants: 20,
-      currentRound: "OX 라운드 (12명 생존)",
-      prize: "3000 XP + 실버 뱃지",
-      startTime: "진행중",
-      status: "진행중",
-    },
-  ];
-
-  const myRecords = [
-    { rank: 2, participants: 20, category: "네트워크", date: "2025-10-20" },
-    { rank: 5, participants: 20, category: "OOP", date: "2025-10-18" },
-    { rank: 1, participants: 20, category: "데이터베이스", date: "2025-10-15" },
-  ];
+  const activeSessions: any[] = [];
+  const myRecords: any[] = [];
 
   return (
     <div className="p-8">

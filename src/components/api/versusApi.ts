@@ -1,0 +1,256 @@
+import axios from "./axiosConfig";
+
+// 매칭 모드 타입
+export type MatchingMode = "CATEGORY" | "DIFFICULTY";
+
+// 시험 모드 타입
+export type ExamMode = "WRITTEN" | "PRACTICAL";
+
+// 난이도 타입
+export type Difficulty = "EASY" | "NORMAL" | "HARD";
+
+// 매칭 요청 파라미터
+export interface MatchRequestParams {
+  mode: "DUEL";
+  certId: string;
+  matchingMode: MatchingMode;
+  topicId?: number; // CATEGORY 모드일 때 필수
+  difficulty?: Difficulty; // DIFFICULTY 모드일 때 필수
+  examMode: ExamMode;
+}
+
+// 매칭 요청 응답
+export interface MatchRequestResponse {
+  matchId: string;
+  status: "WAITING" | "MATCHED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  opponent?: {
+    userId: string;
+    nickname: string;
+    avatarUrl?: string;
+    level?: number;
+  };
+  roomId?: string;
+  createdAt: string;
+}
+
+/**
+ * 1:1 배틀 매칭 요청
+ * @param params 매칭 요청 파라미터
+ * @returns 매칭 요청 응답 데이터
+ */
+export async function requestMatch(params: MatchRequestParams): Promise<MatchRequestResponse> {
+  const response = await axios.post<MatchRequestResponse>("/versus/match/request", params);
+  return response.data;
+}
+
+// 매칭 상태 조회 응답 (현재 사용자의 매칭 상태)
+export interface MatchStatusResponse {
+  matching: boolean;
+  roomId: number | null;
+  waitingCount: number;
+  startedAt?: string;
+}
+
+/**
+ * 매칭 상태 조회 (현재 사용자의 매칭 상태)
+ * @returns 매칭 상태 응답 데이터
+ */
+export async function getMatchStatus(): Promise<MatchStatusResponse> {
+  const response = await axios.get<MatchStatusResponse>("/versus/match/status");
+  return response.data;
+}
+
+/**
+ * 매칭 상태 조회 (matchId 기반 - 레거시 지원)
+ * @param matchId 매칭 ID
+ * @returns 매칭 상태 응답 데이터
+ */
+export async function getMatchStatusById(matchId: string): Promise<MatchRequestResponse> {
+  const response = await axios.get<MatchRequestResponse>(`/versus/match/${matchId}`);
+  return response.data;
+}
+
+// 봇 매칭 요청 파라미터
+export interface BotMatchParams {
+  examMode: ExamMode;
+  scopeType: MatchingMode;
+  topicId?: number; // CATEGORY 모드일 때 필수
+  difficulty?: Difficulty; // DIFFICULTY 모드일 때 필수
+}
+
+// 봇 매칭 응답
+export interface BotMatchResponse {
+  roomId: number;
+  myUserId: string;
+  botUserId: string;
+  botNickname: string;
+  scopeJson: string;
+}
+
+/**
+ * 봇과 매칭
+ * @param params 봇 매칭 요청 파라미터
+ * @returns 봇 매칭 응답 데이터
+ */
+export async function matchWithBot(params: BotMatchParams): Promise<BotMatchResponse> {
+  // 쿼리 파라미터로 전달
+  const queryParams: Record<string, string | number> = {
+    examMode: params.examMode,
+    scopeType: params.scopeType,
+  };
+  
+  if (params.topicId !== undefined) {
+    queryParams.topicId = params.topicId;
+  }
+  
+  if (params.difficulty !== undefined) {
+    queryParams.difficulty = params.difficulty;
+  }
+  
+  const response = await axios.post<BotMatchResponse>("/versus/match/duel/bot", null, {
+    params: queryParams,
+  });
+  return response.data;
+}
+
+// 방 참가자 정보
+export interface RoomParticipant {
+  userId: string;
+  finalScore: number;
+  rank: number;
+  alive: boolean;
+  revived: boolean;
+  joinedAt: string;
+}
+
+// 방 문제 정보
+export interface RoomQuestion {
+  questionId: number;
+  roundNo: number;
+  phase: "MAIN";
+  order: number;
+  timeLimitSec: number;
+}
+
+// 스코어보드 항목
+export interface ScoreboardItem {
+  userId: string;
+  correctCount: number;
+  totalCount: number;
+  score: number;
+  totalTimeMs: number;
+  rank: number;
+  alive: boolean;
+  revived: boolean;
+}
+
+// 스코어보드
+export interface Scoreboard {
+  roomId: number;
+  status: string;
+  items: ScoreboardItem[];
+}
+
+// 방 정보
+export interface RoomInfo {
+  roomId: number;
+  mode: "DUEL";
+  status: "WAIT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  participantCount: number;
+  createdAt: string;
+}
+
+// 방 정보 조회 응답
+export interface RoomDetailResponse {
+  room: RoomInfo;
+  participants: RoomParticipant[];
+  questions: RoomQuestion[];
+  tournamentBracketJson: string;
+  goldenbellRuleJson: string;
+  scoreboard: Scoreboard;
+}
+
+/**
+ * 방 정보 조회
+ * @param roomId 방 ID
+ * @returns 방 정보 응답 데이터
+ */
+export async function getRoomDetail(roomId: number): Promise<RoomDetailResponse> {
+  const response = await axios.get<RoomDetailResponse>(`/versus/rooms/${roomId}`);
+  return response.data;
+}
+
+/**
+ * roomId를 localStorage에 저장
+ * @param roomId 방 ID
+ */
+export function saveRoomId(roomId: number): void {
+  localStorage.setItem("currentRoomId", String(roomId));
+}
+
+/**
+ * localStorage에서 roomId 가져오기
+ * @returns 방 ID 또는 null
+ */
+export function getSavedRoomId(): number | null {
+  const roomId = localStorage.getItem("currentRoomId");
+  return roomId ? Number(roomId) : null;
+}
+
+/**
+ * localStorage에서 roomId 제거
+ */
+export function clearRoomId(): void {
+  localStorage.removeItem("currentRoomId");
+}
+
+// 타임라인 이벤트
+export interface TimelineEvent {
+  type: string;
+  occurredAt: string;
+  payload: Record<string, unknown>;
+}
+
+// 실시간 스냅샷
+export interface RealtimeSnapshot {
+  scoreboard: Scoreboard;
+  activeRound: number;
+  activePhase: "MAIN" | string;
+  updatedAt: string;
+}
+
+// 방 상태 조회 응답
+export interface RoomStateResponse {
+  detail: RoomDetailResponse;
+  timeline: TimelineEvent[];
+  realtime: RealtimeSnapshot;
+}
+
+/**
+ * 방 상태 조회 (상세 정보 + 타임라인 + 실시간 스냅샷)
+ * 1초 폴링으로 사용하여 실시간 상태를 갱신할 수 있습니다.
+ * @param roomId 방 ID
+ * @param limit 타임라인 이벤트 조회 개수 (기본값: 50)
+ * @returns 방 상태 응답 데이터
+ */
+export async function getRoomState(roomId: number, limit: number = 50): Promise<RoomStateResponse> {
+  const response = await axios.get<RoomStateResponse>(`/versus/rooms/${roomId}/state`, {
+    params: {
+      limit,
+    },
+  });
+  return response.data;
+}
+
+/**
+ * 방의 문제 목록 조회
+ * order 기준으로 정렬하여 문제 진행 순서를 관리할 수 있습니다.
+ * @param roomId 방 ID
+ * @returns 문제 목록 (order 기준 정렬됨)
+ */
+export async function getRoomQuestions(roomId: number): Promise<RoomQuestion[]> {
+  const response = await axios.get<RoomQuestion[]>(`/versus/rooms/${roomId}/questions`);
+  // order 기준으로 정렬하여 반환
+  return response.data.sort((a, b) => a.order - b.order);
+}
+

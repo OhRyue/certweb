@@ -1,29 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { requestMatch, getMatchStatus, saveRoomId, getRoomDetail, type MatchRequestResponse, type MatchStatusResponse } from "../../../api/versusApi";
+import axios from "../../../api/axiosConfig";
 
-// 가능한 상대 목록 (Mock)
-const potentialOpponents = [
-  { id: "opp1", name: "코딩마스터", level: 12, avatar: "👨‍💻", winRate: 75 },
-  { id: "opp2", name: "알고킹", level: 10, avatar: "🧑‍🎓", winRate: 68 },
-  { id: "opp3", name: "DB전문가", level: 15, avatar: "👩‍💼", winRate: 82 },
-  { id: "opp4", name: "네트워크천재", level: 8, avatar: "🤓", winRate: 71 },
-  { id: "opp5", name: "OOP마스터", level: 11, avatar: "👨‍🔬", winRate: 77 },
-  { id: "opp6", name: "SQL마법사", level: 13, avatar: "🧙", winRate: 79 },
-  { id: "opp7", name: "자바킹", level: 9, avatar: "👑", winRate: 72 },
-  { id: "opp8", name: "파이썬러버", level: 14, avatar: "🐍", winRate: 85 },
-];
+interface ParticipantInfo {
+  userId: string;
+  nickname?: string;
+  avatar?: string;
+  level?: number;
+  score?: number;
+  rank?: number | null;
+}
 
 export function DifficultyMatching() {
   const [matchingProgress, setMatchingProgress] = useState(0);
   const [step, setStep] = useState<"matching" | "matched">("matching");
-  const [matchedOpponent, setMatchedOpponent] = useState<any>(null);
+  const [matchedOpponent, setMatchedOpponent] = useState<ParticipantInfo | null>(null);
+  const [myInfo, setMyInfo] = useState<ParticipantInfo | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const location = useLocation() as any   // 임시
-  const { topicName, difficulty } = location.state || { topicName: "미정", difficulty: "medium" }
+  const location = useLocation() as any;
+  const { difficulty, examType } = location.state || { 
+    difficulty: "medium", 
+    examType: "written" 
+  };
+  
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 난이도 변환 (프론트엔드 -> 백엔드)
+  const convertDifficulty = (diff: string): "EASY" | "NORMAL" | "HARD" => {
+    switch (diff) {
+      case "easy": return "EASY";
+      case "medium": return "NORMAL";
+      case "hard": return "HARD";
+      default: return "NORMAL";
+    }
+  };
+
+  // 시험 모드 변환 (프론트엔드 -> 백엔드)
+  const convertExamMode = (mode: string): "WRITTEN" | "PRACTICAL" => {
+    return mode === "practical" ? "PRACTICAL" : "WRITTEN";
+  };
 
   const getDifficultyColor = (diff: string) => {
     switch (diff) {
@@ -43,45 +66,171 @@ export function DifficultyMatching() {
     }
   };
 
-  // 매칭 시뮬레이션
+  // 매칭 요청 및 폴링
   useEffect(() => {
-    setMatchingProgress(0);
+    let isMounted = true;
 
-    // 진행 상태 애니메이션
-    const progressInterval = setInterval(() => {
-      setMatchingProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
-        }
-        return prev + Math.random() * 15 + 5;
-      });
-    }, 200);
+    const startMatching = async () => {
+      try {
+        // 1. certId 가져오기
+        const goalRes = await axios.get("/account/goal");
+        const certId = String(goalRes.data.certId);
 
-    // 2-4초 후 매칭 완료
-    const matchTimeout = setTimeout(() => {
-      const randomOpponent = potentialOpponents[Math.floor(Math.random() * potentialOpponents.length)];
-      setMatchedOpponent(randomOpponent);
-      setStep("matched");
-
-      // 1.5초 후 자동으로 게임 시작
-      setTimeout(() => {
-        navigate("/battle/onevsone/difficulty/start", {
-          state: {
-            opponentName: randomOpponent.name,
-            topicName: topicName,   // topicId 대신 topicName 사용
-            difficulty: difficulty, // 그대로 전달
-            examType: "practical"    // 나중에 필기/실기 구분할 거면 변경 가능
-          }
+        // 2. 매칭 요청
+        const matchResponse = await requestMatch({
+          mode: "DUEL",
+          certId: certId,
+          matchingMode: "DIFFICULTY",
+          difficulty: convertDifficulty(difficulty),
+          examMode: convertExamMode(examType),
         });
-      }, 1500);
-    }, Math.random() * 2000 + 2000);
+
+        if (!isMounted) return;
+
+        setMatchId(matchResponse.matchId);
+
+        // 3. 진행 상태 애니메이션 시작
+        progressIntervalRef.current = setInterval(() => {
+          setMatchingProgress(prev => {
+            if (prev >= 95) {
+              return 95; // 100%는 매칭 완료 시에만
+            }
+            return prev + Math.random() * 10 + 2;
+          });
+        }, 200);
+
+        // 4. 폴링 시작 (대기 상태: 2초)
+        const pollInterval = 2000; // 2초
+        pollingIntervalRef.current = setInterval(async () => {
+          try {
+            const statusResponse = await getMatchStatus();
+            
+            if (!isMounted) return;
+
+            if (statusResponse.roomId !== null) {
+              // 매칭 완료 → 방 정보 조회
+              if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+              }
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+              }
+              
+              // roomId 저장
+              saveRoomId(statusResponse.roomId);
+              
+              try {
+                // 방 정보 조회하여 참가자 정보 가져오기
+                const roomDetail = await getRoomDetail(statusResponse.roomId);
+                
+                // 현재 사용자 정보 가져오기
+                const profileRes = await axios.get("/account/profile");
+                const myUserId = profileRes.data.userId || profileRes.data.id;
+                
+                // 참가자 목록에서 자신과 상대 구분
+                const myParticipant = roomDetail.participants.find(p => p.userId === myUserId);
+                const opponentParticipant = roomDetail.participants.find(p => p.userId !== myUserId);
+                
+                if (myParticipant) {
+                  setMyInfo({
+                    userId: myParticipant.userId,
+                    score: myParticipant.finalScore ?? 0,
+                    rank: myParticipant.rank,
+                  });
+                }
+                
+                if (opponentParticipant) {
+                  setMatchedOpponent({
+                    userId: opponentParticipant.userId,
+                    score: opponentParticipant.finalScore ?? 0,
+                    rank: opponentParticipant.rank,
+                  });
+                }
+                
+                setMatchingProgress(100);
+                setStep("matched");
+
+                // 1.5초 후 자동으로 게임 시작
+                setTimeout(() => {
+                  if (isMounted) {
+                    navigate("/battle/onevsone/difficulty/start", {
+                      state: {
+                        matchId: matchResponse.matchId,
+                        roomId: statusResponse.roomId,
+                        difficulty: difficulty,
+                        examType: examType,
+                        startedAt: statusResponse.startedAt,
+                        opponentId: opponentParticipant?.userId,
+                        myUserId: myUserId,
+                      }
+                    });
+                  }
+                }, 1500);
+              } catch (err: any) {
+                console.error("방 정보 조회 실패", err);
+                // 방 정보 조회 실패해도 기본 정보로 진행
+                setMatchingProgress(100);
+                setStep("matched");
+                
+                setTimeout(() => {
+                  if (isMounted) {
+                    navigate("/battle/onevsone/difficulty/start", {
+                      state: {
+                        matchId: matchResponse.matchId,
+                        roomId: statusResponse.roomId,
+                        difficulty: difficulty,
+                        examType: examType,
+                        startedAt: statusResponse.startedAt,
+                      }
+                    });
+                  }
+                }, 1500);
+              }
+            } else if (!statusResponse.matching) {
+              // 매칭 없음 (취소/만료 등) → UI 정리
+              if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+              }
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+              }
+              setError("매칭이 취소되었거나 만료되었습니다.");
+            }
+            // statusResponse.matching === true 이면 계속 폴링
+          } catch (err: any) {
+            console.error("매칭 상태 조회 실패", err);
+            if (err.response?.status === 404 || err.response?.status === 400) {
+              // 매칭이 취소되었거나 만료됨
+              if (progressIntervalRef.current) {
+                clearInterval(progressIntervalRef.current);
+              }
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+              }
+              setError("매칭이 만료되었습니다. 다시 시도해주세요.");
+            }
+          }
+        }, pollInterval);
+      } catch (err: any) {
+        console.error("매칭 요청 실패", err);
+        if (isMounted) {
+          setError(err.response?.data?.message || "매칭 요청에 실패했습니다.");
+        }
+      }
+    };
+
+    startMatching();
 
     return () => {
-      clearInterval(progressInterval);
-      clearTimeout(matchTimeout);
+      isMounted = false;
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
     };
-  }, []);
+  }, [difficulty, examType, navigate]);
 
   // Matching Step
   if (step === "matching") {
@@ -105,17 +254,26 @@ export function DifficultyMatching() {
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 mb-6 border border-purple-100">
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">토픽</span>
-                    <span className="text-gray-900">{topicName}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
                     <span className="text-gray-600">난이도</span>
                     <span className={getDifficultyColor(difficulty)}>
                       {getDifficultyLabel(difficulty)}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">시험 유형</span>
+                    <span className="text-gray-900">
+                      {examType === "written" ? "📝 필기" : "💻 실기"}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* 에러 메시지 */}
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {error}
+                </div>
+              )}
 
               {/* 프로그레스 바 */}
               <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
@@ -142,16 +300,6 @@ export function DifficultyMatching() {
                 </motion.p>
               </div>
 
-              {/* 온라인 사용자 수 */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-500"
-              >
-                <Users className="w-4 h-4" />
-                <span>현재 {Math.floor(Math.random() * 100) + 50}명 온라인</span>
-              </motion.div>
             </Card>
           </motion.div>
         </div>
@@ -189,8 +337,16 @@ export function DifficultyMatching() {
                   <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-4xl mb-2">
                     👨‍💻
                   </div>
-                  <p className="text-sm text-gray-900">나</p>
-                  <p className="text-xs text-gray-600">Level 5</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {myInfo?.userId || "나"}
+                  </p>
+                  {myInfo && (
+                    <>
+                      {myInfo.rank !== null && myInfo.rank !== undefined && (
+                        <p className="text-xs text-purple-600">순위: {myInfo.rank}위</p>
+                      )}
+                    </>
+                  )}
                 </motion.div>
 
                 {/* VS */}
@@ -208,10 +364,18 @@ export function DifficultyMatching() {
                   className="text-center"
                 >
                   <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-4xl mb-2">
-                    {matchedOpponent.avatar}
+                    {matchedOpponent?.avatar || "👤"}
                   </div>
-                  <p className="text-sm text-gray-900">{matchedOpponent.name}</p>
-                  <p className="text-xs text-gray-600">Level {matchedOpponent.level}</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {matchedOpponent?.userId || "상대"}
+                  </p>
+                  {matchedOpponent && (
+                    <>
+                      {matchedOpponent.rank !== null && matchedOpponent.rank !== undefined && (
+                        <p className="text-xs text-blue-600">순위: {matchedOpponent.rank}위</p>
+                      )}
+                    </>
+                  )}
                 </motion.div>
               </div>
 
@@ -223,7 +387,7 @@ export function DifficultyMatching() {
                 className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 text-center border border-purple-100"
               >
                 <p className="text-sm text-gray-600 mb-1">곧 배틀이 시작됩니다</p>
-                <p className="text-xs text-purple-700">{topicName} · {getDifficultyLabel(difficulty)}</p>
+                <p className="text-xs text-purple-700">{getDifficultyLabel(difficulty)} · {examType === "written" ? "필기" : "실기"}</p>
               </motion.div>
 
               {/* 로딩 표시 */}
