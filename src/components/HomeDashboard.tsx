@@ -5,6 +5,8 @@ import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Calendar as CalendarComponent } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Trophy,
   Target,
@@ -13,8 +15,16 @@ import {
   Flame,
   Star,
   Award,
-  ChevronRight
+  ChevronRight,
+  Settings
 } from "lucide-react";
+// Format date to YYYY-MM-DD
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 import type { UserProfile } from "../types";
 import axios from "./api/axiosConfig";
 import { CERT_MAP } from "../constants/certMap";
@@ -89,6 +99,7 @@ interface OverviewResponse {
     certId: number;
     targetExamMode: string;
     targetRoundId: number;
+    targetExamDate: string | null;
     dday: number;
   };
 }
@@ -144,6 +155,9 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [progressData, setProgressData] = useState<ProgressCardResponse | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [dateSettingLoading, setDateSettingLoading] = useState(false);
 
   // Get the target certification exam from API
   const targetCertName = overview?.goal?.certId 
@@ -156,23 +170,57 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   
   const dDay = overview?.goal?.dday ?? null;
 
-  // Fetch overview (user and goal data)
+  // Update selectedDate when overview changes
   useEffect(() => {
-    async function fetchOverview() {
-      try {
-        setOverviewLoading(true);
-        const res = await axios.get("/progress/home/overview");
-        setOverview(res.data);
-      } catch (err) {
-        console.error("홈 개요 데이터 불러오기 실패", err);
-        setOverview(null);
-      } finally {
-        setOverviewLoading(false);
+    if (overview?.goal?.targetExamDate) {
+      const date = new Date(overview.goal.targetExamDate);
+      if (!isNaN(date.getTime())) {
+        setSelectedDate(date);
       }
+    } else {
+      setSelectedDate(undefined);
     }
+  }, [overview]);
 
+  // Fetch overview (user and goal data)
+  const fetchOverview = async () => {
+    try {
+      setOverviewLoading(true);
+      const res = await axios.get("/progress/home/overview");
+      setOverview(res.data);
+    } catch (err) {
+      console.error("홈 개요 데이터 불러오기 실패", err);
+      setOverview(null);
+    } finally {
+      setOverviewLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchOverview();
   }, []);
+
+  // Set target exam date
+  const handleSetDate = async (date: Date | undefined) => {
+    if (!date) return;
+
+    try {
+      setDateSettingLoading(true);
+      const dateString = formatDate(date);
+      await axios.put("/account/goal/date", {
+        targetExamDate: dateString
+      });
+      
+      // Refresh overview data
+      await fetchOverview();
+      setDatePickerOpen(false);
+    } catch (err) {
+      console.error("시험일정 설정 실패", err);
+      alert("시험일정 설정에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setDateSettingLoading(false);
+    }
+  };
 
   // Fetch quick stats
   useEffect(() => {
@@ -333,9 +381,41 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
               >
                 <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg h-full flex flex-col">
                   <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Calendar className="w-5 h-5 text-blue-600" />
-                      <h3 className="text-blue-800">목표 시험 📅</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                        <h3 className="text-blue-800">목표 시험 📅</h3>
+                      </div>
+                      <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-200"
+                            disabled={dateSettingLoading}
+                          >
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="min-w-[280px] w-fit p-0" align="end">
+                          <CalendarComponent
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(date) => {
+                              setSelectedDate(date);
+                              if (date) {
+                                handleSetDate(date);
+                              }
+                            }}
+                            disabled={(date) => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              return date < today;
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
 
                     <div className="flex-1 flex flex-col justify-center">
@@ -349,7 +429,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                         </div>
                       </div>
 
-                      {dDay !== null ? (
+                      {overview?.goal?.targetExamDate !== null ? (
                         <div className="text-center">
                           <motion.div
                             animate={{ scale: [1, 1.05, 1] }}
@@ -365,7 +445,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                         <div className="text-center">
                           <div className="text-4xl text-blue-400 mb-2">D-Day</div>
                           <p className="text-blue-600">
-                            시험 일정을 설정해주세요
+                            시험일정을 설정해주세요
                           </p>
                         </div>
                       )}
