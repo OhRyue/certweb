@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import axios from "../api/axiosConfig"
 import { Card } from "../ui/card"
 import { Badge } from "../ui/badge"
@@ -39,6 +39,21 @@ interface PostTitle {
   title: string
 }
 
+interface PageInfo {
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+interface MyActivityResponse {
+  myPosts: {
+    page: PageInfo
+    items: MyPost[]
+  }
+  myComments: MyComment[]
+}
+
 export function MyActivitySection({
   myActivityTab,
   setMyActivityTab,
@@ -54,32 +69,37 @@ export function MyActivitySection({
   const [postTitles, setPostTitles] = useState<PostTitle[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [myPostsPageInfo, setMyPostsPageInfo] = useState<PageInfo | null>(null)
+  const [myCommentsTotalCount, setMyCommentsTotalCount] = useState(0)
 
   const postsPerPage = 10
+  const commentLimit = 100 // 댓글 제한 수 (필요에 따라 조정 가능)
 
-  // 내 활동 데이터 가져오기
-  useEffect(() => {
-    fetchMyActivity()
-  }, [])
-
-  // 댓글의 게시글 제목 가져오기
-  useEffect(() => {
-    if (myComments.length > 0) {
-      fetchPostTitles()
-    }
-  }, [myComments])
-
-  const fetchMyActivity = async () => {
+  // 내 활동 데이터 가져오기 (페이지 변경 시 재호출)
+  const fetchMyActivity = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await axios.get("/community/posts/my/activity", {
+      const res = await axios.get<MyActivityResponse>("/community/posts/my/activity", {
         params: {
-          // 파라미터를 전달하지 않으면 모든 데이터를 불러옴
+          page: myPostsPage - 1, // API는 0-based 인덱스 사용
+          size: postsPerPage,
+          commentLimit: commentLimit
         }
       })
-      setMyPosts(res.data.myPosts || [])
+      
+      // myPosts는 페이지네이션 정보와 함께 반환
+      if (res.data.myPosts) {
+        setMyPosts(res.data.myPosts.items || [])
+        setMyPostsPageInfo(res.data.myPosts.page || null)
+      } else {
+        setMyPosts([])
+        setMyPostsPageInfo(null)
+      }
+      
+      // myComments는 배열로 직접 반환 (페이지네이션 없음)
       setMyComments(res.data.myComments || [])
+      setMyCommentsTotalCount(res.data.myComments?.length || 0)
     } catch (err) {
       console.error("내 활동 불러오기 실패", err)
       const errorMessage =
@@ -90,7 +110,19 @@ export function MyActivitySection({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [myPostsPage, postsPerPage, commentLimit])
+
+  // 페이지 변경 시 데이터 재호출
+  useEffect(() => {
+    fetchMyActivity()
+  }, [fetchMyActivity])
+
+  // 댓글의 게시글 제목 가져오기
+  useEffect(() => {
+    if (myComments.length > 0) {
+      fetchPostTitles()
+    }
+  }, [myComments])
 
   // 각 댓글의 postId로 게시글 제목 가져오기 (병렬 처리)
   const fetchPostTitles = async () => {
@@ -127,10 +159,14 @@ export function MyActivitySection({
     return postTitle?.title || "로딩 중..."
   }
 
-  const totalMyPostsPages = Math.ceil(myPosts.length / postsPerPage)
+  // API 기반 페이지네이션 정보
+  const totalMyPostsPages = myPostsPageInfo?.totalPages || 1
+  // myComments는 페이지네이션이 없으므로 프론트엔드에서 처리 (필요한 경우)
   const totalMyCommentsPages = Math.ceil(myComments.length / postsPerPage)
 
-  const currentMyPosts = myPosts.slice((myPostsPage - 1) * postsPerPage, myPostsPage * postsPerPage)
+  // API에서 받은 데이터를 그대로 사용 (이미 페이지네이션됨)
+  const currentMyPosts = myPosts
+  // myComments는 페이지네이션이 없으므로 프론트엔드에서 slice (필요한 경우)
   const currentMyComments = myComments.slice((myCommentsPage - 1) * postsPerPage, myCommentsPage * postsPerPage)
 
   const getCategoryColor = (category: string) => {
@@ -154,7 +190,7 @@ export function MyActivitySection({
               ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
               : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
           >
-            📝 내가 쓴 글 ({myPosts.length})
+            📝 내가 쓴 글 ({myPostsPageInfo?.totalElements || myPosts.length})
           </button>
           <button
             onClick={() => setMyActivityTab("comments")}
@@ -162,7 +198,7 @@ export function MyActivitySection({
               ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
               : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
           >
-            💬 내가 쓴 댓글 ({myComments.length})
+            💬 내가 쓴 댓글 ({myCommentsTotalCount})
           </button>
         </div>
       </Card>

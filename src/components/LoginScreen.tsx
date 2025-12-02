@@ -66,10 +66,18 @@ export function LoginScreen({ onLogin }) {
       localStorage.setItem("accessToken", response.data.accessToken)
       localStorage.setItem("refreshToken", response.data.refreshToken)
       localStorage.setItem("userId", response.data.userId)
+      localStorage.setItem("email", response.data.email)
+      localStorage.setItem("role", response.data.role)
 
-      // 로그인 성공 시 홈 화면으로 이동
+      // 로그인 성공 시 온보딩 완료 여부 확인
       onLogin()
-      navigate("/")
+      
+      // 온보딩을 하지 않은 유저는 온보딩 화면으로 강제 이동
+      if (response.data.onboardingCompleted === false) {
+        navigate("/onboarding")
+      } else {
+        navigate("/")
+      }
     } catch (error: any) {
       console.error("로그인 실패:", error)
       alert("아이디 또는 비밀번호가 올바르지 않습니다")

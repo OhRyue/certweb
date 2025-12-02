@@ -565,13 +565,9 @@ export function MainLearningDashboard() {
                   <Badge variant="secondary" className="bg-white/60">
                     문제 5문항
                   </Badge>
-                  {selectedExamType === "practical" ? (
+                  {selectedExamType === "practical" && (
                     <Badge variant="secondary" className="bg-orange-100 text-orange-700">
                       AI 채점 + AI 해설
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                      AI 해설
                     </Badge>
                   )}
                 </div>
@@ -588,22 +584,12 @@ export function MainLearningDashboard() {
                 <h3 className="text-blue-900 mb-2">Review 총정리</h3>
                 <p className="text-gray-700 text-sm mb-3">종합 문제 풀이와 AI 요약</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedExamType === "practical" ? (
-                    <Badge variant="secondary" className="bg-white/60">
-                      문제 10문항
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="bg-white/60">
-                      문제 20문항
-                    </Badge>
-                  )}
-                  {selectedExamType === "practical" ? (
+                  <Badge variant="secondary" className="bg-white/60">
+                    문제 10문항
+                  </Badge>
+                  {selectedExamType === "practical" && (
                     <Badge variant="secondary" className="bg-orange-100 text-orange-700">
                       AI 채점 + AI 해설
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                      AI 해설
                     </Badge>
                   )}
                 </div>

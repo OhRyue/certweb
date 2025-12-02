@@ -146,6 +146,38 @@ export interface ShopItem {
   isPurchased: boolean
 }
 
+// 상점 API 타입
+export interface StoreCatalogItem {
+  itemId: number
+  name: string
+  description: string
+  price: number
+  owned: boolean
+  limitPerUser: number
+  active: boolean
+  skinId?: number
+}
+
+export interface StoreCatalogUser {
+  userId: string
+  pointBalance: number
+  ownedItemCount: number
+}
+
+export interface StoreCatalogResponse {
+  user: StoreCatalogUser
+  items: StoreCatalogItem[]
+  generatedAt: string
+}
+
+// 보유 스킨 인벤토리 타입
+export interface InventoryItem {
+  id: number
+  userId: string
+  itemId: number
+  ownedAt: string
+}
+
 // Golden Bell Game Types
 export interface GoldenBellCharacter {
   id: number;
