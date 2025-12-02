@@ -17,7 +17,11 @@ export function SignUpScreen() {
     const [idAvailable, setIdAvailable] = useState<boolean | null>(null)        // 중복 여부
     const [isIdInvalid, setIsIdInvalid] = useState(false);      // 8~20글자, 영어/숫자 포함 조건 확인
     const [isPasswordInvalid, setIsPasswordInvalid] = useState(false);      // 비밀번호 조건
+    const [isEmailInvalid, setIsEmailInvalid] = useState(false);      // 이메일 형식 조건
+    const [emailErrorMessage, setEmailErrorMessage] = useState<string>("");      // 이메일 에러 메시지
     const [isVerifiedDone, setIsVerifiedDone] = useState(false)
+    const [isCheckingNickname, setIsCheckingNickname] = useState(false);      // 닉네임 중복 확인 중
+    const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);      // 닉네임 중복 여부
 
     // 예시: Step2 자격증 선택용 mock 데이터
     const categories = [
@@ -98,6 +102,11 @@ export function SignUpScreen() {
             return
         }
 
+        // 에러 상태 초기화
+        setIsEmailInvalid(false)
+        setEmailErrorMessage("")
+        setIsIdInvalid(false)
+
         try {
             setLoading(true)
             await axios.post(`/account/send-verification`, {
@@ -109,7 +118,22 @@ export function SignUpScreen() {
             alert("인증코드가 이메일로 전송되었습니다.")
             setIsVerificationSent(true)
         } catch (error: any) {
-            alert(error.response?.data?.message || "회원가입 중 오류가 발생했습니다.")
+            const errorData = error.response?.data
+            
+            // errors 배열이 있으면 각 필드별로 에러 처리
+            if (errorData?.errors && Array.isArray(errorData.errors)) {
+                errorData.errors.forEach((err: { field: string; message: string }) => {
+                    if (err.field === "email") {
+                        setIsEmailInvalid(true)
+                        setEmailErrorMessage(err.message)
+                    } else if (err.field === "userId") {
+                        setIsIdInvalid(true)
+                    }
+                })
+            }
+            
+            // 전체 메시지도 표시
+            alert(errorData?.message || "회원가입 중 오류가 발생했습니다.")
         } finally {
             setLoading(false)
         }
@@ -124,13 +148,17 @@ export function SignUpScreen() {
                 password: formData.password
             })
 
-            const { accessToken, refreshToken, userId, email, role } = res.data
+            const { accessToken, refreshToken, userId, email, role, onboardingCompleted } = res.data
 
             localStorage.setItem("accessToken", accessToken)
             localStorage.setItem("refreshToken", refreshToken)
             localStorage.setItem("userId", userId)
             localStorage.setItem("email", email)
             localStorage.setItem("role", role)
+
+            // onboardingCompleted는 항상 false (회원가입 완료 후 Step 2로 이동하여 온보딩을 완료해야 함)
+            // 백엔드에서 온보딩 프로필 설정 완료 시 자동으로 true로 업데이트됨
+            console.log("회원가입 완료, onboardingCompleted:", onboardingCompleted)
 
             alert("회원가입이 완료되었습니다")
 
@@ -171,14 +199,23 @@ export function SignUpScreen() {
             console.log("프로필 설정 API 호출 시작...");
             const res = await axios.post("/account/onboarding/profile", {
                 nickname: formData.nickname,
-                certId: formData.targetCertification,
-                avatarUrl: "",
+                skinId: 1, // 기본 스킨 ID
                 timezone: "Asia/Seoul",
                 lang: "ko-KR",
+                certId: formData.targetCertification,
                 targetExamMode: "WRITTEN",
                 targetRoundId: 0
             })
             console.log("프로필 설정 성공:", res.data);
+            console.log("온보딩 응답:", {
+                emailVerified: res.data.emailVerified,
+                nicknameSet: res.data.nicknameSet,
+                goalSelected: res.data.goalSelected,
+                settingsReady: res.data.settingsReady,
+                completed: res.data.completed,
+                completedAt: res.data.completedAt,
+                nextStep: res.data.nextStep
+            });
 
             alert("프로필 설정 완료")
             navigate("/")
@@ -206,6 +243,41 @@ export function SignUpScreen() {
         }
     }
 
+
+    // 닉네임 중복 확인
+    const handleCheckNickname = async () => {
+        const trimmedNickname = formData.nickname.trim();
+        
+        if (!trimmedNickname) {
+            alert("닉네임을 입력하세요.");
+            return;
+        }
+
+        // 닉네임 길이 체크 (2-12자)
+        if (trimmedNickname.length < 2 || trimmedNickname.length > 12) {
+            alert("닉네임은 2-12자여야 합니다.");
+            return;
+        }
+
+        try {
+            setIsCheckingNickname(true);
+            const res = await axios.get(`/account/check-nickname`, {
+                params: { nickname: trimmedNickname },
+            });
+            setNicknameAvailable(res.data.available);
+            if (res.data.available) {
+                alert(res.data.message || "사용 가능한 닉네임입니다.");
+            } else {
+                alert("이미 사용 중인 닉네임입니다.");
+            }
+        } catch (err: any) {
+            console.error("닉네임 중복 확인 오류:", err);
+            alert(err.response?.data?.message || "닉네임 확인 중 오류가 발생했습니다.");
+            setNicknameAvailable(null);
+        } finally {
+            setIsCheckingNickname(false);
+        }
+    };
 
     // 3) 뒤로가기
     const handleBack = () => {
@@ -409,8 +481,18 @@ export function SignUpScreen() {
                                                 placeholder="your@email.com"
                                                 value={formData.email}
                                                 disabled={isVerificationSent}
-                                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                className="flex-1 bg-white border-purple-200 focus:border-purple-400"
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, email: e.target.value })
+                                                    // 입력 시 에러 상태 초기화
+                                                    if (isEmailInvalid) {
+                                                        setIsEmailInvalid(false)
+                                                        setEmailErrorMessage("")
+                                                    }
+                                                }}
+                                                className={`flex-1 bg-white focus:border-purple-400 transition-all ${isEmailInvalid
+                                                    ? "border-red-400 text-red-700 placeholder-red-300"
+                                                    : "border-purple-200"
+                                                    }`}
                                             />
                                             <Button
                                                 type="button"
@@ -441,6 +523,11 @@ export function SignUpScreen() {
                                                 )}
                                             </Button>
                                         </div>
+                                        {isEmailInvalid && emailErrorMessage && (
+                                            <p className="text-xs mt-1 text-red-500">
+                                                {emailErrorMessage}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* 인증번호 입력 */}
@@ -530,17 +617,53 @@ export function SignUpScreen() {
                                 <div className="space-y-6">
                                     {/* 닉네임 */}
                                     <div>
-                                        <label className="text-sm text-gray-700 mb-2 block flex items-center gap-2">
-                                            <Sparkles className="w-4 h-4 text-purple-600" />
-                                            닉네임
-                                        </label>
-                                        <Input
-                                            type="text"
-                                            placeholder="다른 사람들에게 보여질 닉네임"
-                                            value={formData.nickname}
-                                            onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                                            className="bg-white border-purple-200 focus:border-purple-400"
-                                        />
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm text-gray-700 flex items-center gap-2">
+                                                <Sparkles className="w-4 h-4 text-purple-600" />
+                                                닉네임
+                                            </label>
+                                            {formData.nickname && (
+                                                <div className="text-[10px]">
+                                                    {isCheckingNickname ? (
+                                                        <p className="text-xs text-gray-500 flex items-center gap-1">⏳ 확인 중</p>
+                                                    ) : nicknameAvailable === true ? (
+                                                        <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> 사용 가능한 닉네임입니다</p>
+                                                    ) : nicknameAvailable === false ? (
+                                                        <p className="text-xs text-red-600 flex items-center gap-1">❌ 이미 사용 중인 닉네임에요</p>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="text"
+                                                placeholder="다른 사람들에게 보여질 닉네임"
+                                                value={formData.nickname}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, nickname: e.target.value })
+                                                    // 입력 시 중복 확인 상태 초기화
+                                                    if (nicknameAvailable !== null) {
+                                                        setNicknameAvailable(null)
+                                                    }
+                                                }}
+                                                className={`flex-1 bg-white focus:border-purple-400 transition-all ${nicknameAvailable === false
+                                                    ? "border-red-400 text-red-700 placeholder-red-300"
+                                                    : "border-purple-200"
+                                                    }`}
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={handleCheckNickname}
+                                                disabled={!formData.nickname.trim() || isCheckingNickname}
+                                                className="whitespace-nowrap bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {isCheckingNickname ? (
+                                                    <>⏳ 확인 중</>
+                                                ) : (
+                                                    <>중복 확인</>
+                                                )}
+                                            </Button>
+                                        </div>
                                         <p className="text-xs text-gray-500 mt-1">한글, 영문, 숫자 2-12자</p>
                                     </div>
 

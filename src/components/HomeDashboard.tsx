@@ -146,15 +146,15 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   const [progressLoading, setProgressLoading] = useState(true);
 
   // Get the target certification exam from API
-  const targetCertName = overview?.goal.certId 
-    ? CERT_MAP[overview.goal.certId as keyof typeof CERT_MAP] 
+  const targetCertName = overview?.goal?.certId 
+    ? CERT_MAP[overview.goal!.certId as keyof typeof CERT_MAP] 
     : null;
   
-  const targetCertIcon = overview?.goal.certId 
-    ? CERT_ICON_MAP[overview.goal.certId] || "📚"
+  const targetCertIcon = overview?.goal?.certId 
+    ? CERT_ICON_MAP[overview.goal!.certId] || "📚"
     : (targetCertName ? CERT_NAME_ICON_MAP[targetCertName] || "📚" : "📚");
   
-  const dDay = overview?.goal.dday ?? null;
+  const dDay = overview?.goal?.dday ?? null;
 
   // Fetch overview (user and goal data)
   useEffect(() => {
@@ -344,7 +344,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                           <div className="text-5xl mb-3">{targetCertIcon}</div>
                           <p className="text-blue-900 mb-2 text-lg font-semibold">{targetCertName}</p>
                           <p className="text-blue-600">
-                            {overview?.goal.targetExamMode || "시험"}
+                            {overview?.goal?.targetExamMode || "시험"}
                           </p>
                         </div>
                       </div>

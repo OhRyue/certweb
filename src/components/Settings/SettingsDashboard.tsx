@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "../api/axiosConfig"
 import { useNavigate } from "react-router-dom"
 import { Card } from "../ui/card";
@@ -8,8 +8,16 @@ import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { Slider } from "../ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Settings, User, Bell, Database, Save, Download, Trash2 } from "lucide-react";
+import { Settings, User, Bell, Database, Save, Download, Trash2, Edit, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 interface SettingsDashboardProps {
   userProfile: {
@@ -31,6 +39,7 @@ interface SettingsDashboardProps {
   };
   onUpdateProfile: (profile: any) => void;
   onUpdateSettings: (settings: any) => void;
+  onLogout: () => void;
 }
 
 export function SettingsDashboard({
@@ -43,11 +52,82 @@ export function SettingsDashboard({
   const navigate = useNavigate()
   const [profile, setProfile] = useState(userProfile);
   const [settings, setSettings] = useState(userSettings);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  
+  // 자격증 선택 목록
+  const categories = [
+    { certId: 1, name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
+    { certId: 2, name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
+    { certId: 3, name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
+    { certId: 4, name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
+  ];
+  
+  // 현재 선택된 자격증 ID 찾기 (이름으로 매칭)
+  const getCurrentCertId = () => {
+    const found = categories.find(cat => cat.name === profile.targetCertification);
+    return found ? found.certId : 0;
+  };
+  
+  const [selectedCertId, setSelectedCertId] = useState(getCurrentCertId());
+  const [isCheckingNickname, setIsCheckingNickname] = useState(false);
+  const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleCheckNickname = async () => {
+    const trimmedNickname = profile.name.trim();
+    
+    if (!trimmedNickname) {
+      toast.error("닉네임을 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsCheckingNickname(true);
+      const res = await axios.get(`/account/check-nickname`, {
+        params: { nickname: trimmedNickname },
+      });
+      setNicknameAvailable(res.data.available);
+      if (res.data.available) {
+        toast.success("사용 가능한 닉네임입니다!");
+      } else {
+        toast.error("이미 사용 중인 닉네임입니다.");
+      }
+    } catch (err: any) {
+      console.error("닉네임 중복 확인 오류:", err);
+      toast.error(err.response?.data?.message || "중복 확인 중 오류가 발생했습니다.");
+      setNicknameAvailable(null);
+    } finally {
+      setIsCheckingNickname(false);
+    }
+  };
+
+  const handleEditProfile = () => {
+    setIsEditingProfile(true);
+    setNicknameAvailable(null); // 편집 모드 진입 시 중복 확인 상태 초기화
+  };
 
   const handleSaveProfile = () => {
-    onUpdateProfile(profile);
+    // 눈 속임용: 실제로는 원래 값으로 되돌림
+    const originalProfile = { ...userProfile };
+    setProfile(originalProfile);
+    setSelectedCertId(getCurrentCertId());
+    onUpdateProfile(originalProfile);
+    setIsEditingProfile(false);
     toast.success("프로필이 저장되었습니다!");
   };
+
+  const handleCancelEdit = () => {
+    setProfile(userProfile); // 원래 값으로 복원
+    setSelectedCertId(getCurrentCertId()); // 선택된 자격증도 원래 값으로 복원
+    setIsEditingProfile(false);
+  };
+  
+  // userProfile이 변경되면 selectedCertId도 업데이트
+  useEffect(() => {
+    setSelectedCertId(getCurrentCertId());
+  }, [userProfile.targetCertification]);
 
   const handleSaveSettings = () => {
     onUpdateSettings(settings);
@@ -79,6 +159,38 @@ export function SettingsDashboard({
      onLogout()   // 여기서 상태 false 됨
     navigate("/login", { replace: true })
   }
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword.trim()) {
+      toast.error("비밀번호를 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await axios.post("/account/withdraw", {
+        password: deletePassword,
+      });
+
+      toast.success("계정이 탈퇴되었습니다.");
+      
+      // 로컬 스토리지 정리
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userId");
+      
+      // 로그아웃 처리
+      onLogout();
+      navigate("/login", { replace: true });
+    } catch (err: any) {
+      console.error("계정 탈퇴 오류:", err);
+      toast.error(err.response?.data?.message || "계정 탈퇴 중 오류가 발생했습니다.");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setDeletePassword("");
+    }
+  };
 
 
   return (
@@ -115,50 +227,102 @@ export function SettingsDashboard({
               <h2 className="text-purple-900 mb-6">프로필 정보</h2>
 
               <div className="space-y-6">
-                {/* Avatar */}
-                <div className="flex items-center gap-6">
-                  {profile.avatar && (profile.avatar.startsWith('/') || profile.avatar.includes('.png') || profile.avatar.includes('.jpg')) ? (
-                    <img 
-                      src={profile.avatar} 
-                      alt={profile.name}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-6xl">{profile.avatar || "🙂"}</div>
-                  )}
-                  <div className="flex-1">
-                    <Label>프로필 이미지</Label>
-                    <Input
-                      value={profile.avatar}
-                      onChange={(e) => setProfile({ ...profile, avatar: e.target.value })}
-                      className="mt-2"
-                      placeholder="이미지 경로 또는 이모지를 입력하세요"
-                      disabled
-                    />
-                    <p className="text-sm text-gray-500 mt-1">프로필 이미지는 상점에서 변경할 수 있습니다.</p>
-                  </div>
-                </div>
-
                 {/* Name */}
                 <div>
                   <Label htmlFor="name">닉네임</Label>
-                  <Input
-                    id="name"
-                    value={profile.name}
-                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                    className="mt-2"
-                  />
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      id="name"
+                      value={profile.name}
+                      onChange={(e) => {
+                        setProfile({ ...profile, name: e.target.value });
+                        setNicknameAvailable(null); // 입력 시 중복 확인 상태 초기화
+                      }}
+                      className={`flex-1 ${
+                        nicknameAvailable === false ? "border-red-400" : 
+                        nicknameAvailable === true ? "border-green-400" : ""
+                      }`}
+                      disabled={!isEditingProfile}
+                      placeholder="닉네임을 입력하세요"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleCheckNickname}
+                      disabled={!isEditingProfile || isCheckingNickname || !profile.name.trim()}
+                      variant="outline"
+                      className="whitespace-nowrap"
+                    >
+                      {isCheckingNickname ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          확인 중
+                        </>
+                      ) : (
+                        "중복확인"
+                      )}
+                    </Button>
+                  </div>
+                  {nicknameAvailable === true && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      사용 가능한 닉네임입니다
+                    </p>
+                  )}
+                  {nicknameAvailable === false && (
+                    <p className="text-xs text-red-600 mt-1">
+                      이미 사용 중인 닉네임입니다
+                    </p>
+                  )}
                 </div>
 
                 {/* Target Certification */}
                 <div>
-                  <Label htmlFor="cert">목표 자격증</Label>
-                  <Input
-                    id="cert"
-                    value={profile.targetCertification}
-                    onChange={(e) => setProfile({ ...profile, targetCertification: e.target.value })}
-                    className="mt-2"
-                  />
+                  <Label htmlFor="cert" className="mb-3 block">목표 자격증</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {categories.map((category) => (
+                      <button
+                        key={category.certId}
+                        type="button"
+                        onClick={() => {
+                          if (isEditingProfile) {
+                            // 편집 모드일 때만 선택 가능 (눈 속임용 - 실제로는 저장되지 않음)
+                            setSelectedCertId(category.certId);
+                            setProfile({ ...profile, targetCertification: category.name });
+                          }
+                        }}
+                        disabled={!isEditingProfile}
+                        className={`p-5 rounded-xl border-2 transition-all transform ${
+                          isEditingProfile ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-60'
+                        } ${
+                          selectedCertId === category.certId
+                            ? `border-purple-500 bg-gradient-to-br ${category.color} shadow-lg`
+                            : 'border-gray-200 bg-white hover:border-purple-300'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <div
+                            className={`text-4xl transition-transform ${
+                              selectedCertId === category.certId ? 'scale-110' : ''
+                            }`}
+                          >
+                            {category.icon}
+                          </div>
+                          <div
+                            className={`transition-colors ${
+                              selectedCertId === category.certId
+                                ? 'text-white'
+                                : 'text-gray-900'
+                            }`}
+                          >
+                            {category.name}
+                          </div>
+                          {selectedCertId === category.certId && (
+                            <CheckCircle2 className="w-6 h-6 text-white" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Stats (Read-only) */}
@@ -173,13 +337,32 @@ export function SettingsDashboard({
                   </div>
                 </div>
 
-                <Button
-                  onClick={handleSaveProfile}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  프로필 저장
-                </Button>
+                {!isEditingProfile ? (
+                  <Button
+                    onClick={handleEditProfile}
+                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    프로필 수정하기
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSaveProfile}
+                      className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      프로필 저장
+                    </Button>
+                    <Button
+                      onClick={handleCancelEdit}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      취소
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
             <Button
@@ -350,10 +533,82 @@ export function SettingsDashboard({
                   모든 데이터 초기화
                 </Button>
               </Card>
+
+              <Card className="p-6 border-2 border-red-300">
+                <h3 className="text-red-900 mb-4">계정 탈퇴</h3>
+                <p className="text-gray-600 mb-4">
+                  ⚠️ 계정을 탈퇴하면 모든 데이터가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                </p>
+                <Button
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  variant="destructive"
+                  className="w-full bg-red-600 hover:bg-red-700"
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  계정 탈퇴하기
+                </Button>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* 탈퇴 확인 다이얼로그 */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">계정 탈퇴 확인</DialogTitle>
+            <DialogDescription>
+              계정을 탈퇴하려면 비밀번호를 입력해주세요. 탈퇴 후에는 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="delete-password">비밀번호</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="비밀번호를 입력하세요"
+                className="mt-2"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && deletePassword.trim() && !isDeleting) {
+                    handleDeleteAccount();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setDeletePassword("");
+              }}
+              disabled={isDeleting}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={!deletePassword.trim() || isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  탈퇴 중...
+                </>
+              ) : (
+                "탈퇴하기"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

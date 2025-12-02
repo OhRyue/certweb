@@ -158,6 +158,35 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
       try {
         // 기본 프로필 정보 (timezone, lang 등 설정 페이지에서 필요한 정보)
         const profileRes = await axios.get("/account/profile")
+        
+        // 디버깅: 프로필 응답 전체 확인
+        console.log("프로필 API 응답:", profileRes.data)
+        console.log("onboardingCompleted 값:", profileRes.data.onboardingCompleted)
+        console.log("nickname 값:", profileRes.data.nickname)
+
+        // 온보딩 완료 여부 확인
+        // onboardingCompleted가 명시적으로 true이면 온보딩 완료로 간주
+        // onboardingCompleted 필드가 없거나 false인 경우, 닉네임이 없으면 온보딩 미완료로 간주
+        const onboardingCompleted = profileRes.data.onboardingCompleted
+        const hasNickname = profileRes.data.nickname && profileRes.data.nickname.trim() !== ""
+        
+        // onboardingCompleted가 명시적으로 true이면 완료로 간주
+        // 그렇지 않으면 닉네임 존재 여부로 판단 (하위 호환성)
+        const isOnboardingCompleted = onboardingCompleted === true || 
+          (onboardingCompleted === undefined && hasNickname)
+        
+        console.log("온보딩 완료 여부 체크:", { 
+          onboardingCompleted, 
+          hasNickname, 
+          isOnboardingCompleted,
+          willRedirect: !isOnboardingCompleted
+        })
+        
+        if (!isOnboardingCompleted) {
+          console.log("온보딩 미완료 감지, 온보딩 화면으로 이동")
+          navigate("/onboarding", { replace: true })
+          return
+        }
 
         // 홈 개요 데이터 호출 (경험치, 연속 학습일 등)
         const overviewRes = await axios.get("/progress/home/overview")
@@ -170,11 +199,17 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
           level: overviewRes.data.user.level,            // 레벨 (overview에서)
           xp: overviewRes.data.user.xpTotal,             // 경험치 (overview에서)
           studyStreak: overviewRes.data.user.streakDays, // 연속 학습일 (overview에서)
-          targetCertificationId: overviewRes.data.goal.certId,
-          targetCertification: CERT_MAP[overviewRes.data.goal.certId]
+          targetCertificationId: overviewRes.data.goal?.certId || 0,
+          targetCertification: overviewRes.data.goal?.certId ? CERT_MAP[overviewRes.data.goal.certId] : ""
         }))
-      } catch (err) {
+      } catch (err: any) {
         console.error("유저 프로필 불러오기 실패", err)
+        // 프로필 로드 실패 시 온보딩으로 리다이렉트
+        // (온보딩 미완료 상태일 가능성이 높음)
+        if (err.response?.status !== 401) {
+          // 401 에러가 아니면 온보딩으로 리다이렉트 시도
+          navigate("/onboarding", { replace: true })
+        }
       }
     }
     fetchProfile()
@@ -197,7 +232,7 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
     return () => {
       window.removeEventListener('skinChanged', handleSkinChanged)
     }
-  }, [])
+  }, [navigate])
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50">
