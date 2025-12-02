@@ -117,15 +117,25 @@ export function SettingsDashboard({
               <div className="space-y-6">
                 {/* Avatar */}
                 <div className="flex items-center gap-6">
-                  <div className="text-6xl">{profile.avatar}</div>
+                  {profile.avatar && (profile.avatar.startsWith('/') || profile.avatar.includes('.png') || profile.avatar.includes('.jpg')) ? (
+                    <img 
+                      src={profile.avatar} 
+                      alt={profile.name}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-6xl">{profile.avatar || "🙂"}</div>
+                  )}
                   <div className="flex-1">
-                    <Label>아바타 이모지</Label>
+                    <Label>프로필 이미지</Label>
                     <Input
                       value={profile.avatar}
                       onChange={(e) => setProfile({ ...profile, avatar: e.target.value })}
                       className="mt-2"
-                      placeholder="이모지를 입력하세요"
+                      placeholder="이미지 경로 또는 이모지를 입력하세요"
+                      disabled
                     />
+                    <p className="text-sm text-gray-500 mt-1">프로필 이미지는 상점에서 변경할 수 있습니다.</p>
                   </div>
                 </div>
 

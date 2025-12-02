@@ -19,6 +19,51 @@ import type { UserProfile } from "../types";
 import axios from "./api/axiosConfig";
 import { CERT_MAP } from "../constants/certMap";
 
+// 프로필 이미지 import
+import girlBasicProfile from "./assets/profile/girl_basic_profile.png"
+import boyNerdProfile from "./assets/profile/boy_nerd_profile.png"
+import girlUniformProfile from "./assets/profile/girl_uniform_profile.jpg"
+import girlPajamaProfile from "./assets/profile/girl_pajama_profile.png"
+import girlMarriedProfile from "./assets/profile/girl_married_profile.png"
+import girlNerdProfile from "./assets/profile/girl_nerd_profile.png"
+import girlIdolProfile from "./assets/profile/girl_idol_profile.png"
+import girlGhostProfile from "./assets/profile/girl_ghost_profile.png"
+import girlCyberpunkProfile from "./assets/profile/girl_cyberpunk_profile.png"
+import girlChinaProfile from "./assets/profile/girl_china_profile.jpg"
+import girlCatProfile from "./assets/profile/girl_cat_profile.png"
+import boyWorkerProfile from "./assets/profile/boy_worker_profile.png"
+import boyPoliceofficerProfile from "./assets/profile/boy_policeofficer_profile.png"
+import boyHiphopProfile from "./assets/profile/boy_hiphop_profile.png"
+import boyDogProfile from "./assets/profile/boy_dog_profile.png"
+import boyBasicProfile from "./assets/profile/boy_basic_profile.png"
+import boyAgentProfile from "./assets/profile/boy_agent_profile.png"
+
+// skinId를 프로필 이미지로 매핑
+const PROFILE_IMAGE_MAP: Record<number, string> = {
+  1: girlBasicProfile,
+  2: boyNerdProfile,
+  3: girlUniformProfile,
+  4: girlPajamaProfile,
+  5: girlMarriedProfile,
+  6: girlNerdProfile,
+  7: girlIdolProfile,
+  8: girlGhostProfile,
+  9: girlCyberpunkProfile,
+  10: girlChinaProfile,
+  11: girlCatProfile,
+  12: boyWorkerProfile,
+  13: boyPoliceofficerProfile,
+  14: boyHiphopProfile,
+  15: boyDogProfile,
+  16: boyBasicProfile,
+  17: boyAgentProfile,
+}
+
+// skinId로 프로필 이미지 경로 가져오기
+function getProfileImage(skinId: number): string {
+  return PROFILE_IMAGE_MAP[skinId] || PROFILE_IMAGE_MAP[1] // 기본값: girl_basic_profile
+}
+
 interface HomeDashboardProps {
   userProfile: UserProfile;
 }
@@ -35,7 +80,7 @@ interface OverviewResponse {
   user: {
     userId: string;
     nickname: string;
-    avatarUrl: string;
+    skinId: number;
     level: number;
     xpTotal: number;
     streakDays: number;
@@ -187,23 +232,6 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-blue-900 mb-2 flex items-center justify-center gap-2">
-            ✨ 환영합니다, {overview?.user.nickname || "사용자"}님! ✨
-          </h1>
-          {targetCertName && (
-            <div className="flex items-center justify-center gap-2 mt-3">
-              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-1">
-                {targetCertIcon || "📚"} {targetCertName} 도전 중!
-              </Badge>
-            </div>
-          )}
-          <p className="text-purple-600 mt-2">오늘도 즐겁게 공부해볼까요? 📚</p>
-        </motion.div>
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -219,7 +247,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                 <div className="p-6">
                     {overview?.user ? (
                       <>
-                        <div className="text-center mb-4">
+                        <div className="text-center mb-3">
                           <div className="inline-flex items-center justify-center gap-2 mb-2">
                             <Star className="w-5 h-5 text-yellow-500" />
                             <span className="text-purple-700">Level {overview.user.level}</span>
@@ -239,12 +267,12 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             ease: "easeInOut"
                           }}
                         >
-                          <div className="text-center bg-white/50 backdrop-blur rounded-2xl p-8 mb-4">
-                            <div className="text-9xl mb-4">{overview.user.avatarUrl || "👤"}</div>
-                            <h3 className="text-purple-800 mb-1">{overview.user.nickname}</h3>
-                            {targetCertName && (
-                              <p className="text-purple-600 text-sm">{targetCertName} 도전 중!</p>
-                            )}
+                          <div className="text-center bg-white/50 backdrop-blur rounded-2xl p-2 mb-3 overflow-hidden">
+                            <img 
+                              src={getProfileImage(overview.user.skinId)} 
+                              alt={overview.user.nickname}
+                              className="w-full h-auto rounded-xl object-cover"
+                            />
                           </div>
                         </motion.div>
 
@@ -263,7 +291,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                         </div>
 
                         {/* Streak */}
-                        <div className="mt-4 flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
+                        <div className="mt-3 flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
                           <Flame className="w-5 h-5 text-orange-500" />
                           <span className="text-orange-700">{overview.user.streakDays}일 연속 학습 🔥</span>
                         </div>
@@ -338,7 +366,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <Button
                       asChild
-                      className="w-full mt-4 bg-blue-500 hover:bg-blue-600 text-white"
+                      className="w-full mt-3 bg-blue-500 hover:bg-blue-600 text-white"
                     >
                       <Link to="/certinfo" className="flex items-center justify-center">
                         시험 정보 보기
@@ -373,7 +401,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       </div>
                     </div>
                   ) : progressData ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Overall Progress Bar */}
                       <motion.div
                         initial={{ opacity: 0, x: -20 }}
@@ -461,7 +489,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                   <Button
                     asChild
-                    className="w-full mt-4 bg-purple-500 hover:bg-purple-600 text-white"
+                    className="w-full mt-3 bg-purple-500 hover:bg-purple-600 text-white"
                   >
                     <Link to="/report" className="flex items-center justify-center">
                       상세 리포트 보기
@@ -619,7 +647,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                   <Button
                     asChild
-                    className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white"
+                    className="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-white"
                   >
                     <Link to="/community" className="flex items-center justify-center">
                       전체 랭킹 보기
@@ -685,7 +713,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                         </div>
                       </div>
 
-                      <div className={`mt-4 text-center text-sm ${
+                      <div className={`mt-3 text-center text-sm ${
                         quickStats.accuracyDelta > 0 
                           ? "text-green-700" 
                           : quickStats.accuracyDelta < 0 

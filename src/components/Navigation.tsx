@@ -57,7 +57,15 @@ export function Navigation({ userProfile, userPoints = 0 }: NavigationProps) {
       {/* User Profile Card */}
       <div className="bg-white/20 backdrop-blur rounded-lg p-4 mb-6">
         <div className="flex items-center gap-3 mb-3">
-          <div className="text-4xl">{userProfile.avatar}</div>
+          {userProfile.avatar && (userProfile.avatar.startsWith('/') || userProfile.avatar.includes('.png') || userProfile.avatar.includes('.jpg')) ? (
+            <img 
+              src={userProfile.avatar} 
+              alt={userProfile.name}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+          ) : (
+            <div className="text-4xl">{userProfile.avatar || "🙂"}</div>
+          )}
           <div className="flex-1">
             <h3 className="text-white">{userProfile.name}</h3>
             <p className="text-white/80 text-sm">Level {userProfile.level}</p>
