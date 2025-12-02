@@ -1,22 +1,22 @@
 import { useState, useEffect } from "react";
-import { Card } from "../../../ui/card";
-import { Button } from "../../../ui/button";
-import { Badge } from "../../../ui/badge";
-import { Progress } from "../../../ui/progress";
-import { Input } from "../../../ui/input";
+import { Card } from "../../ui/card";
+import { Button } from "../../ui/button";
+import { Badge } from "../../ui/badge";
+import { Progress } from "../../ui/progress";
+import { Input } from "../../ui/input";
 import { Swords, Clock, Zap, Sparkles, Target } from "lucide-react";
-import type { Question } from "../../../../types";
-import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
-import { submitAnswer } from "../../../api/versusApi";
+import type { Question } from "../../../types";
+import { OpponentLeftOverlay } from "../OpponentLeftOverlay";
+import { submitAnswer } from "../../api/versusApi";
 
 interface BattleGamePracticalProps {
   questions: Question[];
   roomId?: number; // 답안 제출용
-  opponentName: string;
+  opponentName?: string; // 토너먼트에서는 사용하지 않지만 호환성을 위해 유지
   myUserId?: string;
-  opponentUserId?: string;
+  opponentUserId?: string; // 토너먼트에서는 사용하지 않지만 호환성을 위해 유지
   myRank?: number | null;
-  opponentRank?: number | null;
+  opponentRank?: number | null; // 토너먼트에서는 사용하지 않지만 호환성을 위해 유지
   onComplete: (myScore: number, opponentScore: number) => void;
   onExit: () => void;
 }
@@ -24,21 +24,15 @@ interface BattleGamePracticalProps {
 export function BattleGamePractical({
   questions,
   roomId,
-  opponentName,
   myUserId,
-  opponentUserId,
   myRank,
-  opponentRank,
   onComplete,
   onExit,
 }: BattleGamePracticalProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [typingAnswer, setTypingAnswer] = useState("");
   const [myScore, setMyScore] = useState(0);
-  const [opponentScore, setOpponentScore] = useState(0);
-  const currentQuestionData = questions[currentQuestion];
-  const initialTimeLimit = currentQuestionData?.timeLimitSec || 30;
-  const [timeLeft, setTimeLeft] = useState(initialTimeLimit);
+  const [opponentScore] = useState(0); // 토너먼트에서는 사용하지 않지만 onComplete 호환성을 위해 유지
   const [isAnswered, setIsAnswered] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
@@ -47,8 +41,21 @@ export function BattleGamePractical({
   // 오버레이 상태 추가
   const [opponentLeft, setOpponentLeft] = useState(false);
 
-  const totalQuestions = questions.length;
-  const question = questions[currentQuestion];
+  // questions가 없거나 비어있으면 예외 처리
+  const totalQuestions = questions?.length || 0;
+  const question = questions?.[currentQuestion];
+  const currentQuestionData = questions?.[currentQuestion];
+  const initialTimeLimit = currentQuestionData?.timeLimitSec || 30;
+  const [timeLeft, setTimeLeft] = useState(initialTimeLimit);
+
+  // 문제가 변경될 때마다 timeLeft 리셋
+  useEffect(() => {
+    if (currentQuestionData) {
+      const newTimeLimit = currentQuestionData.timeLimitSec || 30;
+      setTimeLeft(newTimeLimit);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuestion]);
 
   // 테스트: ESC 누르면 상대 나간 상황 테스트
   useEffect(() => {
@@ -73,7 +80,41 @@ export function BattleGamePractical({
     }, 1000);
 
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isAnswered]);
+
+  // questions가 없거나 비어있으면 예외 처리
+  if (!questions || !Array.isArray(questions) || questions.length === 0) {
+    return (
+      <div className="min-h-screen p-8 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <p className="text-red-500 font-semibold mb-4">문제를 불러올 수 없습니다.</p>
+          <button
+            onClick={onExit}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            뒤로가기
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!question) {
+    return (
+      <div className="min-h-screen p-8 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <p className="text-red-500 font-semibold mb-4">문제를 찾을 수 없습니다.</p>
+          <button
+            onClick={onExit}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            뒤로가기
+          </button>
+        </Card>
+      </div>
+    );
+  }
 
   // Handle answer - 서버 채점
   const handleAnswer = async () => {
@@ -152,7 +193,7 @@ export function BattleGamePractical({
               <Swords className="w-8 h-8 text-purple-600 animate-pulse" />
               <Sparkles className="w-4 h-4 text-yellow-500 absolute -top-1 -right-1" />
             </div>
-            <h1 className="text-purple-900">1:1 배틀 ⚔️</h1>
+            <h1 className="text-purple-900">토너먼트 🏆</h1>
           </div>
         </div>
 
@@ -161,8 +202,8 @@ export function BattleGamePractical({
         {/* Score Board */}
         <div className="mb-6 relative">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-            <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 shadow-lg animate-pulse">
-              VS
+            <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-4 py-2 shadow-lg animate-pulse">
+              토너먼트
             </Badge>
           </div>
 
@@ -189,7 +230,7 @@ export function BattleGamePractical({
               </div>
             </Card>
 
-            {/* 상대 */}
+            {/* 참가자 순위 표시 */}
             <Card className={`p-6 border-2 transition-all duration-300 ${
               showResult && !isCorrect
                 ? "bg-gradient-to-br from-blue-100 to-cyan-100 border-blue-400 shadow-lg scale-105"
@@ -197,14 +238,12 @@ export function BattleGamePractical({
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm text-gray-700 mb-1 font-semibold">{opponentUserId || opponentName}</p>
-                  {opponentRank !== null && opponentRank !== undefined && (
-                    <p className="text-xs text-blue-600">순위: {opponentRank}위</p>
-                  )}
-                  <p className="text-3xl text-blue-700">{opponentScore}점</p>
+                  <p className="text-sm text-gray-700 mb-1 font-semibold">참가자 순위</p>
+                  <p className="text-xs text-blue-600">8명 중</p>
+                  <p className="text-3xl text-blue-700">-</p>
                 </div>
                 <div className="text-5xl relative">
-                  🤖
+                  🏆
                   {!isAnswered && (
                     <div className="absolute -top-2 -right-2">
                       <div className="w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
@@ -327,8 +366,8 @@ export function BattleGamePractical({
 
                   {showOpponentAnswer && (
                     <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">
-                      <span>🤖</span>
-                      <span>{opponentName}님도 문제를 풀었습니다!</span>
+                      <span>🏆</span>
+                      <span>다른 참가자들도 문제를 풀고 있습니다!</span>
                     </div>
                   )}
                 </div>
@@ -338,12 +377,12 @@ export function BattleGamePractical({
         </div>
       </div>
 
-      {/* 상대방 나감 오버레이 표시 */}
+      {/* 참가자 나감 오버레이 표시 (토너먼트에서는 사용하지 않을 수 있음) */}
       {opponentLeft && (
         <OpponentLeftOverlay
-          opponentName={opponentName}
+          opponentName="토너먼트"
           myScore={myScore}
-          opponentScore={opponentScore}
+          opponentScore={0}
           onConfirm={() => {
             setOpponentLeft(false);
             onExit(); // 홈으로 나가기
