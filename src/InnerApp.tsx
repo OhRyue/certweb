@@ -156,19 +156,22 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        // 1. 기본 프로필 설정(userId, nickname, skinId, timezone, lang)
+        // 기본 프로필 정보 (timezone, lang 등 설정 페이지에서 필요한 정보)
         const profileRes = await axios.get("/account/profile")
 
-        // 2. 목표 자격증 호출(id, userId, certId, targetExamMode, targetRoundId, ddayCached)
-        const goalRes = await axios.get("/account/goal")
+        // 홈 개요 데이터 호출 (경험치, 연속 학습일 등)
+        const overviewRes = await axios.get("/progress/home/overview")
 
         setUserProfile(prev => ({
           ...prev,
-          id: profileRes.data.userId,              // userId 추가
-          name: profileRes.data.nickname,          // 닉네임 넣기
-          avatar: getProfileImage(profileRes.data.skinId),  // skinId로 프로필 이미지 경로 가져오기
-          targetCertificationId: goalRes.data.certId,
-          targetCertification: CERT_MAP[goalRes.data.certId]
+          id: profileRes.data.userId || overviewRes.data.user.userId,              // userId
+          name: profileRes.data.nickname || overviewRes.data.user.nickname,      // 닉네임
+          avatar: getProfileImage(profileRes.data.skinId || overviewRes.data.user.skinId),  // skinId로 프로필 이미지 경로 가져오기
+          level: overviewRes.data.user.level,            // 레벨 (overview에서)
+          xp: overviewRes.data.user.xpTotal,             // 경험치 (overview에서)
+          studyStreak: overviewRes.data.user.streakDays, // 연속 학습일 (overview에서)
+          targetCertificationId: overviewRes.data.goal.certId,
+          targetCertification: CERT_MAP[overviewRes.data.goal.certId]
         }))
       } catch (err) {
         console.error("유저 프로필 불러오기 실패", err)
