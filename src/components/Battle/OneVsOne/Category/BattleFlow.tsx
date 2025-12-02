@@ -4,7 +4,7 @@ import { BattleGameWritten } from "./BattleGameWritten"
 import { BattleGamePractical } from "./BattleGamePractical"
 import { BattleResult } from "./BattleResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
-import { getRoomDetail, getSavedRoomId, getRoomQuestions } from "../../../api/versusApi"
+import { getSavedRoomId, getRoomState } from "../../../api/versusApi"
 import axios from "../../../api/axiosConfig"
 import type { Question } from "../../../../types"
 
@@ -43,7 +43,8 @@ export function BattleFlow() {
       if (!roomId) return
 
       try {
-        const roomDetail = await getRoomDetail(roomId)
+        const roomState = await getRoomState(roomId)
+        const roomDetail = roomState.detail
         
         // 현재 사용자 정보 가져오기
         if (!myUserId) {
@@ -90,10 +91,18 @@ export function BattleFlow() {
       }
 
       try {
-        const roomQuestions = await getRoomQuestions(roomId)
+        // 초기 상태(문제 목록 포함) 받아오기
+        const roomState = await getRoomState(roomId)
         
+        // order 기준으로 정렬하여 문제 진행 순서 관리
+        const roomQuestions = roomState.detail.questions.sort((a, b) => a.order - b.order)
+        
+        // questions가 비어있으면 아직 준비되지 않았으므로 로딩 상태 유지하고 재시도
         if (roomQuestions.length === 0) {
-          setQuestionsLoading(false)
+          // questions가 아직 준비되지 않았으므로 1초 후 다시 시도
+          setTimeout(() => {
+            fetchQuestions()
+          }, 1000)
           return
         }
 
@@ -132,6 +141,8 @@ export function BattleFlow() {
 
             // payloadJson에서 choices 추출 (있는 경우)
             let options: { label: string; text: string }[] = []
+            let correctAnswerIndex = 0
+            
             if (data.payloadJson) {
               try {
                 const payload = typeof data.payloadJson === "string" 
@@ -142,10 +153,35 @@ export function BattleFlow() {
                     label: choice.label || "",
                     text: choice.content || choice.text || ""
                   }))
+                  
+                  // correct: true인 선택지의 인덱스 찾기
+                  const correctIndex = payload.choices.findIndex((choice: any) => choice.correct === true)
+                  if (correctIndex !== -1) {
+                    correctAnswerIndex = correctIndex
+                  } else {
+                    // correct 필드가 없으면 answerKey 사용 (fallback)
+                    correctAnswerIndex = data.answerKey !== undefined 
+                      ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                      : 0
+                  }
+                } else {
+                  // choices가 없으면 answerKey 사용 (fallback)
+                  correctAnswerIndex = data.answerKey !== undefined 
+                    ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                    : 0
                 }
               } catch (e) {
                 console.error("payloadJson 파싱 실패", e)
+                // 파싱 실패 시 answerKey 사용 (fallback)
+                correctAnswerIndex = data.answerKey !== undefined 
+                  ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                  : 0
               }
+            } else {
+              // payloadJson이 없으면 answerKey 사용 (fallback)
+              correctAnswerIndex = data.answerKey !== undefined 
+                ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                : 0
             }
 
             // API 응답을 Question 타입으로 변환
@@ -158,9 +194,7 @@ export function BattleFlow() {
               examType: convertMode(data.mode || "WRITTEN"),
               question: data.stem || "",
               options: options,
-              correctAnswer: data.answerKey !== undefined 
-                ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
-                : 0,
+              correctAnswer: correctAnswerIndex,
               explanation: data.solutionText || "",
               imageUrl: undefined,
               timeLimitSec: roomQ.timeLimitSec,
@@ -208,7 +242,7 @@ export function BattleFlow() {
   const earnedExp = myScore * 7
 
   if (step === "game") {
-    if (questionsLoading) {
+    if (questionsLoading || questions.length === 0) {
       return (
         <div className="p-8 text-center">
           <p className="text-gray-600">문제를 불러오는 중...</p>

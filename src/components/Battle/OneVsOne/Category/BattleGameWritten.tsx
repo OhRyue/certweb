@@ -5,7 +5,7 @@ import { Progress } from "../../../ui/progress";
 import { Swords, Clock, Sparkles, Target } from "lucide-react";
 import type { Question } from "../../../../types";
 import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
-import { submitAnswer } from "../../../api/versusApi";
+import { submitAnswer, getScoreboard, getRoomState } from "../../../api/versusApi";
 
 interface BattleGameWrittenProps {
     questions: Question[];
@@ -30,22 +30,135 @@ export function BattleGameWritten({
     onComplete,
     onExit,
 }: BattleGameWrittenProps) {
-    const [currentQuestion, setCurrentQuestion] = useState(0);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
     const [myScore, setMyScore] = useState(0);
     const [opponentScore, setOpponentScore] = useState(0);
-    const currentQuestionData = questions[currentQuestion];
-    const initialTimeLimit = currentQuestionData?.timeLimitSec || 30;
-    const [timeLeft, setTimeLeft] = useState(initialTimeLimit);
+    const [previousScore, setPreviousScore] = useState(0);
+    const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number | null>(null); // 백엔드에서 제공하는 현재 문제 번호
+    const [timeLeft, setTimeLeft] = useState<number>(0); // 백엔드 endTime 기반으로 계산
     const [isAnswered, setIsAnswered] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
+    const [serverCorrect, setServerCorrect] = useState<boolean | null>(null);
+    const [gameStatus, setGameStatus] = useState<string>("IN_PROGRESS");
 
     // 여기 추가: 상대 퇴장 여부
     const [opponentLeft, setOpponentLeft] = useState(false);
 
     const totalQuestions = questions.length;
-    const question = questions[currentQuestion];
+    const question = questions[currentQuestionIndex];
+
+    // 1초 폴링으로 실시간 스코어보드 조회
+    useEffect(() => {
+        if (!roomId || !myUserId) return;
+
+        const pollScoreboard = async () => {
+            try {
+                const scoreboard = await getScoreboard(roomId);
+                
+                // 스코어보드에서 내 점수와 상대 점수 찾기
+                const myItem = scoreboard.items.find(item => item.userId === myUserId);
+                const opponentItem = scoreboard.items.find(item => item.userId !== myUserId);
+                
+                if (myItem) {
+                    // 점수 변화로 채점 결과 추론 (백엔드가 채점)
+                    if (myItem.score > previousScore && previousScore >= 0 && isAnswered && serverCorrect === null) {
+                        // 점수가 증가했으면 정답
+                        setServerCorrect(true);
+                    } else if (myItem.score === previousScore && isAnswered && serverCorrect === null && previousScore >= 0) {
+                        // 점수가 변하지 않았고 답을 제출했으면 오답일 가능성
+                        setServerCorrect(false);
+                    }
+                    setMyScore(myItem.score);
+                    if (myItem.score !== previousScore) {
+                        setPreviousScore(myItem.score);
+                    }
+                }
+                if (opponentItem) {
+                    setOpponentScore(opponentItem.score);
+                }
+
+                // currentQuestion 정보 업데이트
+                if (scoreboard.currentQuestion) {
+                    const { orderNo, endTime } = scoreboard.currentQuestion;
+                    setCurrentQuestionNumber(orderNo);
+                    
+                    // endTime은 UTC 형식이므로 UTC 기준으로 파싱
+                    // ISO 8601 형식 (예: "2025-12-02T03:15:06Z")은 자동으로 UTC로 파싱됨
+                    const endTimeDate = new Date(endTime);
+                    
+                    // endTime 파싱 검증
+                    if (isNaN(endTimeDate.getTime())) {
+                        console.error('Invalid endTime:', endTime);
+                        return;
+                    }
+                    
+                    const now = new Date(); // 현재 시간
+                    
+                    // getTime()은 모두 UTC 기준 밀리초를 반환하므로 정확하게 계산됨
+                    // endTimeDate.getTime() - now.getTime() = 남은 밀리초
+                    const remainingMs = endTimeDate.getTime() - now.getTime();
+                    // Math.ceil을 사용하여 0.1초 남아도 1초로 표시
+                    const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+                    
+                    setTimeLeft(remainingSec);
+                    
+                    // orderNo는 1부터 시작하므로 인덱스로 변환 (orderNo - 1)
+                    const questionIndex = orderNo - 1;
+                    if (questionIndex >= 0 && questionIndex < questions.length && questionIndex !== currentQuestionIndex) {
+                        setCurrentQuestionIndex(questionIndex);
+                        // 문제 인덱스 변경은 currentQuestionNumber useEffect에서 상태 초기화 처리됨
+                    }
+                }
+
+                // status가 "DONE"이면 게임 종료
+                if (scoreboard.status === "DONE") {
+                    setGameStatus("DONE");
+                    // 게임 종료 시 state 조회하여 결과 확인
+                    try {
+                        const roomState = await getRoomState(roomId);
+                        // 결과는 roomState에서 확인 가능
+                        console.log("게임 종료 - 최종 결과:", roomState);
+                    } catch (error) {
+                        console.error("게임 종료 후 상태 조회 실패:", error);
+                    }
+                } else {
+                    setGameStatus(scoreboard.status);
+                }
+            } catch (error) {
+                console.error("스코어보드 조회 실패:", error);
+            }
+        };
+
+        // 즉시 한 번 조회
+        pollScoreboard();
+
+        // 1초마다 폴링
+        const interval = setInterval(pollScoreboard, 1000);
+
+        return () => clearInterval(interval);
+    }, [roomId, myUserId]);
+
+    // 게임 종료 처리
+    useEffect(() => {
+        if (gameStatus === "DONE") {
+            // 모든 문제를 풀었거나 게임이 종료된 경우
+            setTimeout(() => {
+                onComplete(myScore, opponentScore);
+            }, 2000);
+        }
+    }, [gameStatus, myScore, opponentScore, onComplete]);
+
+    // 문제 인덱스나 문제 번호가 변경될 때마다 상태 초기화 (첫 문제 포함)
+    useEffect(() => {
+        // 문제가 변경되면 상태 초기화
+        setSelectedAnswer(null);
+        setIsAnswered(false);
+        setShowResult(false);
+        setShowOpponentAnswer(false);
+        setServerCorrect(null);
+    }, [currentQuestionIndex, currentQuestionNumber]);
 
     // 테스트용: ESC 누르면 상대 나간 것처럼 오버레이 실행
     useEffect(() => {
@@ -58,88 +171,84 @@ export function BattleGameWritten({
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, []);
 
-    // Timer
-    useEffect(() => {
-        if (timeLeft === 0 && !isAnswered) {
-            handleAnswer(null);
-            return;
-        }
+    // Timer - 백엔드 endTime 기반으로 계산하므로 프론트에서 직접 세지 않음
+    // 스코어보드 폴링에서 timeLeft를 업데이트하므로 별도 타이머 불필요
 
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => Math.max(0, prev - 1));
-        }, 1000);
+    // 게임이 종료되었을 때만 렌더링 중단 (모든 hook 호출 후)
+    if (gameStatus === "DONE") {
+        return (
+            <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-gray-600">게임이 종료되었습니다...</p>
+                </div>
+            </div>
+        );
+    }
 
-        return () => clearInterval(timer);
-    }, [timeLeft, isAnswered]);
+    // question이 없으면 로딩 중이거나 문제가 없는 경우
+    if (!question) {
+        return (
+            <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-gray-600">문제를 불러오는 중...</p>
+                </div>
+            </div>
+        );
+    }
 
-    // Handle Answer - 서버 채점
+    // Handle Answer - 답안 제출 (백엔드가 채점 및 점수 관리)
     const handleAnswer = async (answer: number | null) => {
+        // 선택한 답안을 먼저 설정 (UI에서 초록색으로 표시하기 위해)
+        setSelectedAnswer(answer);
         setIsAnswered(true);
         setShowOpponentAnswer(true);
         setServerCorrect(null); // 초기화
 
-        let isCorrect = false;
-        let serverScore = 0;
-
-        // 답안 제출 API 호출 (서버가 채점)
-        if (roomId && question.roomQuestionId !== undefined && question.roundNo !== undefined && question.phase) {
+        // 답안 제출 API 호출 (백엔드가 채점)
+        if (roomId && question?.roomQuestionId !== undefined && question?.roundNo !== undefined && question?.phase) {
             try {
-                // 답안을 문자열로 변환 (0 -> "A", 1 -> "B", 2 -> "C", 3 -> "D")
-                const answerString = answer !== null ? String.fromCharCode(65 + answer) : "";
-                const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
+                // 답안을 문자열로 변환
+                let answerString = "";
+                if (answer !== null) {
+                    if (question.type === "ox") {
+                        // OX 문제: userAnswer는 "O" 또는 "X"로 전송
+                        answerString = answer === 0 ? "O" : "X";
+                    } else {
+                        // MCQ 문제: 0 -> "A", 1 -> "B", 2 -> "C", 3 -> "D"
+                        answerString = String.fromCharCode(65 + answer);
+                    }
+                }
+                 // 백엔드에서 제공하는 endTime 기반으로 시간 계산
+                 // 현재는 timeLeft를 사용하되, 백엔드가 정확한 시간을 관리
+                 const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
                 
+                // 답안 제출 (백엔드가 채점 및 점수 저장)
+                // OX 문제: userAnswer는 "O" 또는 "X"
+                // 프론트에서는 채점하지 않으므로 correct는 false로 전송 (백엔드가 채점)
                 const response = await submitAnswer(roomId, {
                     questionId: question.roomQuestionId,
-                    userAnswer: answerString,
-                    correct: false, // 서버가 채점하므로 프론트에서는 false로 전송
+                    userAnswer: answerString, // OX: "O" 또는 "X", MCQ: "A", "B", "C", "D"
+                    correct: false, // 백엔드가 채점하므로 프론트에서는 false로 전송
                     timeMs: Math.max(0, timeMs),
                     roundNo: question.roundNo,
                     phase: question.phase,
                 });
 
-                // 서버 응답에서 채점 결과 확인
-                // 현재 API 응답 구조에는 correct 정보가 없으므로, 
-                // 서버가 채점했다고 가정하고 스코어보드에서 점수 변화를 확인
-                // 실제로는 서버 응답에 correct 정보가 포함되어야 함
-                // 임시로 서버가 채점했다고 가정 (실제로는 서버 응답에서 받아야 함)
-                isCorrect = true; // TODO: 서버 응답에서 correct 정보 받아오기
-                setServerCorrect(isCorrect);
+                // 백엔드가 채점하므로 프론트에서는 채점 결과를 알 수 없음
+                // 스코어보드 폴링이 점수를 업데이트할 때 채점 결과를 확인
+                setServerCorrect(null); // 채점 결과는 백엔드에서 관리
             } catch (error) {
                 console.error("답안 제출 실패:", error);
-                setServerCorrect(false);
+                setServerCorrect(null); // 백엔드가 채점하므로 프론트에서는 알 수 없음
                 // 에러가 발생해도 게임은 계속 진행
             }
         } else {
-            setServerCorrect(false);
+            setServerCorrect(null);
         }
 
-        // 서버 채점 결과에 따라 점수 계산
-        if (isCorrect) {
-            const speedBonus = Math.floor(timeLeft / 3);
-            serverScore = 10 + speedBonus;
-            setMyScore((prev) => prev + serverScore);
-        }
-
-        setShowResult(true);
-        setTimeout(() => {
-            if (currentQuestion < totalQuestions - 1) {
-                const nextQuestionIndex = currentQuestion + 1;
-                const nextQuestion = questions[nextQuestionIndex];
-                const nextTimeLimit = nextQuestion?.timeLimitSec || 30;
-                setCurrentQuestion(nextQuestionIndex);
-                setSelectedAnswer(null);
-                setIsAnswered(false);
-                setShowResult(false);
-                setShowOpponentAnswer(false);
-                setServerCorrect(null);
-                setTimeLeft(nextTimeLimit);
-            } else {
-                const finalMyScore = isCorrect
-                    ? myScore + serverScore
-                    : myScore;
-                onComplete(finalMyScore, opponentScore);
-            }
-        }, 2500);
+        // 점수는 백엔드에서 관리하므로 프론트에서 계산하지 않음
+        // 백엔드에서 currentQuestion이 바뀌면 자동으로 다음 문제로 전환되므로
+        // 여기서는 별도 처리 없음 (상태 초기화는 currentQuestion 변경 시 처리됨)
     };
 
     // 프론트 채점 로직 제거 - 서버 채점 결과 사용
@@ -168,10 +277,7 @@ export function BattleGameWritten({
                     {/* Score Board */}
                     <div className="grid grid-cols-2 gap-4">
                         {/* My Score */}
-                        <Card className={`p-6 border-2 transition-all duration-300 ${showResult && serverCorrect === true
-                            ? "bg-gradient-to-br from-green-100 to-emerald-100 border-green-400 shadow-lg scale-105"
-                            : "bg-gradient-to-br from-purple-100 to-pink-100 border-purple-300"
-                            }`}>
+                        <Card className="p-6 border-2 transition-all duration-300 bg-gradient-to-br from-purple-100 to-pink-100 border-purple-300">
                             <div className="flex items-center justify-between mb-3">
                                 <div>
                                     <p className="text-sm text-gray-700 font-semibold">{myUserId || "나"}</p>
@@ -182,17 +288,14 @@ export function BattleGameWritten({
                                 </div>
                                 <div className="text-5xl">👨‍💻</div>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                                <Target className="w-3 h-3" />
-                                <span>문제 {currentQuestion + 1}/{totalQuestions}</span>
-                            </div>
+                             <div className="flex items-center gap-2 text-xs text-gray-600">
+                                 <Target className="w-3 h-3" />
+                                 <span>문제 {currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1}/{totalQuestions}</span>
+                             </div>
                         </Card>
 
                         {/* Opponent Score */}
-                        <Card className={`p-6 border-2 transition-all duration-300 ${showResult && serverCorrect === false
-                            ? "bg-gradient-to-br from-blue-100 to-cyan-100 border-blue-400 shadow-lg scale-105"
-                            : "bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-300"
-                            }`}>
+                        <Card className="p-6 border-2 transition-all duration-300 bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-300">
                             <div className="flex items-center justify-between mb-3">
                                 <div>
                                     <p className="text-sm text-gray-700 mb-1 font-semibold">{opponentUserId || opponentName}</p>
@@ -217,102 +320,64 @@ export function BattleGameWritten({
                 {/* Timer */}
                 <Card className="p-5 mb-6 border-2 border-purple-200 bg-white/80 backdrop-blur-sm">
                     <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">필기 모드 ✏️</Badge>
-                            <span className="text-sm text-gray-600">{currentQuestion + 1} / {totalQuestions}</span>
-                        </div>
-                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${timeLeft <= 10 ? "bg-red-100 text-red-700 animate-pulse" :
-                            timeLeft <= 20 ? "bg-orange-100 text-orange-700" :
-                                "bg-blue-100 text-blue-700"
-                            }`}>
-                            <Clock className="w-5 h-5" />
-                            <span className="font-mono">{timeLeft}초</span>
-                        </div>
-                    </div>
-                    <Progress value={((currentQuestion + 1) / totalQuestions) * 100} className="h-2.5" />
+                         <div className="flex items-center gap-3">
+                             <Badge variant="secondary" className="bg-purple-100 text-purple-700">필기 모드 ✏️</Badge>
+                             <span className="text-sm text-gray-600">{currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1} / {totalQuestions}</span>
+                         </div>
+                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${timeLeft <= 10 ? "bg-red-100 text-red-700 animate-pulse" :
+                             timeLeft <= 20 ? "bg-orange-100 text-orange-700" :
+                                 "bg-blue-100 text-blue-700"
+                             }`}>
+                             <Clock className="w-5 h-5" />
+                             <span className="font-mono">{timeLeft}초</span>
+                         </div>
+                     </div>
+                     <Progress value={((currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1) / totalQuestions) * 100} className="h-2.5" />
                 </Card>
 
-                {/* Questions & Explanation */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm">
-                        <h2 className="text-gray-900 text-base mb-4">{question.question}</h2>
-                        <div className="space-y-3">
-                            {question.options?.map((option, index) => {
-                                const isSelected = selectedAnswer === index;
-                                // 프론트 채점 제거 - 서버 채점 결과만 사용
-                                const showCorrect = showResult && serverCorrect === true && isSelected;
-                                const showWrong = showResult && serverCorrect === false && isSelected;
+                {/* Questions */}
+                <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm">
+                    <h2 className="text-gray-900 text-base mb-4">{question.question}</h2>
+                    <div className="space-y-3">
+                        {question.options?.map((option, index) => {
+                            const isSelected = selectedAnswer === index;
+                            // 선택한 답은 항상 초록색으로 표시
+                            const isSelectedAnswer = isSelected && isAnswered;
 
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={() => !isAnswered && handleAnswer(index)}
-                                        disabled={isAnswered}
-                                        className={`w-full p-5 rounded-xl border-2 text-left transition-all ${showCorrect
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => !isAnswered && handleAnswer(index)}
+                                    disabled={isAnswered}
+                                    className={`w-full p-5 rounded-xl border-2 text-left transition-all ${
+                                        isSelectedAnswer
                                             ? "border-green-500 bg-green-50 scale-[1.02]"
-                                            : showWrong
-                                                ? "border-red-500 bg-red-50 scale-95"
+                                            : isAnswered
+                                                ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
                                                 : isSelected
                                                     ? "border-purple-500 bg-purple-50"
                                                     : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/30"
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${showCorrect ? "bg-green-500 text-white" :
-                                                showWrong ? "bg-red-500 text-white" :
-                                                    isSelected ? "bg-purple-500 text-white" :
-                                                        "bg-gray-200 text-gray-600"
-                                                }`}>
-                                                {showCorrect ? "✓" : showWrong ? "✗" : index + 1}
-                                            </div>
-                                            <span className="text-gray-800">{option}</span>
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                            isSelectedAnswer
+                                                ? "bg-green-500 text-white"
+                                                : isAnswered
+                                                    ? "bg-gray-300 text-gray-500"
+                                                    : isSelected
+                                                        ? "bg-purple-500 text-white"
+                                                        : "bg-gray-200 text-gray-600"
+                                        }`}>
+                                            {isSelectedAnswer ? "✓" : option.label || String.fromCharCode(65 + index)}
                                         </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </Card>
-
-                    {/* Explanation */}
-                    <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm">
-                        {!showResult ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center">
-                                <div className="text-6xl mb-4">🤔</div>
-                                <p className="text-gray-600">답을 선택하면 이곳에 해설이 표시됩니다</p>
-                            </div>
-                        ) : (
-                            <div className="h-full flex flex-col">
-                                <div className={`p-5 rounded-xl border-2 flex-1 ${serverCorrect === true
-                                    ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-300"
-                                    : serverCorrect === false
-                                    ? "bg-gradient-to-r from-red-50 to-rose-50 border-red-300"
-                                    : "bg-gray-100 border-gray-300"
-                                    }`}>
-                                    <div className="flex items-start gap-3 mb-4">
-                                        <div className="text-5xl">{serverCorrect === true ? "🎉" : serverCorrect === false ? "💭" : "⏳"}</div>
-                                        <div className="flex-1">
-                                            <p className={`text-xl mb-2 ${serverCorrect === true ? "text-green-900" : serverCorrect === false ? "text-red-900" : "text-gray-600"}`}>
-                                                {serverCorrect === true ? "정답입니다! ✨" : serverCorrect === false ? "아쉽네요! 😢" : "채점 중..."}
-                                            </p>
-                                        </div>
+                                        <span className={`${isAnswered && !isSelected ? "text-gray-500" : "text-gray-800"}`}>{option.text}</span>
                                     </div>
-
-                                    <div className="p-4 rounded-lg bg-white/70 mb-4">
-                                        <p className="text-sm text-gray-700 mb-2">📚 해설</p>
-                                        <p className="text-sm text-gray-800">{question.explanation}</p>
-                                    </div>
-
-                                    {showOpponentAnswer && (
-                                        <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">
-                                            <span>🤖</span>
-                                            <span>{opponentName}님도 문제를 풀었습니다!</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </Card>
-                </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </Card>
 
                 {/* 상대 나감 오버레이 표시 */}
                 {opponentLeft && (

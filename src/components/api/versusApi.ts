@@ -162,10 +162,20 @@ export interface ScoreboardItem {
 }
 
 // 스코어보드
+export interface CurrentQuestion {
+  questionId: number;
+  roundNo: number;
+  phase: string;
+  orderNo: number;
+  timeLimitSec: number;
+  endTime: string; // ISO 8601 형식
+}
+
 export interface Scoreboard {
   roomId: number;
   status: string;
   items: ScoreboardItem[];
+  currentQuestion?: CurrentQuestion;
 }
 
 // 방 정보
@@ -256,6 +266,17 @@ export async function getRoomState(roomId: number, limit: number = 50): Promise<
       limit,
     },
   });
+  return response.data;
+}
+
+/**
+ * 스코어보드 조회
+ * 1초 폴링으로 사용하여 실시간 스코어보드를 갱신할 수 있습니다.
+ * @param roomId 방 ID
+ * @returns 스코어보드 응답 데이터
+ */
+export async function getScoreboard(roomId: number): Promise<Scoreboard> {
+  const response = await axios.get<Scoreboard>(`/versus/rooms/${roomId}/scoreboard`);
   return response.data;
 }
 
