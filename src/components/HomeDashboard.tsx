@@ -236,15 +236,16 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Character & D-Day */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             {/* Character Card */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-0 shadow-lg overflow-hidden">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-0 shadow-lg overflow-hidden h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col">
                     {overview?.user ? (
                       <>
                         <div className="text-center mb-3">
@@ -257,7 +258,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                         {/* Character Display */}
                         <motion.div
-                          className="relative"
+                          className="relative flex-1 flex items-center justify-center"
                           animate={{
                             y: [0, -10, 0],
                           }}
@@ -267,7 +268,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             ease: "easeInOut"
                           }}
                         >
-                          <div className="text-center bg-white/50 backdrop-blur rounded-2xl p-2 mb-3 overflow-hidden">
+                          <div className="text-center bg-white/50 backdrop-blur rounded-2xl p-2 w-full overflow-hidden">
                             <img 
                               src={getProfileImage(overview.user.skinId)} 
                               alt={overview.user.nickname}
@@ -276,28 +277,30 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                           </div>
                         </motion.div>
 
-                        {/* XP Bar */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-purple-700">경험치</span>
-                            <span className="text-purple-700">
-                              {overview.user.xpTotal} / {((overview.user.level) + 1) * 500} XP
-                            </span>
+                        <div className="mt-4 space-y-3">
+                          {/* XP Bar */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-purple-700">경험치</span>
+                              <span className="text-purple-700">
+                                {overview.user.xpTotal} / {((overview.user.level) + 1) * 500} XP
+                              </span>
+                            </div>
+                            <Progress
+                              value={((overview.user.xpTotal) / (((overview.user.level) + 1) * 500)) * 100}
+                              className="h-3 bg-purple-200"
+                            />
                           </div>
-                          <Progress
-                            value={((overview.user.xpTotal) / (((overview.user.level) + 1) * 500)) * 100}
-                            className="h-3 bg-purple-200"
-                          />
-                        </div>
 
-                        {/* Streak */}
-                        <div className="mt-3 flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
-                          <Flame className="w-5 h-5 text-orange-500" />
-                          <span className="text-orange-700">{overview.user.streakDays}일 연속 학습 🔥</span>
+                          {/* Streak */}
+                          <div className="flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
+                            <Flame className="w-5 h-5 text-orange-500" />
+                            <span className="text-orange-700">{overview.user.streakDays}일 연속 학습 🔥</span>
+                          </div>
                         </div>
                       </>
                     ) : (
-                      <div className="text-center py-8">
+                      <div className="text-center py-8 flex-1 flex items-center justify-center">
                         <span className="text-purple-600 text-sm">로딩 중...</span>
                       </div>
                     )}
@@ -311,10 +314,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
+                className="flex-1"
               >
-                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg">
-                  <div className="p-6">
-                    <div className="flex items-center justify-center py-8">
+                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg h-full flex flex-col">
+                  <div className="p-6 flex-1 flex flex-col justify-center">
+                    <div className="flex items-center justify-center">
                       <span className="text-blue-600 text-sm">로딩 중...</span>
                     </div>
                   </div>
@@ -325,48 +329,51 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
+                className="flex-1"
               >
-                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg">
-                  <div className="p-6">
+                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg h-full flex flex-col">
+                  <div className="p-6 flex-1 flex flex-col">
                     <div className="flex items-center gap-2 mb-4">
                       <Calendar className="w-5 h-5 text-blue-600" />
                       <h3 className="text-blue-800">목표 시험 📅</h3>
                     </div>
 
-                    <div className="bg-white/50 backdrop-blur rounded-xl p-4 mb-3">
-                      <div className="text-center">
-                        <div className="text-4xl mb-2">{targetCertIcon}</div>
-                        <p className="text-blue-900 mb-2">{targetCertName}</p>
-                        <p className="text-blue-600 text-sm">
-                          {overview?.goal.targetExamMode || "시험"}
-                        </p>
+                    <div className="flex-1 flex flex-col justify-center">
+                      <div className="bg-white/50 backdrop-blur rounded-xl p-6 mb-4">
+                        <div className="text-center">
+                          <div className="text-5xl mb-3">{targetCertIcon}</div>
+                          <p className="text-blue-900 mb-2 text-lg font-semibold">{targetCertName}</p>
+                          <p className="text-blue-600">
+                            {overview?.goal.targetExamMode || "시험"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {dDay !== null ? (
-                      <div className="text-center">
-                        <motion.div
-                          animate={{ scale: [1, 1.05, 1] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        >
-                          <div className="text-5xl text-blue-600 mb-1">D-{Math.abs(dDay)}</div>
-                        </motion.div>
-                        <p className="text-blue-700 text-sm">
-                          {dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <div className="text-3xl text-blue-400 mb-1">D-Day</div>
-                        <p className="text-blue-600 text-sm">
-                          시험 일정을 설정해주세요
-                        </p>
-                      </div>
-                    )}
+                      {dDay !== null ? (
+                        <div className="text-center">
+                          <motion.div
+                            animate={{ scale: [1, 1.05, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                          >
+                            <div className="text-6xl text-blue-600 mb-2 font-bold">D-{Math.abs(dDay)}</div>
+                          </motion.div>
+                          <p className="text-blue-700">
+                            {dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-4xl text-blue-400 mb-2">D-Day</div>
+                          <p className="text-blue-600">
+                            시험 일정을 설정해주세요
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
                     <Button
                       asChild
-                      className="w-full mt-3 bg-blue-500 hover:bg-blue-600 text-white"
+                      className="w-full mt-4 bg-blue-500 hover:bg-blue-600 text-white"
                     >
                       <Link to="/certinfo" className="flex items-center justify-center">
                         시험 정보 보기
@@ -380,28 +387,30 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
           </div>
 
           {/* Middle Column - Progress & Quick Actions */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             {/* Overall Progress */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
+              className="flex-1"
             >
-              <Card className="bg-white/80 backdrop-blur border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-white/80 backdrop-blur border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col">
                   <div className="flex items-center gap-2 mb-4">
                     <Target className="w-5 h-5 text-purple-600" />
                     <h3 className="text-purple-800">학습 진행률 📈</h3>
                   </div>
 
+                  <div className="flex-1 flex flex-col justify-between">
                   {progressLoading ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-center">
                         <span className="text-purple-600 text-sm">로딩 중...</span>
                       </div>
                     </div>
                   ) : progressData ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1">
                       {/* Overall Progress Bar */}
                       <motion.div
                         initial={{ opacity: 0, x: -20 }}
@@ -486,10 +495,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       </div>
                     </div>
                   )}
+                  </div>
 
                   <Button
                     asChild
-                    className="w-full mt-3 bg-purple-500 hover:bg-purple-600 text-white"
+                    className="w-full mt-4 bg-purple-500 hover:bg-purple-600 text-white"
                   >
                     <Link to="/report" className="flex items-center justify-center">
                       상세 리포트 보기
@@ -504,19 +514,20 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col justify-between">
                   <h3 className="text-orange-800 mb-4">빠른 시작 🚀</h3>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 flex-1">
                     <Button
                       asChild
-                      className="bg-white hover:bg-purple-50 text-purple-700 border-2 border-purple-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-purple-50 text-purple-700 border-2 border-purple-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/learning" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">📖</div>
+                        <div className="text-3xl">📖</div>
                         <span className="text-sm">메인학습</span>
                       </Link>
                     </Button>
@@ -524,11 +535,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <Button
                       asChild
-                      className="bg-white hover:bg-pink-50 text-pink-700 border-2 border-pink-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-pink-50 text-pink-700 border-2 border-pink-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/solo" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">💪</div>
+                        <div className="text-3xl">💪</div>
                         <span className="text-sm">보조학습</span>
                       </Link>
                     </Button>
@@ -536,11 +547,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <Button
                       asChild
-                      className="bg-white hover:bg-red-50 text-red-700 border-2 border-red-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-red-50 text-red-700 border-2 border-red-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/battle" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">⚔️</div>
+                        <div className="text-3xl">⚔️</div>
                         <span className="text-sm">대전</span>
                       </Link>
                     </Button>
@@ -548,11 +559,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <Button
                       asChild
-                      className="bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/community" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">🏆</div>
+                        <div className="text-3xl">🏆</div>
                         <span className="text-sm">커뮤니티</span>
                       </Link>
                     </Button>
@@ -563,27 +574,29 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
           </div>
 
           {/* Right Column - Ranking */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-amber-100 to-yellow-100 border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-amber-100 to-yellow-100 border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-4">
                     <Trophy className="w-5 h-5 text-amber-600" />
                     <h3 className="text-amber-800">실시간 랭킹 🏅</h3>
                   </div>
 
+                  <div className="flex-1 flex flex-col justify-between">
                   {rankingLoading ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-amber-600 text-sm">로딩 중...</span>
                       </div>
                     </div>
                   ) : rankingData ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1">
                       {rankingData.top5.map((user, idx) => (
                         <motion.div
                           key={user.userId}
@@ -638,16 +651,17 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-amber-600 text-sm">데이터를 불러올 수 없습니다</span>
                       </div>
                     </div>
                   )}
+                  </div>
 
                   <Button
                     asChild
-                    className="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-white"
+                    className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white"
                   >
                     <Link to="/community" className="flex items-center justify-center">
                       전체 랭킹 보기
@@ -663,57 +677,59 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.6 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-4">
                     <Award className="w-5 h-5 text-green-600" />
                     <h3 className="text-green-800">오늘의 성과 ✨</h3>
                   </div>
 
+                  <div className="flex-1 flex flex-col justify-between">
                   {loading ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-green-600 text-sm">로딩 중...</span>
                       </div>
                     </div>
                   ) : quickStats ? (
                     <>
-                      <div className="space-y-3">
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                      <div className="space-y-3 flex-1">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">📝</div>
-                            <span className="text-green-800 text-sm">문제 풀이</span>
+                            <div className="text-2xl">📝</div>
+                            <span className="text-green-800">문제 풀이</span>
                           </div>
-                          <span className="text-green-600">{quickStats.solvedToday}문제</span>
+                          <span className="text-green-600 font-semibold">{quickStats.solvedToday}문제</span>
                         </div>
 
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">⏱️</div>
-                            <span className="text-green-800 text-sm">학습 시간</span>
+                            <div className="text-2xl">⏱️</div>
+                            <span className="text-green-800">학습 시간</span>
                           </div>
-                          <span className="text-green-600">{quickStats.minutesToday}분</span>
+                          <span className="text-green-600 font-semibold">{quickStats.minutesToday}분</span>
                         </div>
 
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">✅</div>
-                            <span className="text-green-800 text-sm">정답률</span>
+                            <div className="text-2xl">✅</div>
+                            <span className="text-green-800">정답률</span>
                           </div>
-                          <span className="text-green-600">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
+                          <span className="text-green-600 font-semibold">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
                         </div>
 
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">⭐</div>
-                            <span className="text-green-800 text-sm">획득 XP</span>
+                            <div className="text-2xl">⭐</div>
+                            <span className="text-green-800">획득 XP</span>
                           </div>
-                          <span className="text-green-600">+{quickStats.xpToday.toLocaleString()} XP</span>
+                          <span className="text-green-600 font-semibold">+{quickStats.xpToday.toLocaleString()} XP</span>
                         </div>
                       </div>
 
-                      <div className={`mt-3 text-center text-sm ${
+                      <div className={`mt-4 text-center text-sm ${
                         quickStats.accuracyDelta > 0 
                           ? "text-green-700" 
                           : quickStats.accuracyDelta < 0 
@@ -738,12 +754,13 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       </div>
                     </>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-green-600 text-sm">데이터를 불러올 수 없습니다</span>
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               </Card>
             </motion.div>
