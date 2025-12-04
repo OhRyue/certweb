@@ -32,7 +32,8 @@ export interface MatchRequestResponse {
   status: "WAITING" | "MATCHED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   opponent?: {
     userId: string;
-    nickname: string;
+    nickname: string | null; // account-service 호출 실패 시 null
+    skinId: number; // 프로필 조회 실패 시 기본값 1
     avatarUrl?: string;
     level?: number;
   };
@@ -100,7 +101,8 @@ export interface BotMatchResponse {
   roomId: number;
   myUserId: string;
   botUserId: string;
-  botNickname: string;
+  botNickname: string | null; // account-service 호출 실패 시 null
+  botSkinId: number; // 프로필 조회 실패 시 기본값 1
   scopeJson: string;
 }
 
@@ -133,6 +135,8 @@ export async function matchWithBot(params: BotMatchParams): Promise<BotMatchResp
 // 방 참가자 정보
 export interface RoomParticipant {
   userId: string;
+  nickname: string | null; // account-service 호출 실패 시 null
+  skinId: number; // 프로필 조회 실패 시 기본값 1
   finalScore: number;
   rank: number;
   alive: boolean;
@@ -152,6 +156,8 @@ export interface RoomQuestion {
 // 스코어보드 항목
 export interface ScoreboardItem {
   userId: string;
+  nickname: string | null; // account-service 호출 실패 시 null
+  skinId: number; // 프로필 조회 실패 시 기본값 1
   correctCount: number;
   totalCount: number;
   score: number;
@@ -400,5 +406,49 @@ export async function submitGoldenBellAnswer(
     params
   );
   return response.data;
+}
+
+// 골든벨 답안 정보 항목
+export interface QuestionAnswerItem {
+  userId: string;
+  nickname: string | null; // account-service 호출 실패 시 null
+  skinId: number; // 프로필 조회 실패 시 기본값 1
+  userAnswer: string;
+  correct: boolean;
+  timeMs: number;
+  scoreDelta: number;
+  submittedAt: string;
+}
+
+// 골든벨 답안 정보 응답
+export interface QuestionAnswersResponse {
+  questionId: number;
+  answers: QuestionAnswerItem[];
+}
+
+/**
+ * 골든벨 문제별 답안 정보 조회
+ * @param roomId 방 ID
+ * @param questionId 문제 ID
+ * @returns 답안 정보 응답 데이터
+ */
+export async function getQuestionAnswers(
+  roomId: number,
+  questionId: number
+): Promise<QuestionAnswersResponse> {
+  const response = await axios.get<QuestionAnswersResponse>(
+    `/versus/rooms/${roomId}/questions/${questionId}/answers`
+  );
+  return response.data;
+}
+
+/**
+ * 닉네임이 null일 때 userId를 반환하는 유틸리티 함수
+ * @param nickname 닉네임 (null 가능)
+ * @param userId 사용자 ID
+ * @returns 닉네임 또는 사용자 ID
+ */
+export function getDisplayName(nickname: string | null | undefined, userId: string): string {
+  return nickname || userId;
 }
 

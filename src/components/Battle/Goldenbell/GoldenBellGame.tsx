@@ -48,6 +48,7 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
   const [countdown, setCountdown] = useState(3);
   const [answerStartTime, setAnswerStartTime] = useState<number | null>(null);
   const [submittedQuestionId, setSubmittedQuestionId] = useState<number | null>(null);
+  const autoSubmittedRef = useRef<number | null>(null); // 자동 제출한 questionId 추적
   
   // 관전자 모드 및 부활 관련 상태
   const [isSpectator, setIsSpectator] = useState(false);
@@ -260,11 +261,17 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
         const status: GoldenBellCharacter["status"] = 
           !participant.alive ? "eliminated" : "normal";
         
+        // 닉네임이 null이면 userId 사용
+        const displayName = participant.nickname || participant.userId;
+        
         newCharacters.push({
           id: index + 1,
-          name: isUser ? "나" : `참가자 ${index + 1}`,
+          name: isUser ? "나" : displayName,
           status,
           gridPosition: { row, col },
+          nickname: participant.nickname,
+          skinId: participant.skinId,
+          userId: participant.userId,
         });
       }
     });
@@ -280,6 +287,7 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
           name: `참가자 ${index + 1}`,
           status: "eliminated",
           gridPosition: { row, col },
+          skinId: 1, // 기본 스킨 ID
         });
       } else {
         break;
@@ -301,6 +309,13 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
   useEffect(() => {
     if (!scoreboard?.currentQuestion?.endTime) return;
 
+    const currentQuestionId = scoreboard.currentQuestion.questionId;
+    
+    // 새로운 문제가 시작되면 autoSubmittedRef 초기화
+    if (autoSubmittedRef.current !== currentQuestionId) {
+      autoSubmittedRef.current = null;
+    }
+
     const updateTimer = () => {
       const endTime = new Date(scoreboard.currentQuestion!.endTime).getTime();
       const now = Date.now();
@@ -308,13 +323,16 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
       const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
       setTimeLeft(remaining);
       
-      // 시간이 지나면 빈 답안 자동 제출
+      // 시간이 지나면 빈 답안 자동 제출 (한 번만)
       if (remaining === 0 && 
           gameStage === "answering" && 
           !isSpectator &&
           scoreboard.currentQuestion &&
-          submittedQuestionId !== scoreboard.currentQuestion.questionId &&
+          submittedQuestionId !== currentQuestionId &&
+          autoSubmittedRef.current !== currentQuestionId &&
           answerStartTime) {
+        // 자동 제출 플래그 설정 (중복 호출 방지)
+        autoSubmittedRef.current = currentQuestionId;
         // 빈 답안으로 자동 제출
         handleAnswer("");
       }
@@ -384,15 +402,25 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
     if (gameStage !== "answering") return;
     if (isSpectator) return; // 관전자 모드에서는 답안 제출 불가
     if (!scoreboard?.currentQuestion || !roomId || !answerStartTime) return;
-    if (submittedQuestionId === scoreboard.currentQuestion.questionId) return; // 이미 제출한 문제
+    
+    const currentQuestionId = scoreboard.currentQuestion.questionId;
+    
+    // 이미 제출한 문제인지 확인 (중복 제출 방지)
+    if (submittedQuestionId === currentQuestionId) return;
+    if (autoSubmittedRef.current === currentQuestionId) return; // 자동 제출도 이미 했는지 확인
 
     const timeMs = Date.now() - answerStartTime;
 
     try {
+      // 자동 제출인 경우 플래그 설정
+      if (answer === "") {
+        autoSubmittedRef.current = currentQuestionId;
+      }
+      
       // 답안 제출 (1:1 배틀과 동일한 파라미터 사용)
       // scoreboard.currentQuestion.questionId를 사용 (API에서 제공하는 questionId)
       await submitAnswer(roomId, {
-        questionId: scoreboard.currentQuestion.questionId,
+        questionId: currentQuestionId,
         userAnswer: answer,
         correct: false, // API에서 판단하므로 임시값
         timeMs,
@@ -400,11 +428,15 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
         phase: scoreboard.currentQuestion.phase as "MAIN" | "REVIVAL",
       });
 
-      setSubmittedQuestionId(scoreboard.currentQuestion.questionId);
+      setSubmittedQuestionId(currentQuestionId);
       setGameStage("waiting");
       // 정답 여부는 스코어보드 폴링으로 업데이트됨
     } catch (error) {
       console.error("답안 제출 실패:", error);
+      // 에러 발생 시 자동 제출 플래그도 리셋
+      if (answer === "" && autoSubmittedRef.current === currentQuestionId) {
+        autoSubmittedRef.current = null;
+      }
       setGameStage("waiting");
     }
   };

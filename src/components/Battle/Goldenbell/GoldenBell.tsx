@@ -4,7 +4,7 @@ import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Bell, Users, Clock, Award, Zap, Bot } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { startGoldenBellBotMatch, type ExamMode } from "../../api/versusApi";
+import { type ExamMode } from "../../api/versusApi";
 
 export function GoldenBell() {
   const navigate = useNavigate()
@@ -13,18 +13,11 @@ export function GoldenBell() {
   const myRecords: any[] = [];
 
   const handleBotMatch = async (examMode: ExamMode = "WRITTEN") => {
-    try {
-      setLoading(true);
-      const response = await startGoldenBellBotMatch(examMode);
-      console.log("골든벨 봇전 시작:", response);
-      // 게임 페이지로 이동
-      navigate(`/battle/goldenbell/game/${response.roomId}?examMode=${examMode}`);
-    } catch (error: any) {
-      console.error("봇 매칭 실패:", error);
-      alert(error.response?.data?.message || "봇과 매칭하는 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
+    // API 호출은 GoldenBellGameWrapper에서 수행하므로 여기서는 네비게이션만 수행
+    setLoading(true);
+    // 게임 페이지로 이동 (roomId는 GoldenBellGameWrapper에서 생성)
+    navigate(`/battle/goldenbell/game/new?examMode=${examMode}`);
+    // loading 상태는 페이지 이동 후 리셋되므로 여기서는 설정만 함
   };
 
   return (

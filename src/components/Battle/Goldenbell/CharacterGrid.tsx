@@ -1,6 +1,46 @@
 import { motion, AnimatePresence } from "motion/react";
 import type { GoldenBellCharacter } from "../../../types";
 
+// 캐릭터 이미지 import
+import girlBasicCharacter from "../../assets/characters/girl_basic_noBackGround.png";
+import boyNerdCharacter from "../../assets/characters/boy_nerd_noBackGround.png";
+import girlUniformCharacter from "../../assets/characters/girl_uniform_noBackGround.png";
+import girlPajamaCharacter from "../../assets/characters/girl_pajama_noBackGround.png";
+import girlMarriedCharacter from "../../assets/characters/girl_married_noBackGround.png";
+import girlNerdCharacter from "../../assets/characters/girl_nerd_noBackGround.png";
+import girlIdolCharacter from "../../assets/characters/girl_idol_noBackGround.png";
+import girlGhostCharacter from "../../assets/characters/girl_ghost._noBackGround.png";
+import girlCyberpunkCharacter from "../../assets/characters/girl_cyberpunk_noBackGround.png";
+import girlChinaCharacter from "../../assets/characters/girl_china_noBackGround.png";
+import girlCatCharacter from "../../assets/characters/girl_cat_noBackGround.png";
+import boyWorkerCharacter from "../../assets/characters/boy_worker_noBackGround.png";
+import boyPoliceofficerCharacter from "../../assets/characters/boy_policeofficer_noBackGround.png";
+import boyHiphopCharacter from "../../assets/characters/boy_hiphop_noBackGround.png";
+import boyDogCharacter from "../../assets/characters/boy_dog_noBackGround.png";
+import boyBasicCharacter from "../../assets/characters/boy_basic_noBackGround.png";
+import boyAgentCharacter from "../../assets/characters/boy_agent_noBackGround.png";
+
+// skinId를 캐릭터 이미지로 매핑
+const CHARACTER_IMAGE_MAP: Record<number, string> = {
+  1: girlBasicCharacter,
+  2: boyNerdCharacter,
+  3: girlUniformCharacter,
+  4: girlPajamaCharacter,
+  5: girlMarriedCharacter,
+  6: girlNerdCharacter,
+  7: girlIdolCharacter,
+  8: girlGhostCharacter,
+  9: girlCyberpunkCharacter,
+  10: girlChinaCharacter,
+  11: girlCatCharacter,
+  12: boyWorkerCharacter,
+  13: boyPoliceofficerCharacter,
+  14: boyHiphopCharacter,
+  15: boyDogCharacter,
+  16: boyBasicCharacter,
+  17: boyAgentCharacter,
+};
+
 interface CharacterGridProps {
   characters: GoldenBellCharacter[];
   onCharacterClick?: (character: GoldenBellCharacter) => void;
@@ -15,21 +55,10 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
     return a.gridPosition.col - b.gridPosition.col;
   });
 
-  const getCharacterImage = (status: GoldenBellCharacter["status"]) => {
-    // Currently all states use the same image
-    // Later: use different images for correct/wrong states
-    switch (status) {
-      case "normal":
-        return "/assets/characters/character_normal.png"
-      case "correct":
-        return "/assets/characters/character_normal.png"  // TODO: Use sketchbook character image
-      case "wrong":
-        return "/assets/characters/character_normal.png"  // TODO: Use crying character image
-      case "eliminated":
-        return "/assets/characters/character_normal.png"
-      default:
-        return "/assets/characters/character_normal.png"
-    }
+  // 스킨 ID로 캐릭터 이미지 가져오기
+  const getCharacterImage = (character: GoldenBellCharacter) => {
+    const skinId = character.skinId || 1; // 기본값: 1
+    return CHARACTER_IMAGE_MAP[skinId] || CHARACTER_IMAGE_MAP[1];
   };
 
   return (
@@ -109,7 +138,7 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
                   className="relative"
                 >
                   <img
-                    src={getCharacterImage(character.status)}
+                    src={getCharacterImage(character)}
                     alt={character.name}
                     className={`w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 object-contain ${isEliminated ? "grayscale" : ""}`}
                   />

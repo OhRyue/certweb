@@ -168,7 +168,7 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
                             <span className={`font-semibold ${
                               isMe ? "text-purple-700" : "text-gray-800"
                             }`}>
-                              {isMe ? "나" : `참가자 ${rank}`}
+                              {isMe ? "나" : (item.nickname || item.userId)}
                             </span>
                             {isMe && (
                               <Badge className="bg-purple-500 text-white text-xs">나</Badge>

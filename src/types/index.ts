@@ -190,6 +190,9 @@ export interface GoldenBellCharacter {
   gridPosition: { row: number; col: number };
   answer?: string; // Character's answer
   showAnswer?: boolean; // Show answer bubble
+  nickname?: string | null; // 참가자 닉네임
+  skinId?: number; // 스킨 ID
+  userId?: string; // 사용자 ID
 }
 
 export interface CanvasEffect {
