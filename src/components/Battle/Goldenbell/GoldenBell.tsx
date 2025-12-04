@@ -1,24 +1,67 @@
+import { useState } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
-import { Bell, Users, Clock, Award, Zap } from "lucide-react";
+import { Bell, Users, Clock, Award, Zap, Bot } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { startGoldenBellBotMatch, type ExamMode } from "../../api/versusApi";
 
 export function GoldenBell() {
   const navigate = useNavigate()
+  const [loading, setLoading] = useState(false);
   const activeSessions: any[] = [];
   const myRecords: any[] = [];
+
+  const handleBotMatch = async (examMode: ExamMode = "WRITTEN") => {
+    try {
+      setLoading(true);
+      const response = await startGoldenBellBotMatch(examMode);
+      console.log("골든벨 봇전 시작:", response);
+      // 게임 페이지로 이동
+      navigate(`/battle/goldenbell/game/${response.roomId}?examMode=${examMode}`);
+    } catch (error: any) {
+      console.error("봇 매칭 실패:", error);
+      alert(error.response?.data?.message || "봇과 매칭하는 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Bell className="w-8 h-8 text-blue-600" />
-            <h1 className="text-blue-900">골든벨</h1>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Bell className="w-8 h-8 text-blue-600" />
+                <h1 className="text-blue-900">골든벨</h1>
+              </div>
+              <p className="text-gray-600">최후 1인이 되어 골든벨의 주인공이 되세요!</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => handleBotMatch("WRITTEN")}
+                disabled={loading}
+                size="lg"
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white"
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                {loading ? "매칭 중..." : "봇과 매칭 (필기)"}
+              </Button>
+              <Button
+                onClick={() => handleBotMatch("PRACTICAL")}
+                disabled={loading}
+                size="lg"
+                variant="outline"
+                className="border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                {loading ? "매칭 중..." : "봇과 매칭 (실기)"}
+              </Button>
+            </div>
           </div>
-          <p className="text-gray-600">최후 1인이 되어 골든벨의 주인공이 되세요!</p>
         </div>
 
         {/* Golden Bell Info */}

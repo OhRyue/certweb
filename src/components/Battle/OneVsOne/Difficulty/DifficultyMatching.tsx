@@ -4,7 +4,7 @@ import { Badge } from "../../../ui/badge";
 import { Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { requestMatch, getMatchStatus, saveRoomId, getRoomDetail, type MatchRequestResponse, type MatchStatusResponse } from "../../../api/versusApi";
+import { requestMatch, getMatchStatus, saveRoomId, getRoomState, type MatchRequestResponse, type MatchStatusResponse } from "../../../api/versusApi";
 import axios from "../../../api/axiosConfig";
 
 interface ParticipantInfo {
@@ -120,8 +120,9 @@ export function DifficultyMatching() {
               saveRoomId(statusResponse.roomId);
               
               try {
-                // 방 정보 조회하여 참가자 정보 가져오기
-                const roomDetail = await getRoomDetail(statusResponse.roomId);
+                // 방 상태 조회하여 참가자 정보 가져오기
+                const roomState = await getRoomState(statusResponse.roomId);
+                const roomDetail = roomState.detail;
                 
                 // 현재 사용자 정보 가져오기
                 const profileRes = await axios.get("/account/profile");

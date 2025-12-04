@@ -162,16 +162,26 @@ export interface ScoreboardItem {
 }
 
 // 스코어보드
+export interface CurrentQuestion {
+  questionId: number;
+  roundNo: number;
+  phase: string;
+  orderNo: number;
+  timeLimitSec: number;
+  endTime: string; // ISO 8601 형식
+}
+
 export interface Scoreboard {
   roomId: number;
   status: string;
   items: ScoreboardItem[];
+  currentQuestion?: CurrentQuestion;
 }
 
 // 방 정보
 export interface RoomInfo {
   roomId: number;
-  mode: "DUEL";
+  mode: "DUEL" | "GOLDENBELL" | "TOURNAMENT";
   status: "WAIT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   participantCount: number;
   createdAt: string;
@@ -260,6 +270,17 @@ export async function getRoomState(roomId: number, limit: number = 50): Promise<
 }
 
 /**
+ * 스코어보드 조회
+ * 1초 폴링으로 사용하여 실시간 스코어보드를 갱신할 수 있습니다.
+ * @param roomId 방 ID
+ * @returns 스코어보드 응답 데이터
+ */
+export async function getScoreboard(roomId: number): Promise<Scoreboard> {
+  const response = await axios.get<Scoreboard>(`/versus/rooms/${roomId}/scoreboard`);
+  return response.data;
+}
+
+/**
  * 방의 문제 목록 조회
  * order 기준으로 정렬하여 문제 진행 순서를 관리할 수 있습니다.
  * @param roomId 방 ID
@@ -296,6 +317,87 @@ export interface SubmitAnswerResponse {
  */
 export async function submitAnswer(roomId: number, params: SubmitAnswerParams): Promise<SubmitAnswerResponse> {
   const response = await axios.post<SubmitAnswerResponse>(`/versus/rooms/${roomId}/answers`, params);
+  return response.data;
+}
+
+// 골든벨 봇전 시작 응답
+export interface GoldenBellBotMatchResponse {
+  roomId: number;
+  myUserId: string;
+  botUserIds: string[];
+}
+
+/**
+ * 골든벨 봇전 시작
+ * 호출 시 방이 생성됩니다. 사용자+봇19명이 참가하여 매치를 시작합니다. 첫 번째 문제 시작이 자동으로 진행됩니다.
+ * @param examMode 시험 모드 (WRITTEN/PRACTICAL)
+ * @returns 골든벨 봇전 시작 응답 데이터
+ */
+export async function startGoldenBellBotMatch(examMode: ExamMode): Promise<GoldenBellBotMatchResponse> {
+  const response = await axios.post<GoldenBellBotMatchResponse>(
+    `/versus/match/goldenbell/bot`,
+    null,
+    {
+      params: {
+        examMode,
+      },
+    }
+  );
+  return response.data;
+}
+
+// 문제 상세 정보 응답
+export interface VersusQuestionResponse {
+  questionId: number;
+  mode: "WRITTEN" | "PRACTICAL";
+  type: "OX" | "MULTIPLE" | "SHORT" | "LONG";
+  difficulty: "EASY" | "NORMAL" | "HARD";
+  stem: string;
+  answerKey: string;
+  solutionText: string;
+  payloadJson: {
+    choices?: Array<{
+      label: string;
+      content: string;
+      correct: boolean;
+    }>;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * 문제 상세 정보 조회
+ * 스코어보드에서 받은 currentQuestion.questionId를 사용합니다.
+ * @param questionId 문제 ID
+ * @returns 문제 상세 정보
+ */
+export async function getVersusQuestion(questionId: number): Promise<VersusQuestionResponse> {
+  const response = await axios.get<VersusQuestionResponse>(`/study/versus/questions/${questionId}`);
+  return response.data;
+}
+
+// 골든벨 답안 제출 요청 파라미터 (roundNo, phase 없이)
+export interface GoldenBellSubmitAnswerParams {
+  questionId: number;
+  userAnswer: string;
+  correct: boolean;
+  timeMs: number | null;
+}
+
+/**
+ * 골든벨 답안 제출
+ * @param roomId 방 ID
+ * @param params 답안 제출 파라미터
+ * @returns 스코어보드 응답 데이터
+ */
+export async function submitGoldenBellAnswer(
+  roomId: number,
+  params: GoldenBellSubmitAnswerParams
+): Promise<SubmitAnswerResponse> {
+  const response = await axios.post<SubmitAnswerResponse>(
+    `/versus/rooms/${roomId}/answers`,
+    params
+  );
   return response.data;
 }
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BattleGameWritten } from "./BattleGameWritten";
 import { BattleGamePractical } from "./BattleGamePractical";
-import { getRoomDetail, getSavedRoomId, getRoomQuestions } from "../../api/versusApi";
+import { getSavedRoomId, getRoomQuestions, getRoomState } from "../../api/versusApi";
 import axios from "../../api/axiosConfig";
 import type { Question } from "../../../types";
 import { Card } from "../../ui/card";
@@ -45,7 +45,8 @@ export function TournamentGameFlow() {
         setMyUserId(currentUserId);
 
         // 2. 방 정보 조회
-        const roomDetail = await getRoomDetail(currentRoomId);
+        const roomState = await getRoomState(currentRoomId);
+        const roomDetail = roomState.detail;
 
         // 3. 참가자 정보에서 내 순위 가져오기
         const myParticipant = roomDetail.participants.find(
