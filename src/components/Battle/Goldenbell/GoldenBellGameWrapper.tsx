@@ -1,15 +1,19 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { GoldenBellGame } from "./GoldenBellGame"
-import { startGoldenBellBotMatch, getRoomState, type ExamMode } from "../../api/versusApi"
+import { GoldenBellResult } from "./GoldenBellResult"
+import { startGoldenBellBotMatch, getRoomState, getScoreboard, type ExamMode, type Scoreboard } from "../../api/versusApi"
 
 export function GoldenBellGameWrapper() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [roomId, setRoomId] = useState<number | null>(null)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gameCompleted, setGameCompleted] = useState(false)
+  const [finalScoreboard, setFinalScoreboard] = useState<Scoreboard | null>(null)
 
   useEffect(() => {
     const initializeGame = async () => {
@@ -25,6 +29,7 @@ export function GoldenBellGameWrapper() {
         console.log("골든벨 봇전 시작 응답:", matchResponse)
         
         setRoomId(matchResponse.roomId)
+        setMyUserId(matchResponse.myUserId) // API 응답에서 myUserId 가져오기
 
         // questions 배열이 생성될 때까지 대기
         const waitForQuestions = async (roomId: number, retryCount = 0, maxRetries = 30) => {
@@ -100,13 +105,47 @@ export function GoldenBellGameWrapper() {
     return null
   }
 
+  // 게임 완료 시 최종 스코어보드 가져오기
+  const handleGameComplete = async (win: boolean, rank: number) => {
+    if (roomId) {
+      try {
+        const scoreboard = await getScoreboard(roomId)
+        setFinalScoreboard(scoreboard)
+        setGameCompleted(true)
+      } catch (error) {
+        console.error("최종 스코어보드 조회 실패:", error)
+        // 에러가 발생해도 결과 화면으로 이동
+        setGameCompleted(true)
+      }
+    }
+  }
+
+  // 결과 화면 표시
+  if (gameCompleted && finalScoreboard && myUserId) {
+    return (
+      <GoldenBellResult
+        scoreboard={finalScoreboard}
+        myUserId={myUserId}
+        onBackToDashboard={() => navigate("/battle/goldenbell")}
+        onRetry={() => {
+          setGameCompleted(false)
+          setFinalScoreboard(null)
+          // 게임 재시작을 위해 페이지 새로고침 또는 상태 초기화
+          window.location.reload()
+        }}
+      />
+    )
+  }
+
+  if (!myUserId) {
+    return null
+  }
+
   return (
     <GoldenBellGame
       sessionId={String(roomId)}
-      onComplete={(win, rank) => {
-        console.log("게임 종료:", win, rank)
-        navigate("/battle/goldenbell")
-      }}
+      myUserId={myUserId}
+      onComplete={handleGameComplete}
       onExit={() => navigate("/battle/goldenbell")}
     />
   )

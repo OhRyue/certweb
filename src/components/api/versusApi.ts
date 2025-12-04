@@ -299,7 +299,7 @@ export interface SubmitAnswerParams {
   correct: boolean;
   timeMs: number; // 소요 시간 (밀리초)
   roundNo: number;
-  phase: "MAIN";
+  phase: "MAIN" | "REVIVAL";
 }
 
 // 답안 제출 응답
@@ -348,9 +348,10 @@ export async function startGoldenBellBotMatch(examMode: ExamMode): Promise<Golde
 
 // 문제 상세 정보 응답
 export interface VersusQuestionResponse {
-  questionId: number;
+  questionId?: number;
+  id?: number; // API 응답에 따라 id 또는 questionId 사용
   mode: "WRITTEN" | "PRACTICAL";
-  type: "OX" | "MULTIPLE" | "SHORT" | "LONG";
+  type: "OX" | "MULTIPLE" | "MCQ" | "SHORT" | "LONG";
   difficulty: "EASY" | "NORMAL" | "HARD";
   stem: string;
   answerKey: string;
