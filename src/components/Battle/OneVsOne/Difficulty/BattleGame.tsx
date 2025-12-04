@@ -9,11 +9,15 @@ import type { Question } from "../../../../types"
 interface BattleGameProps {
   questions: Question[]
   opponentName: string
+  myUserId?: string
+  opponentUserId?: string
+  myRank?: number | null
+  opponentRank?: number | null
   onComplete: (myScore: number, opponentScore: number) => void
   onExit: () => void
 }
 
-export function BattleGame({ questions, opponentName, onComplete, onExit }: BattleGameProps) {
+export function BattleGame({ questions, opponentName, myUserId, opponentUserId, myRank, opponentRank, onComplete, onExit }: BattleGameProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [myScore, setMyScore] = useState(0)
@@ -71,13 +75,6 @@ export function BattleGame({ questions, opponentName, onComplete, onExit }: Batt
       setMyScore(prev => prev + 10 + speedBonus)
     }
 
-    // 상대 시뮬레이션
-    const opponentCorrect = Math.random() > 0.3
-    const opponentTime = Math.floor(Math.random() * 25) + 5
-    if (opponentCorrect) {
-      const opponentBonus = Math.floor(opponentTime / 3)
-      setOpponentScore(prev => prev + 10 + opponentBonus)
-    }
 
     setShowResult(true)
 
@@ -93,10 +90,7 @@ export function BattleGame({ questions, opponentName, onComplete, onExit }: Batt
         const finalMyScore = meCorrect
           ? myScore + 10 + Math.floor(timeLeft / 3)
           : myScore
-        const finalOppScore = opponentCorrect
-          ? opponentScore + 10 + Math.floor(opponentTime / 3)
-          : opponentScore
-        onComplete(finalMyScore, finalOppScore)
+        onComplete(finalMyScore, opponentScore)
       }
     }, 1500)
   }
@@ -119,14 +113,24 @@ export function BattleGame({ questions, opponentName, onComplete, onExit }: Batt
         {/* --- Score --- */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <Card className="p-4 border-2 border-purple-200 bg-purple-50">
-            <div className="flex justify-between">
-              <p className="text-gray-600 text-sm">나</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-gray-900 text-sm font-semibold">{myUserId || "나"}</p>
+                {myRank !== null && myRank !== undefined && (
+                  <p className="text-xs text-purple-600">순위: {myRank}위</p>
+                )}
+              </div>
               <p className="text-2xl text-purple-600">{myScore}</p>
             </div>
           </Card>
           <Card className="p-4 border-2 border-blue-200 bg-blue-50">
-            <div className="flex justify-between">
-              <p className="text-gray-600 text-sm">{opponentName}</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-gray-900 text-sm font-semibold">{opponentUserId || opponentName}</p>
+                {opponentRank !== null && opponentRank !== undefined && (
+                  <p className="text-xs text-blue-600">순위: {opponentRank}위</p>
+                )}
+              </div>
               <p className="text-2xl text-blue-600">{opponentScore}</p>
             </div>
           </Card>

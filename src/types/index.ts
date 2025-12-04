@@ -60,6 +60,10 @@ export interface Question {
   correctAnswer: number | string // number for multiple/ox, string for typing
   explanation: string
   imageUrl?: string // 실기 문제용 이미지 URL
+  timeLimitSec?: number // 문제별 시간 제한 (초)
+  roomQuestionId?: number // 방 문제 ID (답안 제출용)
+  roundNo?: number // 라운드 번호 (답안 제출용)
+  phase?: "MAIN" // 단계 (답안 제출용)
 }
 
 export interface Concept {
@@ -144,6 +148,38 @@ export interface ShopItem {
   description: string
   rarity: "common" | "rare" | "epic" | "legendary"
   isPurchased: boolean
+}
+
+// 상점 API 타입
+export interface StoreCatalogItem {
+  itemId: number
+  name: string
+  description: string
+  price: number
+  owned: boolean
+  limitPerUser: number
+  active: boolean
+  skinId?: number
+}
+
+export interface StoreCatalogUser {
+  userId: string
+  pointBalance: number
+  ownedItemCount: number
+}
+
+export interface StoreCatalogResponse {
+  user: StoreCatalogUser
+  items: StoreCatalogItem[]
+  generatedAt: string
+}
+
+// 보유 스킨 인벤토리 타입
+export interface InventoryItem {
+  id: number
+  userId: string
+  itemId: number
+  ownedAt: string
 }
 
 // Golden Bell Game Types

@@ -7,17 +7,28 @@ import { Input } from "../../../ui/input";
 import { Swords, Clock, Zap, Sparkles, Target } from "lucide-react";
 import type { Question } from "../../../../types";
 import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
+import { submitAnswer, getScoreboard, getRoomState } from "../../../api/versusApi";
 
 interface BattleGamePracticalProps {
   questions: Question[];
+  roomId?: number; // 답안 제출용
   opponentName: string;
+  myUserId?: string;
+  opponentUserId?: string;
+  myRank?: number | null;
+  opponentRank?: number | null;
   onComplete: (myScore: number, opponentScore: number) => void;
   onExit: () => void;
 }
 
 export function BattleGamePractical({
   questions,
+  roomId,
   opponentName,
+  myUserId,
+  opponentUserId,
+  myRank,
+  opponentRank,
   onComplete,
   onExit,
 }: BattleGamePracticalProps) {
@@ -25,17 +36,99 @@ export function BattleGamePractical({
   const [typingAnswer, setTypingAnswer] = useState("");
   const [myScore, setMyScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
+  const currentQuestionData = questions[currentQuestion];
+  const initialTimeLimit = currentQuestionData?.timeLimitSec || 30;
+  const [timeLeft, setTimeLeft] = useState(initialTimeLimit);
   const [isAnswered, setIsAnswered] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [gameStatus, setGameStatus] = useState<string>("IN_PROGRESS");
 
   // 오버레이 상태 추가
   const [opponentLeft, setOpponentLeft] = useState(false);
 
   const totalQuestions = questions.length;
   const question = questions[currentQuestion];
+
+  // 게임이 종료되었을 때만 렌더링 중단
+  if (gameStatus === "DONE") {
+    return (
+      <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">게임이 종료되었습니다...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // question이 없으면 로딩 중이거나 문제가 없는 경우
+  if (!question) {
+    return (
+      <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">문제를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 1초 폴링으로 실시간 스코어보드 조회
+  useEffect(() => {
+    if (!roomId || !myUserId) return;
+
+    const pollScoreboard = async () => {
+      try {
+        const scoreboard = await getScoreboard(roomId);
+        
+        // 스코어보드에서 내 점수와 상대 점수 찾기
+        const myItem = scoreboard.items.find(item => item.userId === myUserId);
+        const opponentItem = scoreboard.items.find(item => item.userId !== myUserId);
+        
+        if (myItem) {
+          setMyScore(myItem.score);
+        }
+        if (opponentItem) {
+          setOpponentScore(opponentItem.score);
+        }
+
+        // status가 "DONE"이면 게임 종료
+        if (scoreboard.status === "DONE") {
+          setGameStatus("DONE");
+          // 게임 종료 시 state 조회하여 결과 확인
+          try {
+            const roomState = await getRoomState(roomId);
+            // 결과는 roomState에서 확인 가능
+            console.log("게임 종료 - 최종 결과:", roomState);
+          } catch (error) {
+            console.error("게임 종료 후 상태 조회 실패:", error);
+          }
+        } else {
+          setGameStatus(scoreboard.status);
+        }
+      } catch (error) {
+        console.error("스코어보드 조회 실패:", error);
+      }
+    };
+
+    // 즉시 한 번 조회
+    pollScoreboard();
+
+    // 1초마다 폴링
+    const interval = setInterval(pollScoreboard, 1000);
+
+    return () => clearInterval(interval);
+  }, [roomId, myUserId]);
+
+  // 게임 종료 처리
+  useEffect(() => {
+    if (gameStatus === "DONE") {
+      // 모든 문제를 풀었거나 게임이 종료된 경우
+      setTimeout(() => {
+        onComplete(myScore, opponentScore);
+      }, 2000);
+    }
+  }, [gameStatus, myScore, opponentScore, onComplete]);
 
   // 테스트: ESC 누르면 상대 나간 상황 테스트
   useEffect(() => {
@@ -62,44 +155,60 @@ export function BattleGamePractical({
     return () => clearInterval(timer);
   }, [timeLeft, isAnswered]);
 
-  // Handle answer - 랜덤 채점 (UI용)
-  const handleAnswer = () => {
+  // Handle answer - 답안 제출 (백엔드가 채점 및 점수 관리)
+  const handleAnswer = async () => {
     setIsAnswered(true);
     setShowOpponentAnswer(true);
 
-    const answeredCorrectly = typingAnswer.trim().length > 0 && Math.random() > 0.3;
-    setIsCorrect(answeredCorrectly);
+    // 실기 문제는 백엔드가 채점하므로 프론트에서는 임시로 false 설정
+    // (실제 채점은 백엔드에서 수행)
+    const isCorrect = false; // 백엔드가 채점하므로 프론트에서는 알 수 없음
 
-    if (answeredCorrectly) {
-      const speedBonus = Math.floor(timeLeft / 3);
-      setMyScore((prev) => prev + 10 + speedBonus);
+    // 답안 제출 API 호출
+    if (roomId && question.roomQuestionId !== undefined && question.roundNo !== undefined && question.phase) {
+      try {
+        const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
+        
+        // 답안 제출 (백엔드가 채점 및 점수 저장)
+        await submitAnswer(roomId, {
+          questionId: question.roomQuestionId,
+          userAnswer: typingAnswer.trim(), // 실기 문제는 입력한 답안을 그대로 전송
+          correct: isCorrect, // 백엔드가 채점하므로 프론트에서는 false로 전송
+          timeMs: Math.max(0, timeMs),
+          roundNo: question.roundNo,
+          phase: question.phase,
+        });
+
+        // UI 표시용으로만 사용 (백엔드 채점 결과는 나중에 조회)
+        setIsCorrect(isCorrect);
+      } catch (error) {
+        console.error("답안 제출 실패:", error);
+        setIsCorrect(false);
+        // 에러가 발생해도 게임은 계속 진행
+      }
+    } else {
+      setIsCorrect(false);
     }
 
-    const opponentCorrect = Math.random() > 0.3;
-    const opponentTime = Math.floor(Math.random() * 25) + 5;
-    if (opponentCorrect) {
-      const opponentSpeedBonus = Math.floor(opponentTime / 3);
-      setOpponentScore((prev) => prev + 10 + opponentSpeedBonus);
-    }
+    // 점수는 백엔드에서 관리하므로 프론트에서 계산하지 않음
 
     setShowResult(true);
     setTimeout(() => {
       if (currentQuestion < totalQuestions - 1) {
-        setCurrentQuestion((prev) => prev + 1);
+        const nextQuestionIndex = currentQuestion + 1;
+        const nextQuestion = questions[nextQuestionIndex];
+        const nextTimeLimit = nextQuestion?.timeLimitSec || 30;
+        setCurrentQuestion(nextQuestionIndex);
         setTypingAnswer("");
         setIsAnswered(false);
         setShowResult(false);
         setShowOpponentAnswer(false);
-        setTimeLeft(30);
         setIsCorrect(false);
+        setTimeLeft(nextTimeLimit);
       } else {
-        const finalMyScore = answeredCorrectly
-          ? myScore + 10 + Math.floor(timeLeft / 3)
-          : myScore;
-        const finalOpponentScore = opponentCorrect
-          ? opponentScore + 10 + Math.floor(opponentTime / 3)
-          : opponentScore;
-        onComplete(finalMyScore, finalOpponentScore);
+        // 마지막 문제를 풀었지만 게임이 아직 종료되지 않은 경우
+        // 스코어보드 폴링이 게임 종료를 감지할 때까지 대기
+        // (게임 종료는 위의 useEffect에서 처리)
       }
     }, 2500);
   };
@@ -137,7 +246,10 @@ export function BattleGamePractical({
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm text-gray-700">나</p>
+                  <p className="text-sm text-gray-700 font-semibold">{myUserId || "나"}</p>
+                  {myRank !== null && myRank !== undefined && (
+                    <p className="text-xs text-purple-600">순위: {myRank}위</p>
+                  )}
                   <p className="text-3xl text-purple-700">{myScore}점</p>
                 </div>
                 <div className="text-5xl">👨‍💻</div>
@@ -156,7 +268,10 @@ export function BattleGamePractical({
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm text-gray-700 mb-1">{opponentName}</p>
+                  <p className="text-sm text-gray-700 mb-1 font-semibold">{opponentUserId || opponentName}</p>
+                  {opponentRank !== null && opponentRank !== undefined && (
+                    <p className="text-xs text-blue-600">순위: {opponentRank}위</p>
+                  )}
                   <p className="text-3xl text-blue-700">{opponentScore}점</p>
                 </div>
                 <div className="text-5xl relative">

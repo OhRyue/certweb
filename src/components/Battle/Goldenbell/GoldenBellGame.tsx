@@ -9,60 +9,214 @@ import { motion, AnimatePresence } from "motion/react";
 import type { GoldenBellCharacter, CanvasEffect } from "../../../types";
 import { CharacterGrid } from "./CharacterGrid";
 import { EffectCanvas } from "./EffectCanvas";
+import { 
+  getScoreboard, 
+  getRoomState,
+  getVersusQuestion, 
+  submitAnswer,
+  type Scoreboard,
+  type RoomStateResponse,
+  type VersusQuestionResponse 
+} from "../../api/versusApi";
 
 interface GoldenBellGameProps {
-  sessionId: string;
+  sessionId: string; // roomId as string
   onComplete: (survived: boolean, rank: number) => void;
   onExit: () => void;
 }
 
-// Mock questions
-const mockQuestions = [
-  { question: "데이터베이스 정규화의 목적은 데이터 중복을 제거하는 것이다", answer: "O", type: "ox" as const },
-  { question: "Primary Key는 NULL 값을 가질 수 있다", answer: "X", type: "ox" as const },
-  { question: "SQL에서 데이터를 조회하는 명령어는?", answer: "SELECT", type: "short" as const },
-  { question: "하나의 엔티티가 다른 엔티티와 관계를 맺는 최대 개수를 의미하는 용어는?", answer: "카디널리티", type: "short" as const },
-  { question: "인덱스를 과도하게 사용하면 성능이 저하될 수 있다", answer: "O", type: "ox" as const },
-];
-
 export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 800 });
+  const roomId = Number(sessionId);
+  
+  // API state
+  const [scoreboard, setScoreboard] = useState<Scoreboard | null>(null);
+  const [roomState, setRoomState] = useState<RoomStateResponse | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<VersusQuestionResponse | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // 초기 로딩 여부
   
   // Game state
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [characters, setCharacters] = useState<GoldenBellCharacter[]>([]);
   const [effects, setEffects] = useState<CanvasEffect[]>([]);
   const [userAnswer, setUserAnswer] = useState("");
   const [gameStage, setGameStage] = useState<"ready" | "answering" | "waiting" | "showingAnswers" | "result" | "winner">("ready");
   const [timeLeft, setTimeLeft] = useState(10);
-  const [isCorrect, setIsCorrect] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const [answerStartTime, setAnswerStartTime] = useState<number | null>(null);
+  const [submittedQuestionId, setSubmittedQuestionId] = useState<number | null>(null);
 
-  const currentQuestion = mockQuestions[currentQuestionIndex];
   const survivorsCount = characters.filter(c => c.status !== "eliminated").length;
-  const maxTime = currentQuestion?.type === "ox" ? 10 : 15;
+  const maxTime = currentQuestion?.type === "OX" ? 10 : currentQuestion?.type === "SHORT" ? 20 : 30;
 
-  // Initialize characters in 8x2 grid
+  // 초기 방 상태 조회 (questions 배열 가져오기)
   useEffect(() => {
-    const initialCharacters: GoldenBellCharacter[] = [];
-    let id = 1;
+    if (!roomId || isNaN(roomId)) return;
+
+    const fetchInitialState = async () => {
+      try {
+        const state = await getRoomState(roomId);
+        setRoomState(state);
+        console.log("초기 방 상태 조회:", state);
+        
+        // myUserId 설정
+        if (state.detail.participants.length > 0) {
+          // alive인 참가자 중 첫 번째 또는 첫 번째 참가자
+          const myParticipant = state.detail.participants.find(p => p.alive) || state.detail.participants[0];
+          if (myParticipant) {
+            setMyUserId(myParticipant.userId);
+          }
+        }
+
+        // 첫 번째 문제가 있으면 questions 배열에서 가져오기
+        if (state.detail.questions && state.detail.questions.length > 0) {
+          const firstQuestion = state.detail.questions.sort((a, b) => a.order - b.order)[0];
+          if (firstQuestion) {
+            try {
+              const questionData = await getVersusQuestion(firstQuestion.questionId);
+              setCurrentQuestion(questionData);
+              setAnswerStartTime(Date.now());
+              setGameStage("answering");
+              setTimeLeft(questionData.type === "OX" ? 10 : questionData.type === "SHORT" ? 20 : 30);
+              setIsInitialLoad(false);
+            } catch (error) {
+              console.error("초기 문제 조회 실패:", error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("초기 방 상태 조회 실패:", error);
+      }
+    };
+
+    fetchInitialState();
+  }, [roomId]);
+
+  // 스코어보드 폴링 (1초마다)
+  useEffect(() => {
+    if (!roomId || isNaN(roomId)) return;
+
+    const pollScoreboard = async () => {
+      try {
+        const scoreboardData = await getScoreboard(roomId);
+        setScoreboard(scoreboardData);
+        
+        // myUserId 설정 (첫 번째 호출 시)
+        if (!myUserId && scoreboardData.items.length > 0) {
+          // 첫 번째 항목이 사용자일 가능성이 높음 (또는 alive인 항목 중 첫 번째)
+          const myItem = scoreboardData.items.find(item => item.alive) || scoreboardData.items[0];
+          if (myItem) {
+            setMyUserId(myItem.userId);
+          }
+        }
+      } catch (error) {
+        console.error("스코어보드 조회 실패:", error);
+      }
+    };
+
+    // 즉시 한 번 호출
+    pollScoreboard();
+
+    // 1초마다 폴링
+    const interval = setInterval(pollScoreboard, 1000);
+
+    return () => clearInterval(interval);
+  }, [roomId, myUserId]);
+
+  // currentQuestion이 변경되면 문제 상세 정보 조회 (초기 로딩 이후)
+  useEffect(() => {
+    // 초기 로딩 중이면 스코어보드의 currentQuestion을 사용하지 않음
+    if (isInitialLoad) return;
+    if (!scoreboard?.currentQuestion?.questionId) return;
+    if (submittedQuestionId === scoreboard.currentQuestion.questionId) return; // 이미 제출한 문제는 조회하지 않음
+
+    const fetchQuestion = async () => {
+      try {
+        const questionData = await getVersusQuestion(scoreboard.currentQuestion!.questionId);
+        setCurrentQuestion(questionData);
+        setAnswerStartTime(Date.now());
+        setGameStage("answering");
+        setTimeLeft(questionData.type === "OX" ? 10 : questionData.type === "SHORT" ? 20 : 30);
+      } catch (error) {
+        console.error("문제 조회 실패:", error);
+      }
+    };
+
+    fetchQuestion();
+  }, [scoreboard?.currentQuestion?.questionId, submittedQuestionId, isInitialLoad]);
+
+  // 스코어보드 데이터로 캐릭터 상태 업데이트 (API 데이터만 사용)
+  useEffect(() => {
+    if (!scoreboard || !myUserId) return;
+
+    // 스코어보드의 items를 그대로 사용 (API에서 받은 데이터)
+    const allParticipants = scoreboard.items;
+    const newCharacters: GoldenBellCharacter[] = [];
     
-    for (let row = 0; row < 2; row++) {
-      for (let col = 0; col < 8; col++) {
-        initialCharacters.push({
-          id,
-          name: `참가자 ${id}`,
-          status: "normal",
+    allParticipants.forEach((participant, index) => {
+      const row = Math.floor(index / 8);
+      const col = index % 8;
+      
+      if (row < 2 && col < 8) {
+        const isUser = participant.userId === myUserId;
+        // API의 alive 필드만 사용
+        const status: GoldenBellCharacter["status"] = 
+          !participant.alive ? "eliminated" : "normal";
+        
+        newCharacters.push({
+          id: index + 1,
+          name: isUser ? "나" : `참가자 ${index + 1}`,
+          status,
           gridPosition: { row, col },
         });
-        id++;
+      }
+    });
+
+    // 빈 자리 채우기 (20명 미만인 경우)
+    while (newCharacters.length < 20) {
+      const index = newCharacters.length;
+      const row = Math.floor(index / 8);
+      const col = index % 8;
+      if (row < 2 && col < 8) {
+        newCharacters.push({
+          id: index + 1,
+          name: `참가자 ${index + 1}`,
+          status: "eliminated",
+          gridPosition: { row, col },
+        });
+      } else {
+        break;
       }
     }
-    
-    setCharacters(initialCharacters);
-  }, []);
+
+    setCharacters(newCharacters);
+
+    // 사용자의 정답 여부는 스코어보드에서 확인
+    const myItem = scoreboard.items.find(item => item.userId === myUserId);
+    if (myItem && submittedQuestionId) {
+      // 최근 제출한 문제의 정답 여부는 스코어보드 업데이트로 확인
+      // correctCount가 증가했으면 정답, 아니면 오답
+    }
+  }, [scoreboard, myUserId, submittedQuestionId]);
+
+  // endTime 기반 타이머 업데이트
+  useEffect(() => {
+    if (!scoreboard?.currentQuestion?.endTime) return;
+
+    const updateTimer = () => {
+      const endTime = new Date(scoreboard.currentQuestion!.endTime).getTime();
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+      setTimeLeft(remaining);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 100); // 100ms마다 업데이트
+
+    return () => clearInterval(interval);
+  }, [scoreboard?.currentQuestion?.endTime]);
 
   // Countdown timer for ready stage
   useEffect(() => {
@@ -96,29 +250,8 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Timer
-  useEffect(() => {
-    if (gameStage !== "answering" && gameStage !== "waiting") return;
-    
-    if (timeLeft <= 0) {
-      if (gameStage === "answering") {
-        // Time up while answering - auto submit empty answer
-        const correct = checkAnswer("");
-        setIsCorrect(correct);
-        setGameStage("waiting");
-      } else if (gameStage === "waiting") {
-        // Time up while waiting - show results
-        showResults();
-      }
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setTimeLeft(prev => Math.max(0, prev - 1));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [gameStage, timeLeft]);
+  // Timer (endTime 기반으로 이미 업데이트되므로 여기서는 제거)
+  // 타이머는 endTime 기반 useEffect에서 처리됨
 
   // Clean up old effects
   useEffect(() => {
@@ -135,156 +268,68 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     setGameStage("ready");
     setUserAnswer("");
     setShowFeedback(false);
-    setIsCorrect(false);
     
-    // Reset all non-eliminated characters to normal
-    setCharacters(prev =>
-      prev.map(char => ({
-        ...char,
-        status: char.status === "eliminated" ? "eliminated" : "normal",
-      }))
-    );
+    // 캐릭터 상태는 스코어보드 데이터로만 업데이트 (API 데이터만 사용)
   };
 
-  const handleAnswer = (answer: string) => {
+  const handleAnswer = async (answer: string) => {
     if (gameStage !== "answering") return;
+    if (!currentQuestion || !roomId || !answerStartTime || !scoreboard?.currentQuestion) return;
+    if (submittedQuestionId === currentQuestion.questionId) return; // 이미 제출한 문제
 
-    const correct = checkAnswer(answer);
-    setIsCorrect(correct);
-    
-    // Close popup and wait for time to end
-    setGameStage("waiting");
-  };
+    const timeMs = Date.now() - answerStartTime;
 
-  const showResults = () => {
-    // Step 1: Show all answers in bubbles
-    setGameStage("showingAnswers");
-    
-    setCharacters(prev =>
-      prev.map(char => {
-        if (char.status === "eliminated") return char;
-        
-        // Generate random answer for other characters
-        let answer = "";
-        if (char.id === 1) {
-          // User's answer
-          answer = userAnswer || "(답 없음)";
-        } else {
-          // Random answers for NPCs
-          if (currentQuestion.type === "ox") {
-            answer = Math.random() > 0.3 ? currentQuestion.answer : (currentQuestion.answer === "O" ? "X" : "O");
-          } else {
-            // For short answer, some get it right, some wrong
-            answer = Math.random() > 0.4 ? currentQuestion.answer : "오답";
-          }
-        }
-        
-        return {
-          ...char,
-          answer,
-          showAnswer: true,
-        };
-      })
-    );
-
-    // Step 2: After 2 seconds, show correct/wrong status
-    setTimeout(() => {
-      setShowFeedback(true);
-      setGameStage("result");
-      
-      setCharacters(prev =>
-        prev.map(char => {
-          if (char.status === "eliminated") return char;
-          
-          const correct = char.answer === currentQuestion.answer;
-          
-          if (char.id === 1) {
-            // User character
-            return { ...char, status: isCorrect ? "correct" : "wrong", showAnswer: false };
-          } else {
-            // NPC characters - use their generated answer
-            return { 
-              ...char, 
-              status: correct ? "correct" : "wrong",
-              showAnswer: false,
-            };
-          }
-        })
-      );
-
-      if (isCorrect) {
-        // Radial light effect
-        addEffect({
-          id: `light-${Date.now()}`,
-          type: "radial-light",
-          timestamp: Date.now(),
-        });
-
-        // Eliminate wrong characters
-        setTimeout(() => {
-          eliminateWrongCharacters();
-        }, 800);
-      } else {
-        // User is wrong - eliminate user
-        addParticleEffect(1);
-
-        setTimeout(() => {
-          setCharacters(prev =>
-            prev.map(char => {
-              if (char.id === 1) {
-                return { ...char, status: "eliminated" };
-              }
-              return char;
-            })
-          );
-
-          // Game over
-          setTimeout(() => {
-            onComplete(false, survivorsCount);
-          }, 1500);
-        }, 1000);
-      }
-    }, 2000);
-  };
-
-  const eliminateWrongCharacters = () => {
-    // Add particle effects for wrong characters
-    setCharacters(prev => {
-      prev.forEach(char => {
-        if (char.status === "wrong") {
-          setTimeout(() => addParticleEffect(char.id), Math.random() * 300);
-        }
+    try {
+      // 답안 제출 (1:1 배틀과 동일한 파라미터 사용)
+      // roundNo와 phase를 포함하여 1:1 배틀과 동일한 형식으로 전송
+      await submitAnswer(roomId, {
+        questionId: currentQuestion.questionId,
+        userAnswer: answer,
+        correct: false, // API에서 판단하므로 임시값
+        timeMs,
+        roundNo: scoreboard.currentQuestion.roundNo,
+        phase: scoreboard.currentQuestion.phase as "MAIN",
       });
-      return prev;
-    });
 
-    // Actually eliminate after animation
-    setTimeout(() => {
-      setCharacters(prev =>
-        prev.map(char => ({
-          ...char,
-          status: char.status === "wrong" ? "eliminated" : char.status,
-        }))
-      );
+      setSubmittedQuestionId(currentQuestion.questionId);
+      setGameStage("waiting");
+      // 정답 여부는 스코어보드 폴링으로 업데이트됨
+    } catch (error) {
+      console.error("답안 제출 실패:", error);
+      setGameStage("waiting");
+    }
+  };
 
-      // Check if user won
+  // 스코어보드 업데이트로 결과 확인 (API 데이터만 사용)
+  useEffect(() => {
+    if (!scoreboard || !myUserId || !submittedQuestionId) return;
+
+    const myItem = scoreboard.items.find(item => item.userId === myUserId);
+    if (!myItem) return;
+
+    // 스코어보드의 alive 상태로 탈락 여부 확인
+    if (!myItem.alive) {
+      // 사용자가 탈락함
+      setGameStage("result");
       setTimeout(() => {
-        const remainingCount = characters.filter(c => c.status !== "eliminated" && c.status !== "wrong").length;
-        if (remainingCount <= 1) {
-          showWinnerScreen();
-        } else {
-          moveToNextQuestion();
-        }
-      }, 500);
-    }, 1000);
-  };
+        const myRank = myItem.rank;
+        onComplete(false, myRank);
+      }, 1500);
+      return;
+    }
 
-  const checkAnswer = (answer: string): boolean => {
-    const correctAnswer = currentQuestion.answer.toLowerCase().trim();
-    const userAnswerNormalized = answer.toLowerCase().trim();
-    
-    return correctAnswer === userAnswerNormalized;
-  };
+    // 생존자 수 확인
+    const aliveCount = scoreboard.items.filter(item => item.alive).length;
+    if (aliveCount <= 1 && myItem.alive) {
+      // 사용자가 우승
+      showWinnerScreen();
+      return;
+    }
+
+    // 다음 문제로 진행 (스코어보드의 currentQuestion이 변경되면 자동으로 처리됨)
+  }, [scoreboard, myUserId, submittedQuestionId]);
+
+  // checkAnswer 함수 제거 - API에서 정답 여부 판단
 
 
 
@@ -317,15 +362,11 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
   };
 
   const moveToNextQuestion = () => {
-    if (currentQuestionIndex < mockQuestions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      setTimeout(() => {
-        startNewQuestion();
-      }, 1500);
-    } else {
-      // No more questions - user wins
-      showWinnerScreen();
-    }
+    // 다음 문제는 스코어보드 폴링으로 자동으로 감지됨
+    setSubmittedQuestionId(null);
+    setUserAnswer("");
+    setShowFeedback(false);
+    startNewQuestion();
   };
 
   const showWinnerScreen = () => {
@@ -383,7 +424,9 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">문제</p>
-                <p className="text-2xl text-purple-600">{currentQuestionIndex + 1}/{mockQuestions.length}</p>
+                <p className="text-2xl text-purple-600">
+                  {scoreboard?.currentQuestion ? `${scoreboard.currentQuestion.roundNo}-${scoreboard.currentQuestion.orderNo}` : "-"}
+                </p>
               </div>
               <Bell className="w-8 h-8 text-purple-600" />
             </div>
@@ -478,7 +521,7 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
                       곧 문제가 시작됩니다
                     </motion.p>
                     <p className="text-xl text-white/80 drop-shadow-lg">
-                      문제 {currentQuestionIndex + 1}
+                      {scoreboard?.currentQuestion ? `문제 ${scoreboard.currentQuestion.roundNo}-${scoreboard.currentQuestion.orderNo}` : "문제"}
                     </p>
                   </motion.div>
                 </motion.div>
@@ -487,7 +530,7 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
 
             {/* Question Modal Overlay - Layer 4 */}
             <AnimatePresence mode="wait">
-              {gameStage === "answering" && currentQuestion && (
+              {gameStage === "answering" && currentQuestion && currentQuestion.stem && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -505,12 +548,12 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
                     <Card className="p-8 border-2 border-purple-300 bg-white/95 backdrop-blur">
                       <div className="mb-6">
                         <Badge className="mb-4 bg-purple-500 text-white">
-                          {currentQuestion.type === "ox" ? "OX 퀴즈" : "단답형"}
+                          {currentQuestion.type === "OX" ? "OX 퀴즈" : currentQuestion.type === "SHORT" ? "단답형" : "서술형"}
                         </Badge>
-                        <h2 className="text-gray-900 mb-4">{currentQuestion.question}</h2>
+                        <h2 className="text-gray-900 mb-4">{currentQuestion.stem}</h2>
                       </div>
 
-                      {currentQuestion.type === "ox" ? (
+                      {currentQuestion.type === "OX" ? (
                         <div className="grid grid-cols-2 gap-4">
                           <button
                             onClick={() => handleOXAnswer("O")}
@@ -594,3 +637,4 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     </div>
   );
 }
+

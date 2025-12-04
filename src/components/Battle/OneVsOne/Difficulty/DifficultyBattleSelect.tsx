@@ -1,8 +1,9 @@
 import { useState } from "react"
 import { Card } from "../../../ui/card"
 import { Button } from "../../../ui/button"
-import { Play, Swords, TrendingUp } from "lucide-react"
+import { Play, Swords, TrendingUp, Bot } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { matchWithBot, saveRoomId } from "../../../api/versusApi"
 
 export function DifficultyBattleSelect() {
   const [difficulty, setDifficulty] = useState("easy")
@@ -11,19 +12,41 @@ export function DifficultyBattleSelect() {
   // 문제 수 고정값
   const QUESTION_COUNT = 10
 
-  const difficultyStats = [
-    { level: "easy", name: "쉬움", total: 120, accuracy: 87, color: "green" },
-    { level: "medium", name: "보통", total: 85, accuracy: 72, color: "yellow" },
-    { level: "hard", name: "어려움", total: 45, accuracy: 58, color: "red" },
-  ]
-
-  const recommendations = {
-    easy: "기본 개념을 다지기에 좋습니다. 처음 학습하는 분들께 추천합니다.",
-    medium: "실전 감각을 익히기에 적합합니다. 기본 개념을 이해한 후 도전하세요.",
-    hard: "심화 학습과 응용력 향상에 도움이 됩니다. 기본이 탄탄한 분들께 추천합니다.",
-  }
-
   const navigate = useNavigate()
+
+  const startBotMatching = async () => {
+    try {
+      const examMode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+      const difficultyLevel: "EASY" | "NORMAL" | "HARD" = 
+        difficulty === "easy" ? "EASY" :
+        difficulty === "medium" ? "NORMAL" : "HARD"
+      
+      const response = await matchWithBot({
+        examMode: examMode as "WRITTEN" | "PRACTICAL",
+        scopeType: "DIFFICULTY",
+        difficulty: difficultyLevel,
+      })
+
+      // roomId 저장
+      saveRoomId(response.roomId)
+
+      // 봇 매칭 성공 시 바로 게임 시작 페이지로 이동
+      navigate("/battle/onevsone/difficulty/start", {
+        state: {
+          roomId: response.roomId,
+          botUserId: response.botUserId,
+          botNickname: response.botNickname,
+          difficulty: difficulty,
+          examType: selectedExamType,
+          scopeJson: response.scopeJson,
+          isBotMatch: true,
+        }
+      })
+    } catch (err: any) {
+      console.error("봇 매칭 실패", err)
+      alert(err.response?.data?.message || "봇 매칭에 실패했습니다.")
+    }
+  }
 
   return (
     <div className="p-8">
@@ -75,27 +98,29 @@ export function DifficultyBattleSelect() {
                 </div>
 
                 <div className="space-y-4">
-                  {difficultyStats.map(stat => (
+                  {["easy", "medium", "hard"].map(level => (
                     <div
-                      key={stat.level}
-                      onClick={() => setDifficulty(stat.level)}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${difficulty === stat.level
+                      key={level}
+                      onClick={() => setDifficulty(level)}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${difficulty === level
                         ? "border-orange-500 bg-orange-50"
                         : "border-gray-200 hover:border-orange-300 hover:bg-gray-50"
                         }`}
                     >
                       <div className="flex items-center justify-center gap-3">
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${stat.color === "green"
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${level === "easy"
                             ? "bg-green-500"
-                            : stat.color === "yellow"
+                            : level === "medium"
                               ? "bg-yellow-500"
                               : "bg-red-500"
                             }`}
                         >
-                          {stat.level === "easy" ? "😊" : stat.level === "medium" ? "🤔" : "😰"}
+                          {level === "easy" ? "😊" : level === "medium" ? "🤔" : "😰"}
                         </div>
-                        <h3 className="text-gray-900">{stat.name}</h3>
+                        <h3 className="text-gray-900">
+                          {level === "easy" ? "쉬움" : level === "medium" ? "보통" : "어려움"}
+                        </h3>
                       </div>
                     </div>
                   ))}
@@ -105,18 +130,6 @@ export function DifficultyBattleSelect() {
               {/* 우측 */}
               <div className="space-y-4">
 
-                {/* 추천 */}
-                <Card className="p-6 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200">
-                  <div className="flex items-start gap-3">
-                    <TrendingUp className="w-6 h-6 text-orange-600" />
-                    <div>
-                      <h3 className="text-orange-900 mb-2">추천 학습법</h3>
-                      <p className="text-gray-700">
-                        {recommendations[difficulty as keyof typeof recommendations]}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
 
                 {/* 선택 요약 */}
                 <Card className="p-6 bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200">
@@ -153,6 +166,15 @@ export function DifficultyBattleSelect() {
                 >
                   <Play className="w-4 h-4 mr-2" />
                   매칭 시작
+                </Button>
+
+                <Button
+                  onClick={startBotMatching}
+                  variant="outline"
+                  className="w-full h-11 border-2 border-gray-300 hover:bg-gray-50"
+                >
+                  <Bot className="w-4 h-4 mr-2" />
+                  봇과 매칭
                 </Button>
 
                 <Button

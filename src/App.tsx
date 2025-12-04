@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { LoginScreen } from "./components/LoginScreen"
 import { SignUpScreen } from "./components/SignUpScreen"
 import { ForgotPasswordScreen } from "./components/ForgotPasswordScreen"
+import { OnboardingScreen } from "./components/OnboardingScreen"
 import { PrivateRoute } from "./PrivateRoute"
 import InnerApp from "./InnerApp"
 import { Toaster } from "./components/ui/sonner"
@@ -41,6 +42,7 @@ export default function App() {
 
         {/* 보호 영역 */}
         <Route element={<PrivateRoute isLoggedIn={isLoggedIn} />}>
+          <Route path="/onboarding" element={<OnboardingScreen />} />
           <Route path="/*" element={<InnerApp onLogout={handleLogout} />} />
         </Route>
       </Routes>

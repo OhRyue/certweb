@@ -5,6 +5,8 @@ import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Calendar as CalendarComponent } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Trophy,
   Target,
@@ -13,11 +15,64 @@ import {
   Flame,
   Star,
   Award,
-  ChevronRight
+  ChevronRight,
+  Settings
 } from "lucide-react";
+// Format date to YYYY-MM-DD
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 import type { UserProfile } from "../types";
 import axios from "./api/axiosConfig";
 import { CERT_MAP } from "../constants/certMap";
+
+// 프로필 이미지 import
+import girlBasicProfile from "./assets/profile/girl_basic_profile.png"
+import boyNerdProfile from "./assets/profile/boy_nerd_profile.png"
+import girlUniformProfile from "./assets/profile/girl_uniform_profile.jpg"
+import girlPajamaProfile from "./assets/profile/girl_pajama_profile.png"
+import girlMarriedProfile from "./assets/profile/girl_married_profile.png"
+import girlNerdProfile from "./assets/profile/girl_nerd_profile.png"
+import girlIdolProfile from "./assets/profile/girl_idol_profile.png"
+import girlGhostProfile from "./assets/profile/girl_ghost_profile.png"
+import girlCyberpunkProfile from "./assets/profile/girl_cyberpunk_profile.png"
+import girlChinaProfile from "./assets/profile/girl_china_profile.jpg"
+import girlCatProfile from "./assets/profile/girl_cat_profile.png"
+import boyWorkerProfile from "./assets/profile/boy_worker_profile.png"
+import boyPoliceofficerProfile from "./assets/profile/boy_policeofficer_profile.png"
+import boyHiphopProfile from "./assets/profile/boy_hiphop_profile.png"
+import boyDogProfile from "./assets/profile/boy_dog_profile.png"
+import boyBasicProfile from "./assets/profile/boy_basic_profile.png"
+import boyAgentProfile from "./assets/profile/boy_agent_profile.png"
+
+// skinId를 프로필 이미지로 매핑
+const PROFILE_IMAGE_MAP: Record<number, string> = {
+  1: girlBasicProfile,
+  2: boyNerdProfile,
+  3: girlUniformProfile,
+  4: girlPajamaProfile,
+  5: girlMarriedProfile,
+  6: girlNerdProfile,
+  7: girlIdolProfile,
+  8: girlGhostProfile,
+  9: girlCyberpunkProfile,
+  10: girlChinaProfile,
+  11: girlCatProfile,
+  12: boyWorkerProfile,
+  13: boyPoliceofficerProfile,
+  14: boyHiphopProfile,
+  15: boyDogProfile,
+  16: boyBasicProfile,
+  17: boyAgentProfile,
+}
+
+// skinId로 프로필 이미지 경로 가져오기
+function getProfileImage(skinId: number): string {
+  return PROFILE_IMAGE_MAP[skinId] || PROFILE_IMAGE_MAP[1] // 기본값: girl_basic_profile
+}
 
 interface HomeDashboardProps {
   userProfile: UserProfile;
@@ -35,7 +90,7 @@ interface OverviewResponse {
   user: {
     userId: string;
     nickname: string;
-    avatarUrl: string;
+    skinId: number;
     level: number;
     xpTotal: number;
     streakDays: number;
@@ -44,6 +99,7 @@ interface OverviewResponse {
     certId: number;
     targetExamMode: string;
     targetRoundId: number;
+    targetExamDate: string | null;
     dday: number;
   };
 }
@@ -99,35 +155,72 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [progressData, setProgressData] = useState<ProgressCardResponse | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [dateSettingLoading, setDateSettingLoading] = useState(false);
 
   // Get the target certification exam from API
-  const targetCertName = overview?.goal.certId 
-    ? CERT_MAP[overview.goal.certId as keyof typeof CERT_MAP] 
+  const targetCertName = overview?.goal?.certId 
+    ? CERT_MAP[overview.goal!.certId as keyof typeof CERT_MAP] 
     : null;
   
-  const targetCertIcon = overview?.goal.certId 
-    ? CERT_ICON_MAP[overview.goal.certId] || "📚"
+  const targetCertIcon = overview?.goal?.certId 
+    ? CERT_ICON_MAP[overview.goal!.certId] || "📚"
     : (targetCertName ? CERT_NAME_ICON_MAP[targetCertName] || "📚" : "📚");
   
-  const dDay = overview?.goal.dday ?? null;
+  const dDay = overview?.goal?.dday ?? null;
+
+  // Update selectedDate when overview changes
+  useEffect(() => {
+    if (overview?.goal?.targetExamDate) {
+      const date = new Date(overview.goal.targetExamDate);
+      if (!isNaN(date.getTime())) {
+        setSelectedDate(date);
+      }
+    } else {
+      setSelectedDate(undefined);
+    }
+  }, [overview]);
 
   // Fetch overview (user and goal data)
-  useEffect(() => {
-    async function fetchOverview() {
-      try {
-        setOverviewLoading(true);
-        const res = await axios.get("/progress/home/overview");
-        setOverview(res.data);
-      } catch (err) {
-        console.error("홈 개요 데이터 불러오기 실패", err);
-        setOverview(null);
-      } finally {
-        setOverviewLoading(false);
-      }
+  const fetchOverview = async () => {
+    try {
+      setOverviewLoading(true);
+      const res = await axios.get("/progress/home/overview");
+      setOverview(res.data);
+    } catch (err) {
+      console.error("홈 개요 데이터 불러오기 실패", err);
+      setOverview(null);
+    } finally {
+      setOverviewLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchOverview();
   }, []);
+
+  // Set target exam date
+  const handleSetDate = async (date: Date | undefined) => {
+    if (!date) return;
+
+    try {
+      setDateSettingLoading(true);
+      const dateString = formatDate(date);
+      await axios.put("/account/goal/date", {
+        targetExamDate: dateString
+      });
+      
+      // Refresh overview data
+      await fetchOverview();
+      setDatePickerOpen(false);
+    } catch (err) {
+      console.error("시험일정 설정 실패", err);
+      alert("시험일정 설정에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setDateSettingLoading(false);
+    }
+  };
 
   // Fetch quick stats
   useEffect(() => {
@@ -187,39 +280,23 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-blue-900 mb-2 flex items-center justify-center gap-2">
-            ✨ 환영합니다, {overview?.user.nickname || "사용자"}님! ✨
-          </h1>
-          {targetCertName && (
-            <div className="flex items-center justify-center gap-2 mt-3">
-              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 px-4 py-1">
-                {targetCertIcon || "📚"} {targetCertName} 도전 중!
-              </Badge>
-            </div>
-          )}
-          <p className="text-purple-600 mt-2">오늘도 즐겁게 공부해볼까요? 📚</p>
-        </motion.div>
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Character & D-Day */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             {/* Character Card */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-0 shadow-lg overflow-hidden">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-purple-100 to-pink-100 border-0 shadow-lg overflow-hidden h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col">
                     {overview?.user ? (
                       <>
-                        <div className="text-center mb-4">
+                        <div className="text-center mb-3">
                           <div className="inline-flex items-center justify-center gap-2 mb-2">
                             <Star className="w-5 h-5 text-yellow-500" />
                             <span className="text-purple-700">Level {overview.user.level}</span>
@@ -229,7 +306,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                         {/* Character Display */}
                         <motion.div
-                          className="relative"
+                          className="relative flex-1 flex items-center justify-center"
                           animate={{
                             y: [0, -10, 0],
                           }}
@@ -239,37 +316,39 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             ease: "easeInOut"
                           }}
                         >
-                          <div className="text-center bg-white/50 backdrop-blur rounded-2xl p-8 mb-4">
-                            <div className="text-9xl mb-4">{overview.user.avatarUrl || "👤"}</div>
-                            <h3 className="text-purple-800 mb-1">{overview.user.nickname}</h3>
-                            {targetCertName && (
-                              <p className="text-purple-600 text-sm">{targetCertName} 도전 중!</p>
-                            )}
+                          <div className="text-center bg-white/50 backdrop-blur rounded-2xl p-2 w-full overflow-hidden">
+                            <img 
+                              src={getProfileImage(overview.user.skinId)} 
+                              alt={overview.user.nickname}
+                              className="w-full h-auto rounded-xl object-cover"
+                            />
                           </div>
                         </motion.div>
 
-                        {/* XP Bar */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-purple-700">경험치</span>
-                            <span className="text-purple-700">
-                              {overview.user.xpTotal} / {((overview.user.level) + 1) * 500} XP
-                            </span>
+                        <div className="mt-4 space-y-3">
+                          {/* XP Bar */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-purple-700">경험치</span>
+                              <span className="text-purple-700">
+                                {overview.user.xpTotal} / {((overview.user.level) + 1) * 500} XP
+                              </span>
+                            </div>
+                            <Progress
+                              value={((overview.user.xpTotal) / (((overview.user.level) + 1) * 500)) * 100}
+                              className="h-3 bg-purple-200"
+                            />
                           </div>
-                          <Progress
-                            value={((overview.user.xpTotal) / (((overview.user.level) + 1) * 500)) * 100}
-                            className="h-3 bg-purple-200"
-                          />
-                        </div>
 
-                        {/* Streak */}
-                        <div className="mt-4 flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
-                          <Flame className="w-5 h-5 text-orange-500" />
-                          <span className="text-orange-700">{overview.user.streakDays}일 연속 학습 🔥</span>
+                          {/* Streak */}
+                          <div className="flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
+                            <Flame className="w-5 h-5 text-orange-500" />
+                            <span className="text-orange-700">{overview.user.streakDays}일 연속 학습 🔥</span>
+                          </div>
                         </div>
                       </>
                     ) : (
-                      <div className="text-center py-8">
+                      <div className="text-center py-8 flex-1 flex items-center justify-center">
                         <span className="text-purple-600 text-sm">로딩 중...</span>
                       </div>
                     )}
@@ -283,10 +362,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
+                className="flex-1"
               >
-                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg">
-                  <div className="p-6">
-                    <div className="flex items-center justify-center py-8">
+                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg h-full flex flex-col">
+                  <div className="p-6 flex-1 flex flex-col justify-center">
+                    <div className="flex items-center justify-center">
                       <span className="text-blue-600 text-sm">로딩 중...</span>
                     </div>
                   </div>
@@ -297,44 +377,79 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
+                className="flex-1"
               >
-                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg">
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Calendar className="w-5 h-5 text-blue-600" />
-                      <h3 className="text-blue-800">목표 시험 📅</h3>
+                <Card className="bg-gradient-to-br from-blue-100 to-cyan-100 border-0 shadow-lg h-full flex flex-col">
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                        <h3 className="text-blue-800">목표 시험 📅</h3>
+                      </div>
+                      <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-200"
+                            disabled={dateSettingLoading}
+                          >
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="min-w-[280px] w-fit p-0" align="end">
+                          <CalendarComponent
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(date) => {
+                              setSelectedDate(date);
+                              if (date) {
+                                handleSetDate(date);
+                              }
+                            }}
+                            disabled={(date) => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              return date < today;
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
 
-                    <div className="bg-white/50 backdrop-blur rounded-xl p-4 mb-3">
-                      <div className="text-center">
-                        <div className="text-4xl mb-2">{targetCertIcon}</div>
-                        <p className="text-blue-900 mb-2">{targetCertName}</p>
-                        <p className="text-blue-600 text-sm">
-                          {overview?.goal.targetExamMode || "시험"}
-                        </p>
+                    <div className="flex-1 flex flex-col justify-center">
+                      <div className="bg-white/50 backdrop-blur rounded-xl p-6 mb-4">
+                        <div className="text-center">
+                          <div className="text-5xl mb-3">{targetCertIcon}</div>
+                          <p className="text-blue-900 mb-2 text-lg font-semibold">{targetCertName}</p>
+                          <p className="text-blue-600">
+                            {overview?.goal?.targetExamMode || "시험"}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {dDay !== null ? (
-                      <div className="text-center">
-                        <motion.div
-                          animate={{ scale: [1, 1.05, 1] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        >
-                          <div className="text-5xl text-blue-600 mb-1">D-{Math.abs(dDay)}</div>
-                        </motion.div>
-                        <p className="text-blue-700 text-sm">
-                          {dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <div className="text-3xl text-blue-400 mb-1">D-Day</div>
-                        <p className="text-blue-600 text-sm">
-                          시험 일정을 설정해주세요
-                        </p>
-                      </div>
-                    )}
+                      {overview?.goal?.targetExamDate !== null ? (
+                        <div className="text-center">
+                          <motion.div
+                            animate={{ scale: [1, 1.05, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                          >
+                            <div className="text-6xl text-blue-600 mb-2 font-bold">D-{Math.abs(dDay)}</div>
+                          </motion.div>
+                          <p className="text-blue-700">
+                            {dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-4xl text-blue-400 mb-2">D-Day</div>
+                          <p className="text-blue-600">
+                            시험일정을 설정해주세요
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
                     <Button
                       asChild
@@ -352,28 +467,30 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
           </div>
 
           {/* Middle Column - Progress & Quick Actions */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             {/* Overall Progress */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
+              className="flex-1"
             >
-              <Card className="bg-white/80 backdrop-blur border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-white/80 backdrop-blur border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col">
                   <div className="flex items-center gap-2 mb-4">
                     <Target className="w-5 h-5 text-purple-600" />
                     <h3 className="text-purple-800">학습 진행률 📈</h3>
                   </div>
 
+                  <div className="flex-1 flex flex-col justify-between">
                   {progressLoading ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-center">
                         <span className="text-purple-600 text-sm">로딩 중...</span>
                       </div>
                     </div>
                   ) : progressData ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3 flex-1">
                       {/* Overall Progress Bar */}
                       <motion.div
                         initial={{ opacity: 0, x: -20 }}
@@ -458,6 +575,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       </div>
                     </div>
                   )}
+                  </div>
 
                   <Button
                     asChild
@@ -476,19 +594,20 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col justify-between">
                   <h3 className="text-orange-800 mb-4">빠른 시작 🚀</h3>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 flex-1">
                     <Button
                       asChild
-                      className="bg-white hover:bg-purple-50 text-purple-700 border-2 border-purple-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-purple-50 text-purple-700 border-2 border-purple-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/learning" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">📖</div>
+                        <div className="text-3xl">📖</div>
                         <span className="text-sm">메인학습</span>
                       </Link>
                     </Button>
@@ -496,11 +615,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <Button
                       asChild
-                      className="bg-white hover:bg-pink-50 text-pink-700 border-2 border-pink-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-pink-50 text-pink-700 border-2 border-pink-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/solo" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">💪</div>
+                        <div className="text-3xl">💪</div>
                         <span className="text-sm">보조학습</span>
                       </Link>
                     </Button>
@@ -508,11 +627,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <Button
                       asChild
-                      className="bg-white hover:bg-red-50 text-red-700 border-2 border-red-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-red-50 text-red-700 border-2 border-red-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/battle" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">⚔️</div>
+                        <div className="text-3xl">⚔️</div>
                         <span className="text-sm">대전</span>
                       </Link>
                     </Button>
@@ -520,11 +639,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                     <Button
                       asChild
-                      className="bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-200 h-auto py-4 flex flex-col items-center gap-2"
+                      className="bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-200 h-full py-6 flex flex-col items-center gap-2"
                       variant="outline"
                     >
                       <Link to="/community" className="flex flex-col items-center gap-2">
-                        <div className="text-2xl">🏆</div>
+                        <div className="text-3xl">🏆</div>
                         <span className="text-sm">커뮤니티</span>
                       </Link>
                     </Button>
@@ -535,27 +654,29 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
           </div>
 
           {/* Right Column - Ranking */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex flex-col">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-amber-100 to-yellow-100 border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-amber-100 to-yellow-100 border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-4">
                     <Trophy className="w-5 h-5 text-amber-600" />
                     <h3 className="text-amber-800">실시간 랭킹 🏅</h3>
                   </div>
 
+                  <div className="flex-1 flex flex-col justify-between">
                   {rankingLoading ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-amber-600 text-sm">로딩 중...</span>
                       </div>
                     </div>
                   ) : rankingData ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1">
                       {rankingData.top5.map((user, idx) => (
                         <motion.div
                           key={user.userId}
@@ -610,12 +731,13 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-amber-600 text-sm">데이터를 불러올 수 없습니다</span>
                       </div>
                     </div>
                   )}
+                  </div>
 
                   <Button
                     asChild
@@ -635,53 +757,55 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.6 }}
+              className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-0 shadow-lg">
-                <div className="p-6">
+              <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-0 shadow-lg h-full flex flex-col">
+                <div className="p-6 flex-1 flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-4">
                     <Award className="w-5 h-5 text-green-600" />
                     <h3 className="text-green-800">오늘의 성과 ✨</h3>
                   </div>
 
+                  <div className="flex-1 flex flex-col justify-between">
                   {loading ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-green-600 text-sm">로딩 중...</span>
                       </div>
                     </div>
                   ) : quickStats ? (
                     <>
-                      <div className="space-y-3">
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                      <div className="space-y-3 flex-1">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">📝</div>
-                            <span className="text-green-800 text-sm">문제 풀이</span>
+                            <div className="text-2xl">📝</div>
+                            <span className="text-green-800">문제 풀이</span>
                           </div>
-                          <span className="text-green-600">{quickStats.solvedToday}문제</span>
+                          <span className="text-green-600 font-semibold">{quickStats.solvedToday}문제</span>
                         </div>
 
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">⏱️</div>
-                            <span className="text-green-800 text-sm">학습 시간</span>
+                            <div className="text-2xl">⏱️</div>
+                            <span className="text-green-800">학습 시간</span>
                           </div>
-                          <span className="text-green-600">{quickStats.minutesToday}분</span>
+                          <span className="text-green-600 font-semibold">{quickStats.minutesToday}분</span>
                         </div>
 
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">✅</div>
-                            <span className="text-green-800 text-sm">정답률</span>
+                            <div className="text-2xl">✅</div>
+                            <span className="text-green-800">정답률</span>
                           </div>
-                          <span className="text-green-600">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
+                          <span className="text-green-600 font-semibold">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
                         </div>
 
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-between">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="text-xl">⭐</div>
-                            <span className="text-green-800 text-sm">획득 XP</span>
+                            <div className="text-2xl">⭐</div>
+                            <span className="text-green-800">획득 XP</span>
                           </div>
-                          <span className="text-green-600">+{quickStats.xpToday.toLocaleString()} XP</span>
+                          <span className="text-green-600 font-semibold">+{quickStats.xpToday.toLocaleString()} XP</span>
                         </div>
                       </div>
 
@@ -710,12 +834,13 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       </div>
                     </>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
                         <span className="text-green-600 text-sm">데이터를 불러올 수 없습니다</span>
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               </Card>
             </motion.div>

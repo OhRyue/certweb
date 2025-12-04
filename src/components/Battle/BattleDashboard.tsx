@@ -6,17 +6,6 @@ import { useNavigate } from "react-router-dom"
 export function BattleDashboard() {
   const navigate = useNavigate()
 
-  const myStats = {
-    wins: 42,
-    losses: 18,
-    winRate: 70,
-    rank: 127,
-  }
-
-  const ongoingMatches = [
-    { id: "m1", opponent: "코딩마스터", mode: "1:1", status: "진행중", round: "3/5" },
-    { id: "m2", opponent: "토너먼트 8강", mode: "토너먼트", status: "대기중", round: "8강" },
-  ]
 
   return (
     <div className="p-8">
@@ -30,28 +19,6 @@ export function BattleDashboard() {
           <p className="text-gray-600">친구들과 실력을 겨루고 이벤트에 참여하세요!</p>
         </div>
 
-        {/* My Stats */}
-        <Card className="p-6 mb-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
-          <h2 className="text-purple-900 mb-4">내 대전 기록</h2>
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">승리</p>
-              <p className="text-2xl text-green-600">{myStats.wins}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">패배</p>
-              <p className="text-2xl text-red-600">{myStats.losses}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">승률</p>
-              <p className="text-2xl text-purple-600">{myStats.winRate}%</p>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">랭킹</p>
-              <p className="text-2xl text-blue-600">#{myStats.rank}</p>
-            </div>
-          </div>
-        </Card>
 
         {/* Battle Modes */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

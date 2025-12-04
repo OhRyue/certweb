@@ -1,30 +1,171 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "../../../ui/card"
 import { Button } from "../../../ui/button"
-import { Swords, Target, ChevronRight, ChevronDown } from "lucide-react"
-import { subjects } from "../../../../data/mockData"
+import { Swords, Target, ChevronRight, ChevronDown, Bot } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { matchWithBot, saveRoomId } from "../../../api/versusApi"
+import axios from "../../../api/axiosConfig"
+import type { Subject } from "../../../../types"
+
+interface RawTopic {
+  id: number
+  parentId: number | null
+  certId: number
+  code: string
+  title: string
+  emoji?: string | null
+  orderNo: number
+  examMode: "WRITTEN" | "PRACTICAL"
+  children?: RawTopic[]
+}
+
+// 트리 빌더
+function buildTree(data: RawTopic[]): RawTopic[] {
+  const map = new Map<number, RawTopic>()
+  const roots: RawTopic[] = []
+
+  data.forEach(item => {
+    map.set(item.id, { ...item, children: [] })
+  })
+
+  data.forEach(item => {
+    if (item.parentId === null) {
+      roots.push(map.get(item.id)!)
+    } else {
+      const parent = map.get(item.parentId)
+      if (parent && parent.children) parent.children.push(map.get(item.id)!)
+    }
+  })
+
+  const sortRec = (nodes?: RawTopic[]) => {
+    if (!nodes) return
+    nodes.sort((a, b) => a.orderNo - b.orderNo)
+    nodes.forEach(node => sortRec(node.children))
+  }
+
+  sortRec(roots)
+  return roots
+}
+
+// RawTopic 트리 → Subject 구조로 변환
+function toSubjectsTree(roots: RawTopic[]): Subject[] {
+  const fallbackColor = "#8b5cf6"
+  const subjectIcon = "📘"
+  const mainIcon = "📂"
+
+  return roots.map(root => {
+    const mainTopics = (root.children || []).map(mt => {
+      const subTopics = (mt.children || []).map(st => ({
+        id: st.id,
+        name: st.title,
+        completed: false,
+        details: [],
+      }))
+
+      return {
+        id: mt.id,
+        name: mt.title,
+        subTopics,
+        icon: mt.emoji || mainIcon,
+        color: fallbackColor,
+        reviewCompleted: false,
+      }
+    })
+
+    return {
+      id: root.id,
+      name: root.title,
+      category: "정보처리기사",
+      examType: root.examMode === "WRITTEN" ? "written" : "practical",
+      mainTopics,
+      icon: root.emoji || subjectIcon,
+      color: fallbackColor,
+    }
+  })
+}
 
 export function CategoryBattleSelect() {
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")
   const [expandedSubject, setExpandedSubject] = useState<number | null>(null)
-  const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)
-  const [selectedSubTopicId, setSelectedSubTopicId] = useState<number | null>(null)
-  const [selectedSubTopicName, setSelectedSubTopicName] = useState<string>("")
+  const [selectedMainTopicId, setSelectedMainTopicId] = useState<number | null>(null)
+  const [selectedMainTopicName, setSelectedMainTopicName] = useState<string>("")
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [loading, setLoading] = useState(true)
 
   const navigate = useNavigate()
+
+  // 백엔드에서 topic 데이터 가져오기
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      setLoading(true)
+      try {
+        const res = await axios.get("/cert/topics", {
+          params: {
+            certId: 1,
+            mode: selectedExamType.toUpperCase(),
+            parentId: null
+          }
+        })
+
+        const rawTopics: RawTopic[] = res.data.topics
+        const tree = buildTree(rawTopics)
+        const adapted = toSubjectsTree(tree)
+        setSubjects(adapted)
+      } catch (err) {
+        console.error("토픽 데이터 불러오기 실패", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSubjects()
+  }, [selectedExamType])
 
   const currentSubjects = subjects.filter(s => s.examType === selectedExamType)
 
   const startMatching = () => {
-    if (!selectedSubTopicId) return  
+    if (!selectedMainTopicId) return  
     navigate("/battle/onevsone/category/matching", {
       state: {
-        subTopicId: selectedSubTopicId,
-        subTopicName: selectedSubTopicName,
+        topicId: selectedMainTopicId,
+        topicName: selectedMainTopicName,
         examType: selectedExamType
       },
     })
+  }
+
+  const startBotMatching = async () => {
+    if (!selectedMainTopicId) return
+
+    try {
+      const examMode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+      const response = await matchWithBot({
+        examMode: examMode as "WRITTEN" | "PRACTICAL",
+        scopeType: "CATEGORY",
+        topicId: selectedMainTopicId,
+      })
+
+      // roomId 저장
+      saveRoomId(response.roomId)
+
+      // 봇 매칭 성공 시 바로 게임 시작 페이지로 이동
+      navigate("/battle/onevsone/category/start", {
+        state: {
+          roomId: response.roomId,
+          botUserId: response.botUserId,
+          botNickname: response.botNickname,
+          topicName: selectedMainTopicName,
+          topicId: selectedMainTopicId,
+          examType: selectedExamType,
+          scopeJson: response.scopeJson,
+          isBotMatch: true,
+        }
+      })
+    } catch (err: unknown) {
+      console.error("봇 매칭 실패", err)
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "봇 매칭에 실패했습니다."
+      alert(errorMessage)
+    }
   }
 
   return (
@@ -61,7 +202,7 @@ export function CategoryBattleSelect() {
                     }`}
                     onClick={() => {
                       setSelectedExamType("written")
-                      setSelectedSubTopicId(null)
+                      setSelectedMainTopicId(null)
                       setExpandedSubject(null)
                     }}
                   >
@@ -77,7 +218,7 @@ export function CategoryBattleSelect() {
                     }`}
                     onClick={() => {
                       setSelectedExamType("practical")
-                      setSelectedSubTopicId(null)
+                      setSelectedMainTopicId(null)
                       setExpandedSubject(null)
                     }}
                   >
@@ -87,6 +228,9 @@ export function CategoryBattleSelect() {
               </div>
 
               {/* Subject → MainTopic → SubTopic */}
+              {loading ? (
+                <div className="text-center py-8 text-gray-600">토픽을 불러오는 중...</div>
+              ) : (
               <div className="space-y-4">
                 {currentSubjects.map(subject => (
                   <div key={subject.id} className="border-2 border-gray-200 rounded-lg overflow-hidden">
@@ -120,57 +264,33 @@ export function CategoryBattleSelect() {
                       <div className="p-4 bg-white space-y-3">
                         {subject.mainTopics.map(main => (
                           <div key={main.id} className="border-l-4 border-purple-300 pl-4">
-
                             <div
-                              onClick={() =>
-                                setExpandedMainTopic(expandedMainTopic === main.id ? null : main.id)
-                              }
-                              className="cursor-pointer flex items-center justify-between hover:bg-purple-50 p-2 rounded"
+                              onClick={() => {
+                                setSelectedMainTopicId(main.id)
+                                setSelectedMainTopicName(main.name)
+                              }}
+                              className={`border rounded-lg p-4 transition-all cursor-pointer ${
+                                selectedMainTopicId === main.id
+                                  ? "border-purple-500 bg-purple-50"
+                                  : "border-gray-200 bg-white hover:bg-purple-50"
+                              }`}
                             >
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 mb-2">
                                 <span className="text-lg">{main.icon}</span>
-                                <h4 className="text-purple-800">{main.name}</h4>
+                                <h4 className="text-purple-800 font-medium">{main.name}</h4>
                               </div>
 
-                              {expandedMainTopic === main.id
-                                ? <ChevronDown className="w-4 h-4 text-purple-600" />
-                                : <ChevronRight className="w-w h-4 text-purple-600" />
-                              }
-                            </div>
-
-                            {/* SubTopic */}
-                            {expandedMainTopic === main.id && (
-                              <div className="ml-6 space-y-2 mt-2">
-                                {main.subTopics.map(sub => (
-                                  <div key={sub.id} className="border-l-2 border-purple-200 pl-3">
-                                    <div
-                                      onClick={() => {
-                                        setSelectedSubTopicId(sub.id)
-                                        setSelectedSubTopicName(sub.name)
-                                      }}
-                                      className={`border rounded-lg p-3 transition-all cursor-pointer ${
-                                        selectedSubTopicId === sub.id
-                                          ? "border-purple-500 bg-purple-50"
-                                          : "border-gray-200 bg-white hover:bg-purple-50"
-                                      }`}
-                                    >
-                                      <div className="text-sm font-medium text-purple-800">
-                                        {sub.name}
-                                      </div>
-
-                                      <div className="mt-2 space-y-1">
-                                        {sub.details.map(detail => (
-                                          <div key={detail.id} className="text-sm text-gray-700 pl-5">
-                                            • {detail.name}
-                                          </div>
-                                        ))}
-                                      </div>
+                              {/* SubTopics 표시 (선택 불가, 정보만) */}
+                              {main.subTopics && main.subTopics.length > 0 && (
+                                <div className="mt-3 space-y-1 pl-7">
+                                  {main.subTopics.map(sub => (
+                                    <div key={sub.id} className="text-sm text-gray-600">
+                                      • {sub.name}
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -178,6 +298,7 @@ export function CategoryBattleSelect() {
                   </div>
                 ))}
               </div>
+              )}
             </Card>
           </div>
 
@@ -191,7 +312,7 @@ export function CategoryBattleSelect() {
                 <div>
                   <p className="text-gray-600">토픽</p>
                   <p className="text-purple-900">
-                    {selectedSubTopicId ? selectedSubTopicName : "선택 안 됨"}
+                    {selectedMainTopicId ? selectedMainTopicName : "선택 안 됨"}
                   </p>
                 </div>
               </div>
@@ -212,10 +333,20 @@ export function CategoryBattleSelect() {
             <div className="space-y-3">
               <Button
                 onClick={startMatching}
-                disabled={!selectedSubTopicId}
+                disabled={!selectedMainTopicId}
                 className="w-full h-11 bg-gradient-to-r from-purple-500 to-pink-500 text-white disabled:opacity-50"
               >
                 매칭 시작
+              </Button>
+
+              <Button
+                onClick={startBotMatching}
+                disabled={!selectedMainTopicId}
+                variant="outline"
+                className="w-full h-11 border-2 border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                봇과 매칭
               </Button>
 
               <Button
