@@ -21,11 +21,12 @@ import {
 
 interface GoldenBellGameProps {
   sessionId: string; // roomId as string
+  myUserId?: string; // API에서 받은 사용자 ID
   onComplete: (survived: boolean, rank: number) => void;
   onExit: () => void;
 }
 
-export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGameProps) {
+export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, onExit }: GoldenBellGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 800 });
   const roomId = Number(sessionId);
@@ -47,9 +48,21 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
   const [countdown, setCountdown] = useState(3);
   const [answerStartTime, setAnswerStartTime] = useState<number | null>(null);
   const [submittedQuestionId, setSubmittedQuestionId] = useState<number | null>(null);
+  const autoSubmittedRef = useRef<number | null>(null); // 자동 제출한 questionId 추적
+  
+  // 관전자 모드 및 부활 관련 상태
+  const [isSpectator, setIsSpectator] = useState(false);
+  const [prevAlive, setPrevAlive] = useState<boolean | null>(null);
+  const [showEliminationNotice, setShowEliminationNotice] = useState(false);
+  const [showRevivalNotice, setShowRevivalNotice] = useState(false);
+  const [showNoRevivalNotice, setShowNoRevivalNotice] = useState(false); // 부활 자격 없음 알림
+  const [myRevived, setMyRevived] = useState<boolean | null>(null); // 사용자의 부활 상태
+  const [prevPhase, setPrevPhase] = useState<string | null>(null); // 이전 phase 추적
+  const [noRevivalNoticeShown, setNoRevivalNoticeShown] = useState(false); // 부활 자격 없음 알림을 이미 표시했는지 추적
 
-  const survivorsCount = characters.filter(c => c.status !== "eliminated").length;
-  const maxTime = currentQuestion?.type === "OX" ? 10 : currentQuestion?.type === "SHORT" ? 20 : 30;
+  // 생존자 수는 반드시 scoreboard에서 확인
+  const survivorsCount = scoreboard?.items?.filter(item => item.alive).length || 0;
+  const maxTime = scoreboard?.currentQuestion?.timeLimitSec || 30;
 
   // 초기 방 상태 조회 (questions 배열 가져오기)
   useEffect(() => {
@@ -61,14 +74,8 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
         setRoomState(state);
         console.log("초기 방 상태 조회:", state);
         
-        // myUserId 설정
-        if (state.detail.participants.length > 0) {
-          // alive인 참가자 중 첫 번째 또는 첫 번째 참가자
-          const myParticipant = state.detail.participants.find(p => p.alive) || state.detail.participants[0];
-          if (myParticipant) {
-            setMyUserId(myParticipant.userId);
-          }
-        }
+        // myUserId 설정 (스코어보드에서 설정하므로 여기서는 스코어보드가 없으면 설정하지 않음)
+        // 탈락 여부는 반드시 scoreboard에서만 확인하므로 초기 설정은 스코어보드 폴링에서 처리
 
         // 첫 번째 문제가 있으면 questions 배열에서 가져오기
         if (state.detail.questions && state.detail.questions.length > 0) {
@@ -79,7 +86,8 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
               setCurrentQuestion(questionData);
               setAnswerStartTime(Date.now());
               setGameStage("answering");
-              setTimeLeft(questionData.type === "OX" ? 10 : questionData.type === "SHORT" ? 20 : 30);
+              setUserAnswer(""); // 초기 문제 시작 시 답안 초기화
+              // timeLeft는 endTime 기반 타이머에서 자동으로 업데이트됨
               setIsInitialLoad(false);
             } catch (error) {
               console.error("초기 문제 조회 실패:", error);
@@ -94,6 +102,13 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     fetchInitialState();
   }, [roomId]);
 
+  // myUserId 설정 (prop 우선 사용)
+  useEffect(() => {
+    if (propMyUserId && !myUserId) {
+      setMyUserId(propMyUserId);
+    }
+  }, [propMyUserId, myUserId]);
+
   // 스코어보드 폴링 (1초마다)
   useEffect(() => {
     if (!roomId || isNaN(roomId)) return;
@@ -103,12 +118,91 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
         const scoreboardData = await getScoreboard(roomId);
         setScoreboard(scoreboardData);
         
-        // myUserId 설정 (첫 번째 호출 시)
-        if (!myUserId && scoreboardData.items.length > 0) {
-          // 첫 번째 항목이 사용자일 가능성이 높음 (또는 alive인 항목 중 첫 번째)
-          const myItem = scoreboardData.items.find(item => item.alive) || scoreboardData.items[0];
+        // myUserId 설정 (prop에서 받은 값 우선 사용, 없으면 scoreboard에서 찾기)
+        const currentMyUserId = propMyUserId || myUserId;
+        if (!currentMyUserId && scoreboardData.items.length > 0) {
+          // localStorage에서 userId 가져오기 시도
+          const localStorageUserId = localStorage.getItem("userId");
+          if (localStorageUserId) {
+            // localStorage의 userId가 scoreboard에 있는지 확인
+            const foundItem = scoreboardData.items.find(item => item.userId === localStorageUserId);
+            if (foundItem) {
+              setMyUserId(localStorageUserId);
+            } else {
+              // 없으면 첫 번째 항목 사용 (fallback)
+              console.warn("localStorage의 userId가 scoreboard에 없습니다. 첫 번째 항목을 사용합니다.");
+              setMyUserId(scoreboardData.items[0].userId);
+            }
+          } else {
+            // localStorage에도 없으면 첫 번째 항목 사용 (fallback)
+            console.warn("myUserId를 찾을 수 없습니다. 첫 번째 항목을 사용합니다.");
+            setMyUserId(scoreboardData.items[0].userId);
+          }
+        }
+        
+        // alive 상태 변경 감지 및 관전자 모드 처리 - 반드시 scoreboard에서만 확인
+        // propMyUserId 또는 myUserId 중 하나를 사용
+        const userIdToCheck = propMyUserId || myUserId;
+        if (userIdToCheck && scoreboardData.items.length > 0) {
+          const myItem = scoreboardData.items.find(item => item.userId === userIdToCheck);
           if (myItem) {
-            setMyUserId(myItem.userId);
+            // 탈락 여부는 반드시 scoreboard의 alive 필드만 사용
+            const currentAlive = myItem.alive;
+            const currentRevived = myItem.revived;
+            const currentPhase = scoreboardData.currentQuestion?.phase || null;
+            
+            // 이전 상태와 비교하여 탈락 감지 (scoreboard의 alive 필드만 확인)
+            if (prevAlive !== null && prevAlive === true && currentAlive === false) {
+              // 탈락 알림 표시
+              setShowEliminationNotice(true);
+              setIsSpectator(true);
+              // 3초 후 알림 자동 닫기
+              setTimeout(() => {
+                setShowEliminationNotice(false);
+              }, 3000);
+            }
+            
+            // 부활전 시작 감지 및 부활 자격 확인 (한 번만 표시)
+            // prevPhase가 "REVIVAL"이 아니고 currentPhase가 "REVIVAL"로 변경될 때만 감지
+            const phaseChangedToRevival = prevPhase !== "REVIVAL" && currentPhase === "REVIVAL";
+            
+            if (phaseChangedToRevival && !currentAlive && !noRevivalNoticeShown) {
+              // 부활전이 시작되었고 사용자가 탈락 상태인 경우 (scoreboard의 alive 필드 확인)
+              if (currentRevived === false) {
+                // 부활 자격이 없음 알림 표시 (한 번만)
+                setShowNoRevivalNotice(true);
+                setNoRevivalNoticeShown(true); // 알림 표시 플래그 설정
+                setTimeout(() => {
+                  setShowNoRevivalNotice(false);
+                }, 5000); // 5초 후 알림 자동 닫기
+              }
+            }
+            
+            // 부활전이 끝나면 플래그 리셋 (다음 부활전을 위해)
+            if (prevPhase === "REVIVAL" && currentPhase !== "REVIVAL") {
+              setNoRevivalNoticeShown(false);
+            }
+            
+            // 부활 감지 (scoreboard의 alive 필드가 false에서 true로 변경)
+            if (prevAlive === false && currentAlive === true) {
+              // 부활 알림 표시
+              setShowRevivalNotice(true);
+              setIsSpectator(false);
+              setNoRevivalNoticeShown(false); // 부활했으면 알림 플래그 리셋
+              // 3초 후 알림 자동 닫기
+              setTimeout(() => {
+                setShowRevivalNotice(false);
+              }, 3000);
+            }
+            
+            // 현재 상태 저장 (scoreboard의 alive 필드만 사용)
+            // prevPhase를 먼저 업데이트하여 다음 폴링에서 중복 감지 방지
+            setPrevPhase(currentPhase);
+            setPrevAlive(currentAlive);
+            setMyRevived(currentRevived);
+            
+            // 관전자 모드 상태 업데이트 (scoreboard의 alive 필드만 사용)
+            setIsSpectator(!currentAlive);
           }
         }
       } catch (error) {
@@ -123,7 +217,7 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     const interval = setInterval(pollScoreboard, 1000);
 
     return () => clearInterval(interval);
-  }, [roomId, myUserId]);
+  }, [roomId, propMyUserId, myUserId, prevAlive]);
 
   // currentQuestion이 변경되면 문제 상세 정보 조회 (초기 로딩 이후)
   useEffect(() => {
@@ -138,7 +232,8 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
         setCurrentQuestion(questionData);
         setAnswerStartTime(Date.now());
         setGameStage("answering");
-        setTimeLeft(questionData.type === "OX" ? 10 : questionData.type === "SHORT" ? 20 : 30);
+        setUserAnswer(""); // 새로운 문제 시작 시 답안 초기화
+        // timeLeft는 endTime 기반 타이머에서 자동으로 업데이트됨
       } catch (error) {
         console.error("문제 조회 실패:", error);
       }
@@ -160,16 +255,23 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
       const col = index % 8;
       
       if (row < 2 && col < 8) {
-        const isUser = participant.userId === myUserId;
+        const userIdToUse = propMyUserId || myUserId;
+        const isUser = participant.userId === userIdToUse;
         // API의 alive 필드만 사용
         const status: GoldenBellCharacter["status"] = 
           !participant.alive ? "eliminated" : "normal";
         
+        // 닉네임이 null이면 userId 사용
+        const displayName = participant.nickname || participant.userId;
+        
         newCharacters.push({
           id: index + 1,
-          name: isUser ? "나" : `참가자 ${index + 1}`,
+          name: isUser ? "나" : displayName,
           status,
           gridPosition: { row, col },
+          nickname: participant.nickname,
+          skinId: participant.skinId,
+          userId: participant.userId,
         });
       }
     });
@@ -185,6 +287,7 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
           name: `참가자 ${index + 1}`,
           status: "eliminated",
           gridPosition: { row, col },
+          skinId: 1, // 기본 스킨 ID
         });
       } else {
         break;
@@ -194,29 +297,52 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     setCharacters(newCharacters);
 
     // 사용자의 정답 여부는 스코어보드에서 확인
-    const myItem = scoreboard.items.find(item => item.userId === myUserId);
+    const userIdToUse = propMyUserId || myUserId;
+    const myItem = scoreboard.items.find(item => item.userId === userIdToUse);
     if (myItem && submittedQuestionId) {
       // 최근 제출한 문제의 정답 여부는 스코어보드 업데이트로 확인
       // correctCount가 증가했으면 정답, 아니면 오답
     }
-  }, [scoreboard, myUserId, submittedQuestionId]);
+  }, [scoreboard, propMyUserId, myUserId, submittedQuestionId]);
 
-  // endTime 기반 타이머 업데이트
+  // endTime 기반 타이머 업데이트 (백엔드에서 제공하는 endTime만 사용)
   useEffect(() => {
     if (!scoreboard?.currentQuestion?.endTime) return;
+
+    const currentQuestionId = scoreboard.currentQuestion.questionId;
+    
+    // 새로운 문제가 시작되면 autoSubmittedRef 초기화
+    if (autoSubmittedRef.current !== currentQuestionId) {
+      autoSubmittedRef.current = null;
+    }
 
     const updateTimer = () => {
       const endTime = new Date(scoreboard.currentQuestion!.endTime).getTime();
       const now = Date.now();
-      const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+      // Math.ceil을 사용하여 0.1초 남아도 1초로 표시
+      const remaining = Math.max(0, Math.ceil((endTime - now) / 1000));
       setTimeLeft(remaining);
+      
+      // 시간이 지나면 빈 답안 자동 제출 (한 번만)
+      if (remaining === 0 && 
+          gameStage === "answering" && 
+          !isSpectator &&
+          scoreboard.currentQuestion &&
+          submittedQuestionId !== currentQuestionId &&
+          autoSubmittedRef.current !== currentQuestionId &&
+          answerStartTime) {
+        // 자동 제출 플래그 설정 (중복 호출 방지)
+        autoSubmittedRef.current = currentQuestionId;
+        // 빈 답안으로 자동 제출
+        handleAnswer("");
+      }
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 100); // 100ms마다 업데이트
 
     return () => clearInterval(interval);
-  }, [scoreboard?.currentQuestion?.endTime]);
+  }, [scoreboard?.currentQuestion?.endTime, scoreboard?.currentQuestion?.questionId, gameStage, isSpectator, submittedQuestionId, answerStartTime]);
 
   // Countdown timer for ready stage
   useEffect(() => {
@@ -225,7 +351,7 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     if (countdown <= 0) {
       // Start the game
       setGameStage("answering");
-      setTimeLeft(maxTime);
+      // timeLeft는 endTime 기반 타이머에서 자동으로 업데이트됨
       return;
     }
 
@@ -234,7 +360,7 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [gameStage, countdown, maxTime]);
+  }, [gameStage, countdown]);
 
   // Update container size for canvas
   useEffect(() => {
@@ -274,60 +400,80 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
 
   const handleAnswer = async (answer: string) => {
     if (gameStage !== "answering") return;
-    if (!currentQuestion || !roomId || !answerStartTime || !scoreboard?.currentQuestion) return;
-    if (submittedQuestionId === currentQuestion.questionId) return; // 이미 제출한 문제
+    if (isSpectator) return; // 관전자 모드에서는 답안 제출 불가
+    if (!scoreboard?.currentQuestion || !roomId || !answerStartTime) return;
+    
+    const currentQuestionId = scoreboard.currentQuestion.questionId;
+    
+    // 이미 제출한 문제인지 확인 (중복 제출 방지)
+    if (submittedQuestionId === currentQuestionId) return;
+    if (autoSubmittedRef.current === currentQuestionId) return; // 자동 제출도 이미 했는지 확인
 
     const timeMs = Date.now() - answerStartTime;
 
     try {
+      // 자동 제출인 경우 플래그 설정
+      if (answer === "") {
+        autoSubmittedRef.current = currentQuestionId;
+      }
+      
       // 답안 제출 (1:1 배틀과 동일한 파라미터 사용)
-      // roundNo와 phase를 포함하여 1:1 배틀과 동일한 형식으로 전송
+      // scoreboard.currentQuestion.questionId를 사용 (API에서 제공하는 questionId)
       await submitAnswer(roomId, {
-        questionId: currentQuestion.questionId,
+        questionId: currentQuestionId,
         userAnswer: answer,
         correct: false, // API에서 판단하므로 임시값
         timeMs,
         roundNo: scoreboard.currentQuestion.roundNo,
-        phase: scoreboard.currentQuestion.phase as "MAIN",
+        phase: scoreboard.currentQuestion.phase as "MAIN" | "REVIVAL",
       });
 
-      setSubmittedQuestionId(currentQuestion.questionId);
+      setSubmittedQuestionId(currentQuestionId);
       setGameStage("waiting");
       // 정답 여부는 스코어보드 폴링으로 업데이트됨
     } catch (error) {
       console.error("답안 제출 실패:", error);
+      // 에러 발생 시 자동 제출 플래그도 리셋
+      if (answer === "" && autoSubmittedRef.current === currentQuestionId) {
+        autoSubmittedRef.current = null;
+      }
       setGameStage("waiting");
     }
   };
 
   // 스코어보드 업데이트로 결과 확인 (API 데이터만 사용)
   useEffect(() => {
-    if (!scoreboard || !myUserId || !submittedQuestionId) return;
+    const userIdToUse = propMyUserId || myUserId;
+    if (!scoreboard || !userIdToUse) return;
 
-    const myItem = scoreboard.items.find(item => item.userId === myUserId);
-    if (!myItem) return;
+    // 게임 종료 확인 (scoreboard.status === "DONE")
+    if (scoreboard.status === "DONE") {
+      const myItem = scoreboard.items.find(item => item.userId === userIdToUse);
+      if (!myItem) return;
 
-    // 스코어보드의 alive 상태로 탈락 여부 확인
-    if (!myItem.alive) {
-      // 사용자가 탈락함
-      setGameStage("result");
-      setTimeout(() => {
-        const myRank = myItem.rank;
-        onComplete(false, myRank);
-      }, 1500);
+      // 승자는 scoreboard.items[0].userId (점수 순서대로 정렬됨)
+      const winnerUserId = scoreboard.items[0]?.userId;
+      const isWinner = winnerUserId === userIdToUse;
+
+      // 사용자의 순위는 items 배열에서의 인덱스 + 1 (배열이 점수 순서대로 정렬됨)
+      const myRank = scoreboard.items.findIndex(item => item.userId === userIdToUse) + 1;
+
+      if (isWinner) {
+        // 사용자가 우승
+        showWinnerScreen();
+      } else {
+        // 사용자가 탈락 또는 낮은 순위
+        setGameStage("result");
+        setTimeout(() => {
+          onComplete(false, myRank);
+        }, 1500);
+      }
       return;
     }
 
-    // 생존자 수 확인
-    const aliveCount = scoreboard.items.filter(item => item.alive).length;
-    if (aliveCount <= 1 && myItem.alive) {
-      // 사용자가 우승
-      showWinnerScreen();
-      return;
-    }
-
+    // 게임이 진행 중일 때는 탈락해도 게임 종료하지 않고 관전자 모드로 계속 진행
     // 다음 문제로 진행 (스코어보드의 currentQuestion이 변경되면 자동으로 처리됨)
-  }, [scoreboard, myUserId, submittedQuestionId]);
+  }, [scoreboard, propMyUserId, myUserId, isSpectator, onComplete]);
 
   // checkAnswer 함수 제거 - API에서 정답 여부 판단
 
@@ -386,9 +532,10 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
       });
     }
 
+    // 우승 화면을 잠시 보여준 후 결과 화면으로 이동
     setTimeout(() => {
       onComplete(true, 1);
-    }, 3000);
+    }, 2000); // 2초로 단축
   };
 
   const handleOXAnswer = (answer: "O" | "X") => {
@@ -545,20 +692,72 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
                     transition={{ type: "spring", damping: 20 }}
                     className="w-full max-w-2xl"
                   >
-                    <Card className="p-8 border-2 border-purple-300 bg-white/95 backdrop-blur">
+                    <Card className={`p-8 border-2 backdrop-blur ${
+                      isSpectator ? "border-gray-300 bg-gray-50/95" : "border-purple-300 bg-white/95"
+                    }`}>
                       <div className="mb-6">
-                        <Badge className="mb-4 bg-purple-500 text-white">
-                          {currentQuestion.type === "OX" ? "OX 퀴즈" : currentQuestion.type === "SHORT" ? "단답형" : "서술형"}
-                        </Badge>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          <Badge className={`${
+                            scoreboard?.currentQuestion?.phase === "REVIVAL" 
+                              ? "bg-pink-500 text-white" 
+                              : "bg-purple-500 text-white"
+                          }`}>
+                            {scoreboard?.currentQuestion?.phase === "REVIVAL" ? "부활전" : "본전"}
+                          </Badge>
+                          <Badge className="bg-purple-500 text-white">
+                            {currentQuestion.type === "OX" ? "OX 퀴즈" 
+                              : currentQuestion.type === "MCQ" || currentQuestion.type === "MULTIPLE" ? "객관식" 
+                              : currentQuestion.type === "SHORT" ? "단답형" 
+                              : "서술형"}
+                          </Badge>
+                          {isSpectator && (
+                            <Badge className="bg-gray-600 text-white">
+                              👁️ 관전자 모드
+                            </Badge>
+                          )}
+                        </div>
                         <h2 className="text-gray-900 mb-4">{currentQuestion.stem}</h2>
+                        {isSpectator && (
+                          <div className={`rounded-lg p-4 mb-4 border-2 ${
+                            scoreboard?.currentQuestion?.phase === "REVIVAL" && myRevived === false
+                              ? "bg-red-50 border-red-300"
+                              : "bg-yellow-50 border-yellow-300"
+                          }`}>
+                            <p className={`text-sm ${
+                              scoreboard?.currentQuestion?.phase === "REVIVAL" && myRevived === false
+                                ? "text-red-800"
+                                : "text-yellow-800"
+                            }`}>
+                              ⚠️ 관전자 모드입니다. 문제는 볼 수 있지만 답안을 제출할 수 없습니다.
+                            </p>
+                            {scoreboard?.currentQuestion?.phase === "REVIVAL" && (
+                              myRevived === true ? (
+                                <p className="text-purple-700 text-sm mt-2 font-semibold">
+                                  💫 부활전이 진행 중입니다. 부활 기회를 노려보세요!
+                                </p>
+                              ) : myRevived === false ? (
+                                <p className="text-red-700 text-sm mt-2 font-semibold">
+                                  ❌ 부활 자격이 없습니다. 정답을 맞춘 문제가 없어 부활할 수 없습니다.
+                                </p>
+                              ) : (
+                                <p className="text-purple-700 text-sm mt-2 font-semibold">
+                                  💫 부활전이 진행 중입니다. 부활 기회를 노려보세요!
+                                </p>
+                              )
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {currentQuestion.type === "OX" ? (
                         <div className="grid grid-cols-2 gap-4">
                           <button
                             onClick={() => handleOXAnswer("O")}
+                            disabled={isSpectator}
                             className={`p-8 rounded-xl border-2 transition-all ${
-                              userAnswer === "O"
+                              isSpectator
+                                ? "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
+                                : userAnswer === "O"
                                 ? "border-blue-500 bg-blue-50"
                                 : "border-gray-200 hover:border-blue-300"
                             }`}
@@ -568,8 +767,11 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
                           </button>
                           <button
                             onClick={() => handleOXAnswer("X")}
+                            disabled={isSpectator}
                             className={`p-8 rounded-xl border-2 transition-all ${
-                              userAnswer === "X"
+                              isSpectator
+                                ? "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
+                                : userAnswer === "X"
                                 ? "border-red-500 bg-red-50"
                                 : "border-gray-200 hover:border-red-300"
                             }`}
@@ -578,25 +780,70 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
                             <p className="text-xl text-gray-800">X</p>
                           </button>
                         </div>
+                      ) : currentQuestion.type === "MCQ" || currentQuestion.type === "MULTIPLE" ? (
+                        <div className="space-y-3">
+                          {currentQuestion.payloadJson?.choices?.map((choice: any, index: number) => (
+                            <button
+                              key={choice.label || index}
+                              onClick={() => {
+                                if (!isSpectator) {
+                                  setUserAnswer(choice.label);
+                                  setTimeout(() => {
+                                    handleAnswer(choice.label);
+                                  }, 300);
+                                }
+                              }}
+                              disabled={isSpectator}
+                              className={`w-full p-6 rounded-xl border-2 text-left transition-all ${
+                                isSpectator
+                                  ? "border-gray-200 bg-gray-100 cursor-not-allowed opacity-50"
+                                  : userAnswer === choice.label
+                                  ? "border-purple-500 bg-purple-50 shadow-md"
+                                  : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                                  userAnswer === choice.label
+                                    ? "bg-purple-500 text-white"
+                                    : "bg-gray-200 text-gray-700"
+                                }`}>
+                                  {choice.label}
+                                </div>
+                                <p className="text-gray-800 flex-1">{choice.content}</p>
+                                {userAnswer === choice.label && (
+                                  <div className="text-purple-500 text-xl">✓</div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       ) : (
                         <div className="space-y-4">
                           <Input
                             value={userAnswer}
                             onChange={(e) => setUserAnswer(e.target.value)}
-                            placeholder="답을 입력하세요..."
-                            className="text-lg p-4 border-2 border-purple-200"
+                            placeholder={isSpectator ? "관전자 모드입니다. 답안을 제출할 수 없습니다." : "답을 입력하세요..."}
+                            disabled={isSpectator}
+                            className={`text-lg p-4 border-2 ${
+                              isSpectator ? "border-gray-200 bg-gray-100 cursor-not-allowed" : "border-purple-200"
+                            }`}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter" && userAnswer.trim()) {
+                              if (e.key === "Enter" && userAnswer.trim() && !isSpectator) {
                                 handleShortAnswer();
                               }
                             }}
                           />
                           <Button
                             onClick={handleShortAnswer}
-                            disabled={!userAnswer.trim()}
-                            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-6"
+                            disabled={!userAnswer.trim() || isSpectator}
+                            className={`w-full py-6 ${
+                              isSpectator
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                            } text-white`}
                           >
-                            답안 제출
+                            {isSpectator ? "관전자 모드 - 답안 제출 불가" : "답안 제출"}
                           </Button>
                         </div>
                       )}
@@ -605,6 +852,112 @@ export function GoldenBellGame({ sessionId, onComplete, onExit }: GoldenBellGame
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* 탈락 알림 Overlay */}
+            <AnimatePresence>
+              {showEliminationNotice && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                >
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.8, opacity: 0, y: -20 }}
+                    transition={{ type: "spring", damping: 20 }}
+                    className="text-center bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl"
+                  >
+                    <div className="text-8xl mb-4">💔</div>
+                    <h2 className="text-3xl font-bold text-red-600 mb-4">탈락하셨습니다</h2>
+                    <p className="text-gray-700 mb-2">이제 관전자 모드로 전환됩니다.</p>
+                    <p className="text-sm text-gray-500">문제는 계속 볼 수 있지만 답안을 제출할 수는 없습니다.</p>
+                    {scoreboard?.currentQuestion?.phase === "REVIVAL" && (
+                      <div className="mt-4">
+                        {myRevived === true ? (
+                          <p className="text-sm text-purple-600 font-semibold">
+                            💫 부활전이 진행 중입니다. 부활 기회를 노려보세요!
+                          </p>
+                        ) : myRevived === false ? (
+                          <p className="text-sm text-red-600 font-semibold">
+                            ❌ 부활 자격이 없습니다. 정답을 맞춘 문제가 없어 부활할 수 없습니다.
+                          </p>
+                        ) : (
+                          <p className="text-sm text-purple-600 font-semibold">
+                            부활전이 진행 중입니다. 부활 기회를 노려보세요!
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* 부활 알림 Overlay */}
+            <AnimatePresence>
+              {showRevivalNotice && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                >
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.8, opacity: 0, y: -20 }}
+                    transition={{ type: "spring", damping: 20 }}
+                    className="text-center bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl"
+                  >
+                    <div className="text-8xl mb-4">✨</div>
+                    <h2 className="text-3xl font-bold text-purple-600 mb-4">부활하셨습니다!</h2>
+                    <p className="text-gray-700 mb-2">다시 게임에 참여할 수 있습니다.</p>
+                    <p className="text-sm text-gray-500">이제 답안을 제출할 수 있습니다.</p>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* 부활 자격 없음 알림 Overlay */}
+            <AnimatePresence>
+              {showNoRevivalNotice && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                >
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.8, opacity: 0, y: -20 }}
+                    transition={{ type: "spring", damping: 20 }}
+                    className="text-center bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl"
+                  >
+                    <div className="text-8xl mb-4">😢</div>
+                    <h2 className="text-3xl font-bold text-red-600 mb-4">부활 자격이 없습니다</h2>
+                    <p className="text-gray-700 mb-2">정답을 맞춘 문제가 없어 부활할 수 없습니다.</p>
+                    <p className="text-sm text-gray-500">부활전이 진행 중이지만 관전자 모드로 계속 진행됩니다.</p>
+                    <div className="mt-4 bg-red-50 border-2 border-red-200 rounded-lg p-3">
+                      <p className="text-xs text-red-700">
+                        💡 부활 조건: 탈락자 중 정답을 맞춘 문제가 있고, 가장 빠른 시간을 가진 1명만 부활합니다.
+                      </p>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* 관전자 모드 배지 */}
+            {isSpectator && gameStage === "answering" && (
+              <div className="absolute top-4 right-4 z-45">
+                <Badge className="bg-gray-600 text-white text-lg px-4 py-2">
+                  👁️ 관전자 모드
+                </Badge>
+              </div>
+            )}
 
             {/* Winner Overlay - Layer 5 */}
             <AnimatePresence>

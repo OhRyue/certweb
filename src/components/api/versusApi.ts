@@ -32,7 +32,8 @@ export interface MatchRequestResponse {
   status: "WAITING" | "MATCHED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   opponent?: {
     userId: string;
-    nickname: string;
+    nickname: string | null; // account-service 호출 실패 시 null
+    skinId: number; // 프로필 조회 실패 시 기본값 1
     avatarUrl?: string;
     level?: number;
   };
@@ -100,7 +101,8 @@ export interface BotMatchResponse {
   roomId: number;
   myUserId: string;
   botUserId: string;
-  botNickname: string;
+  botNickname: string | null; // account-service 호출 실패 시 null
+  botSkinId: number; // 프로필 조회 실패 시 기본값 1
   scopeJson: string;
 }
 
@@ -133,6 +135,8 @@ export async function matchWithBot(params: BotMatchParams): Promise<BotMatchResp
 // 방 참가자 정보
 export interface RoomParticipant {
   userId: string;
+  nickname: string | null; // account-service 호출 실패 시 null
+  skinId: number; // 프로필 조회 실패 시 기본값 1
   finalScore: number;
   rank: number;
   alive: boolean;
@@ -152,6 +156,8 @@ export interface RoomQuestion {
 // 스코어보드 항목
 export interface ScoreboardItem {
   userId: string;
+  nickname: string | null; // account-service 호출 실패 시 null
+  skinId: number; // 프로필 조회 실패 시 기본값 1
   correctCount: number;
   totalCount: number;
   score: number;
@@ -182,9 +188,10 @@ export interface Scoreboard {
 export interface RoomInfo {
   roomId: number;
   mode: "DUEL" | "GOLDENBELL" | "TOURNAMENT";
-  status: "WAIT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status: "WAIT" | "IN_PROGRESS" | "ONGOING" | "COMPLETED" | "CANCELLED";
   participantCount: number;
   createdAt: string;
+  scheduledAt?: string; // 예약된 시작 시간 (ISO 8601 형식)
 }
 
 // 방 정보 조회 응답
@@ -299,7 +306,7 @@ export interface SubmitAnswerParams {
   correct: boolean;
   timeMs: number; // 소요 시간 (밀리초)
   roundNo: number;
-  phase: "MAIN";
+  phase: "MAIN" | "REVIVAL";
 }
 
 // 답안 제출 응답
@@ -348,9 +355,10 @@ export async function startGoldenBellBotMatch(examMode: ExamMode): Promise<Golde
 
 // 문제 상세 정보 응답
 export interface VersusQuestionResponse {
-  questionId: number;
+  questionId?: number;
+  id?: number; // API 응답에 따라 id 또는 questionId 사용
   mode: "WRITTEN" | "PRACTICAL";
-  type: "OX" | "MULTIPLE" | "SHORT" | "LONG";
+  type: "OX" | "MULTIPLE" | "MCQ" | "SHORT" | "LONG";
   difficulty: "EASY" | "NORMAL" | "HARD";
   stem: string;
   answerKey: string;
@@ -398,6 +406,160 @@ export async function submitGoldenBellAnswer(
     `/versus/rooms/${roomId}/answers`,
     params
   );
+  return response.data;
+}
+
+// 골든벨 답안 정보 항목
+export interface QuestionAnswerItem {
+  userId: string;
+  nickname: string | null; // account-service 호출 실패 시 null
+  skinId: number; // 프로필 조회 실패 시 기본값 1
+  userAnswer: string;
+  correct: boolean;
+  timeMs: number;
+  scoreDelta: number;
+  submittedAt: string;
+}
+
+// 골든벨 답안 정보 응답
+export interface QuestionAnswersResponse {
+  questionId: number;
+  answers: QuestionAnswerItem[];
+}
+
+/**
+ * 골든벨 문제별 답안 정보 조회
+ * @param roomId 방 ID
+ * @param questionId 문제 ID
+ * @returns 답안 정보 응답 데이터
+ */
+export async function getQuestionAnswers(
+  roomId: number,
+  questionId: number
+): Promise<QuestionAnswersResponse> {
+  const response = await axios.get<QuestionAnswersResponse>(
+    `/versus/rooms/${roomId}/questions/${questionId}/answers`
+  );
+  return response.data;
+}
+
+/**
+ * 닉네임이 null일 때 userId를 반환하는 유틸리티 함수
+ * @param nickname 닉네임 (null 가능)
+ * @param userId 사용자 ID
+ * @returns 닉네임 또는 사용자 ID
+ */
+export function getDisplayName(nickname: string | null | undefined, userId: string): string {
+  return nickname || userId;
+}
+
+// ===== 방 생성 API =====
+
+// 방 생성 요청 파라미터
+export interface CreateRoomParams {
+  mode: "DUEL" | "TOURNAMENT" | "GOLDENBELL";
+  scopeJson: string; // JSON 문자열: {"examMode":"WRITTEN","difficulty":"NORMAL","topicScope":"ALL"}
+  scheduledAt?: string; // ISO 8601 형식 (UTC 기준), 선택사항
+  participants?: string[]; // 초대할 사용자 ID 리스트, 선택사항
+}
+
+// 방 생성 응답
+export interface CreateRoomResponse {
+  room: RoomInfo;
+  participants: RoomParticipant[];
+  questions: RoomQuestion[];
+  tournamentBracketJson: string | null;
+  goldenbellRuleJson: string | null;
+  scoreboard: Scoreboard;
+}
+
+/**
+ * 새로운 대전 방 생성
+ * @param params 방 생성 파라미터
+ * @returns 방 생성 응답 데이터
+ */
+export async function createRoom(params: CreateRoomParams): Promise<CreateRoomResponse> {
+  const response = await axios.post<CreateRoomResponse>("/versus/rooms", params);
+  return response.data;
+}
+
+/**
+ * 골든벨 사람전 방 생성 (간편 함수)
+ * @param examMode 시험 모드 (WRITTEN/PRACTICAL)
+ * @param difficulty 난이도 (EASY/NORMAL/HARD)
+ * @param scheduledAt 시작 시각 (ISO 8601 형식, UTC 기준)
+ * @returns 방 생성 응답 데이터
+ */
+export async function createGoldenBellRoom(
+  examMode: ExamMode,
+  difficulty: Difficulty,
+  scheduledAt: string
+): Promise<CreateRoomResponse> {
+  const scopeJson = JSON.stringify({
+    examMode: examMode,
+    difficulty: difficulty,
+    topicScope: "ALL"
+  });
+
+  return createRoom({
+    mode: "GOLDENBELL",
+    scopeJson: scopeJson,
+    scheduledAt: scheduledAt
+  });
+}
+
+// 예약된 방 목록 항목
+export interface ScheduledRoom {
+  roomId: number;
+  mode: "DUEL" | "TOURNAMENT" | "GOLDENBELL";
+  status: "WAIT" | "IN_PROGRESS" | "ONGOING" | "COMPLETED" | "CANCELLED";
+  participantCount: number;
+  createdAt: string;
+  scheduledAt: string;
+}
+
+/**
+ * 예약된 방 목록 조회
+ * @param mode 게임 모드 (GOLDENBELL, TOURNAMENT, DUEL)
+ * @returns 예약된 방 목록
+ */
+export async function getScheduledRooms(mode: "GOLDENBELL" | "TOURNAMENT" | "DUEL"): Promise<ScheduledRoom[]> {
+  const response = await axios.get<ScheduledRoom[]>("/versus/rooms/scheduled", {
+    params: {
+      mode: mode
+    }
+  });
+  return response.data;
+}
+
+/**
+ * 방 참가
+ * JWT 토큰에서 현재 로그인한 사용자 ID를 자동으로 가져옵니다.
+ * 방 상태가 WAIT일 때만 참가 가능합니다.
+ * scheduledAt이 설정된 경우, 시작 10분 전부터 입장 가능합니다.
+ * @param roomId 참가할 방 ID
+ * @returns 방 참가 응답 데이터 (CreateRoomResponse와 동일한 구조)
+ */
+export async function joinRoom(roomId: number): Promise<CreateRoomResponse> {
+  const response = await axios.post<CreateRoomResponse>(`/versus/rooms/${roomId}/join`);
+  return response.data;
+}
+
+// Heartbeat 응답
+export interface HeartbeatResponse {
+  message: string;
+  success: boolean;
+}
+
+/**
+ * Heartbeat 전송
+ * 대기실에서 30초마다 호출하여 연결 상태 유지
+ * 1분 이상 heartbeat가 없으면 백엔드에서 자동 추방
+ * @param roomId 방 ID
+ * @returns Heartbeat 응답
+ */
+export async function sendHeartbeat(roomId: number): Promise<HeartbeatResponse> {
+  const response = await axios.post<HeartbeatResponse>(`/versus/rooms/${roomId}/heartbeat`);
   return response.data;
 }
 
