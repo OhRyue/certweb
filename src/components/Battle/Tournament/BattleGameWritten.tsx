@@ -5,7 +5,7 @@ import { Progress } from "../../ui/progress";
 import { Swords, Clock, Sparkles, Target } from "lucide-react";
 import type { Question } from "../../../types";
 import { OpponentLeftOverlay } from "../OpponentLeftOverlay";
-import { submitAnswer } from "../../api/versusApi"; 
+import { submitAnswer, sendHeartbeat, getScoreboard } from "../../api/versusApi"; 
 
 interface BattleGameWrittenProps {
     questions: Question[];
@@ -38,6 +38,8 @@ export function BattleGameWritten({
 
     // 여기 추가: 상대 퇴장 여부
     const [opponentLeft, setOpponentLeft] = useState(false);
+    const [opponentName, setOpponentName] = useState<string>("상대방");
+    const [previousParticipantCount, setPreviousParticipantCount] = useState<number | null>(null);
 
     // questions가 없거나 비어있으면 예외 처리
     const totalQuestions = questions?.length || 0;
@@ -55,16 +57,64 @@ export function BattleGameWritten({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentQuestion]);
 
-    // 테스트용: ESC 누르면 상대 나간 것처럼 오버레이 실행
+    // 하트비트 전송 (30초마다)
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                setOpponentLeft(true);
+        if (!roomId) return;
+
+        const heartbeatInterval = setInterval(async () => {
+            try {
+                await sendHeartbeat(roomId);
+                console.log("하트비트 전송 성공");
+            } catch (error) {
+                console.error("하트비트 전송 실패:", error);
+            }
+        }, 30000); // 30초마다
+
+        return () => clearInterval(heartbeatInterval);
+    }, [roomId]);
+
+    // 스코어보드 폴링 (상대방 이탈 감지)
+    useEffect(() => {
+        if (!roomId) return;
+
+        const pollScoreboard = async () => {
+            try {
+                const scoreboard = await getScoreboard(roomId);
+                console.log("스코어보드 조회:", scoreboard);
+
+                // 초기 참가자 수 설정
+                if (previousParticipantCount === null) {
+                    setPreviousParticipantCount(scoreboard.items.length);
+                    
+                    // 상대방 이름 저장 (나를 제외한 사용자)
+                    if (scoreboard.items.length === 2) {
+                        const opponent = scoreboard.items.find(item => item.userId !== myUserId);
+                        if (opponent) {
+                            setOpponentName(opponent.nickname || opponent.userId);
+                        }
+                    }
+                }
+
+                // 참가자 수가 2 -> 1로 줄어든 경우 상대방 이탈
+                if (previousParticipantCount === 2 && scoreboard.items.length === 1) {
+                    console.log("상대방 이탈 감지!");
+                    setOpponentLeft(true);
+                }
+
+                setPreviousParticipantCount(scoreboard.items.length);
+            } catch (error) {
+                console.error("스코어보드 조회 실패:", error);
             }
         };
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
+
+        // 즉시 실행
+        pollScoreboard();
+
+        // 1초마다 폴링
+        const pollingInterval = setInterval(pollScoreboard, 1000);
+
+        return () => clearInterval(pollingInterval);
+    }, [roomId, myUserId, previousParticipantCount]);
 
     // Timer
     useEffect(() => {
@@ -354,12 +404,12 @@ export function BattleGameWritten({
                     </Card>
                 </div>
 
-                {/* 참가자 나감 오버레이 표시 (토너먼트에서는 사용하지 않을 수 있음) */}
+                {/* 상대방 이탈 오버레이 */}
                 {opponentLeft && (
                     <OpponentLeftOverlay
-                        opponentName="토너먼트"
+                        opponentName={opponentName}
                         myScore={myScore}
-                        opponentScore={0}
+                        opponentScore={opponentScore}
                         onConfirm={() => {
                             setOpponentLeft(false);
                             onExit();

@@ -90,7 +90,8 @@ import { TournamentMatching } from "./components/Battle/Tournament/TournamentMat
 import { TournamentGameFlow } from "./components/Battle/Tournament/TournamentGameFlow"
 // 골든벨
 import { GoldenBell } from "./components/Battle/Goldenbell/GoldenBell"
-import { GoldenBellGameWrapper } from "./components/Battle/Goldenbell/GoldenBellGameWrapper"
+import { GoldenBellBotGameWrapper } from "./components/Battle/Goldenbell/GoldenBellBotGameWrapper"
+import { GoldenBellPvPGameWrapper } from "./components/Battle/Goldenbell/GoldenBellPvPGameWrapper"
 
 
 // Community
@@ -142,6 +143,7 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
   const [userSettings, setUserSettings] = useState(initialSettings)
   const [userPoints, setUserPoints] = useState(5000)
   const [shopItems, setShopItems] = useState(initialShopItems)
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true)
 
   // 유저 프로필 
   const [userProfile, setUserProfile] = useState({
@@ -204,6 +206,9 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
           targetCertificationId: overviewRes.data.goal?.certId || 0,
           targetCertification: overviewRes.data.goal?.certId ? CERT_MAP[overviewRes.data.goal.certId] : ""
         }))
+        
+        // 온보딩 체크 완료
+        setIsCheckingOnboarding(false)
       } catch (err: any) {
         console.error("유저 프로필 불러오기 실패", err)
         // 프로필 로드 실패 시 온보딩으로 리다이렉트
@@ -211,6 +216,9 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
         if (err.response?.status !== 401) {
           // 401 에러가 아니면 온보딩으로 리다이렉트 시도
           navigate("/onboarding", { replace: true })
+        } else {
+          // 401 에러인 경우에도 온보딩 체크는 완료 처리
+          setIsCheckingOnboarding(false)
         }
       }
     }
@@ -235,6 +243,18 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
       window.removeEventListener('skinChanged', handleSkinChanged)
     }
   }, [navigate])
+
+  // 온보딩 체크가 완료될 때까지 로딩 화면 표시
+  if (isCheckingOnboarding) {
+    return (
+      <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-600">프로필 확인 중...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50">
@@ -298,8 +318,12 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
           <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
           <Route path="/battle/goldenbell" element={<GoldenBell />} />
           <Route
-            path="/battle/goldenbell/game/:sessionId"
-            element={<GoldenBellGameWrapper />}
+            path="/battle/goldenbell/bot/:sessionId"
+            element={<GoldenBellBotGameWrapper />}
+          />
+          <Route
+            path="/battle/goldenbell/game/:roomId"
+            element={<GoldenBellPvPGameWrapper />}
           />
 
 
