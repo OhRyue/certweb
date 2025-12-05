@@ -3,18 +3,33 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
+import { Alert, AlertDescription } from "./ui/alert";
 import {
   Sparkles,
   Zap,
+  AlertCircle,
 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "./api/axiosConfig"
 
 export function LoginScreen({ onLogin }) {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [showExpiredAlert, setShowExpiredAlert] = useState(false);
+
+  // URL 파라미터에서 만료 메시지 확인
+  useEffect(() => {
+    const reason = searchParams.get("reason");
+    if (reason === "expired") {
+      setShowExpiredAlert(true);
+      // 3초 후 자동으로 alert 숨기기
+      const timer = setTimeout(() => setShowExpiredAlert(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams])
 
   const features = [
     {
@@ -231,6 +246,23 @@ export function LoginScreen({ onLogin }) {
                 <h2 className="text-blue-900 mb-2">로그인</h2>
                 <p className="text-gray-600">학습을 계속하려면 로그인하세요</p>
               </div>
+
+              {/* 토큰 만료 알림 */}
+              {showExpiredAlert && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mb-4"
+                >
+                  <Alert variant="destructive" className="border-orange-400 bg-orange-50">
+                    <AlertCircle className="h-4 w-4 text-orange-600" />
+                    <AlertDescription className="text-orange-800">
+                      로그인 세션이 만료되었습니다. 다시 로그인해주세요.
+                    </AlertDescription>
+                  </Alert>
+                </motion.div>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
