@@ -188,9 +188,10 @@ export interface Scoreboard {
 export interface RoomInfo {
   roomId: number;
   mode: "DUEL" | "GOLDENBELL" | "TOURNAMENT";
-  status: "WAIT" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status: "WAIT" | "IN_PROGRESS" | "ONGOING" | "COMPLETED" | "CANCELLED";
   participantCount: number;
   createdAt: string;
+  scheduledAt?: string; // 예약된 시작 시간 (ISO 8601 형식)
 }
 
 // 방 정보 조회 응답
@@ -450,5 +451,115 @@ export async function getQuestionAnswers(
  */
 export function getDisplayName(nickname: string | null | undefined, userId: string): string {
   return nickname || userId;
+}
+
+// ===== 방 생성 API =====
+
+// 방 생성 요청 파라미터
+export interface CreateRoomParams {
+  mode: "DUEL" | "TOURNAMENT" | "GOLDENBELL";
+  scopeJson: string; // JSON 문자열: {"examMode":"WRITTEN","difficulty":"NORMAL","topicScope":"ALL"}
+  scheduledAt?: string; // ISO 8601 형식 (UTC 기준), 선택사항
+  participants?: string[]; // 초대할 사용자 ID 리스트, 선택사항
+}
+
+// 방 생성 응답
+export interface CreateRoomResponse {
+  room: RoomInfo;
+  participants: RoomParticipant[];
+  questions: RoomQuestion[];
+  tournamentBracketJson: string | null;
+  goldenbellRuleJson: string | null;
+  scoreboard: Scoreboard;
+}
+
+/**
+ * 새로운 대전 방 생성
+ * @param params 방 생성 파라미터
+ * @returns 방 생성 응답 데이터
+ */
+export async function createRoom(params: CreateRoomParams): Promise<CreateRoomResponse> {
+  const response = await axios.post<CreateRoomResponse>("/versus/rooms", params);
+  return response.data;
+}
+
+/**
+ * 골든벨 사람전 방 생성 (간편 함수)
+ * @param examMode 시험 모드 (WRITTEN/PRACTICAL)
+ * @param difficulty 난이도 (EASY/NORMAL/HARD)
+ * @param scheduledAt 시작 시각 (ISO 8601 형식, UTC 기준)
+ * @returns 방 생성 응답 데이터
+ */
+export async function createGoldenBellRoom(
+  examMode: ExamMode,
+  difficulty: Difficulty,
+  scheduledAt: string
+): Promise<CreateRoomResponse> {
+  const scopeJson = JSON.stringify({
+    examMode: examMode,
+    difficulty: difficulty,
+    topicScope: "ALL"
+  });
+
+  return createRoom({
+    mode: "GOLDENBELL",
+    scopeJson: scopeJson,
+    scheduledAt: scheduledAt
+  });
+}
+
+// 예약된 방 목록 항목
+export interface ScheduledRoom {
+  roomId: number;
+  mode: "DUEL" | "TOURNAMENT" | "GOLDENBELL";
+  status: "WAIT" | "IN_PROGRESS" | "ONGOING" | "COMPLETED" | "CANCELLED";
+  participantCount: number;
+  createdAt: string;
+  scheduledAt: string;
+}
+
+/**
+ * 예약된 방 목록 조회
+ * @param mode 게임 모드 (GOLDENBELL, TOURNAMENT, DUEL)
+ * @returns 예약된 방 목록
+ */
+export async function getScheduledRooms(mode: "GOLDENBELL" | "TOURNAMENT" | "DUEL"): Promise<ScheduledRoom[]> {
+  const response = await axios.get<ScheduledRoom[]>("/versus/rooms/scheduled", {
+    params: {
+      mode: mode
+    }
+  });
+  return response.data;
+}
+
+/**
+ * 방 참가
+ * JWT 토큰에서 현재 로그인한 사용자 ID를 자동으로 가져옵니다.
+ * 방 상태가 WAIT일 때만 참가 가능합니다.
+ * scheduledAt이 설정된 경우, 시작 10분 전부터 입장 가능합니다.
+ * @param roomId 참가할 방 ID
+ * @returns 방 참가 응답 데이터 (CreateRoomResponse와 동일한 구조)
+ */
+export async function joinRoom(roomId: number): Promise<CreateRoomResponse> {
+  const response = await axios.post<CreateRoomResponse>(`/versus/rooms/${roomId}/join`);
+  return response.data;
+}
+
+// Heartbeat 응답
+export interface HeartbeatResponse {
+  message: string;
+  success: boolean;
+}
+
+/**
+ * Heartbeat 전송
+ * 대기실에서 30초마다 호출하여 연결 상태 유지
+ * 1분 이상 heartbeat가 없으면 백엔드에서 자동 추방
+ * @param roomId 방 ID
+ * @returns Heartbeat 응답
+ */
+export async function sendHeartbeat(roomId: number): Promise<HeartbeatResponse> {
+  const response = await axios.post<HeartbeatResponse>(`/versus/rooms/${roomId}/heartbeat`);
+  return response.data;
 }
 

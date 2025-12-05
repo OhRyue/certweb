@@ -4,7 +4,7 @@ import { GoldenBellGame } from "./GoldenBellGame"
 import { GoldenBellResult } from "./GoldenBellResult"
 import { startGoldenBellBotMatch, getRoomState, getScoreboard, type ExamMode, type Scoreboard } from "../../api/versusApi"
 
-export function GoldenBellGameWrapper() {
+export function GoldenBellBotGameWrapper() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -83,8 +83,8 @@ export function GoldenBellGameWrapper() {
         // questions 배열이 생성될 때까지 대기 시작
         waitForQuestions(targetRoomId)
       } catch (err: any) {
-        console.error("골든벨 게임 초기화 실패:", err)
-        setError(err.response?.data?.message || "게임을 시작할 수 없습니다.")
+        console.error("골든벨 봇전 초기화 실패:", err)
+        setError(err.response?.data?.message || "봇전을 시작할 수 없습니다.")
         setLoading(false)
       }
     }
@@ -98,7 +98,7 @@ export function GoldenBellGameWrapper() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
         <div className="text-center">
           <div className="text-6xl mb-4 animate-bounce">🔔</div>
-          <p className="text-xl text-purple-900 mb-2">골든벨 게임을 준비하고 있습니다...</p>
+          <p className="text-xl text-purple-900 mb-2">골든벨 봇전을 준비하고 있습니다...</p>
           <p className="text-sm text-gray-600">문제 목록을 생성하는 중입니다. 잠시만 기다려주세요.</p>
         </div>
       </div>
@@ -171,3 +171,4 @@ export function GoldenBellGameWrapper() {
     />
   )
 }
+

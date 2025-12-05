@@ -90,7 +90,8 @@ import { TournamentMatching } from "./components/Battle/Tournament/TournamentMat
 import { TournamentGameFlow } from "./components/Battle/Tournament/TournamentGameFlow"
 // 골든벨
 import { GoldenBell } from "./components/Battle/Goldenbell/GoldenBell"
-import { GoldenBellGameWrapper } from "./components/Battle/Goldenbell/GoldenBellGameWrapper"
+import { GoldenBellBotGameWrapper } from "./components/Battle/Goldenbell/GoldenBellBotGameWrapper"
+import { GoldenBellPvPGameWrapper } from "./components/Battle/Goldenbell/GoldenBellPvPGameWrapper"
 
 
 // Community
@@ -317,8 +318,12 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
           <Route path="/battle/tournament/bracket" element={<TournamentBracket />} />
           <Route path="/battle/goldenbell" element={<GoldenBell />} />
           <Route
-            path="/battle/goldenbell/game/:sessionId"
-            element={<GoldenBellGameWrapper />}
+            path="/battle/goldenbell/bot/:sessionId"
+            element={<GoldenBellBotGameWrapper />}
+          />
+          <Route
+            path="/battle/goldenbell/game/:roomId"
+            element={<GoldenBellPvPGameWrapper />}
           />
 
 
