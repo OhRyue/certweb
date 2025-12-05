@@ -716,18 +716,14 @@ export function MainLearningDashboard() {
                                 // Review 모드 세션 시작 API 호출
                                 const requestBody: {
                                   topicId: number
-                                  mode: "REVIEW"
-                                  examMode?: "PRACTICAL"
-                                  resume?: boolean
+                                  mode: string
+                                  examMode: string
+                                  resume: boolean
                                 } = {
                                   topicId: mainTopic.id,  // mainTopicId는 rootTopicId
                                   mode: "REVIEW",
+                                  examMode: selectedExamType === "practical" ? "PRACTICAL" : "WRITTEN",
                                   resume: false
-                                }
-                                
-                                // 실기 Review는 examMode 필수
-                                if (selectedExamType === "practical") {
-                                  requestBody.examMode = "PRACTICAL"
                                 }
                                 
                                 const startRes = await axios.post("/study/session/start", requestBody)
@@ -862,6 +858,7 @@ export function MainLearningDashboard() {
                                     const res = await axios.post("/study/session/start", {
                                       topicId: subTopic.id,
                                       mode,
+                                      examMode: mode,
                                       resume: false
                                     })
                                     
@@ -961,6 +958,7 @@ export function MainLearningDashboard() {
                   const res = await axios.post("/study/session/start", {
                     topicId: selectedSubTopicId,
                     mode,
+                    examMode: mode,
                     resume: false
                   })
                   
@@ -993,6 +991,7 @@ export function MainLearningDashboard() {
                   const res = await axios.post("/study/session/start", {
                     topicId: selectedSubTopicId,
                     mode,
+                    examMode: mode,
                     resume: true
                   })
                   

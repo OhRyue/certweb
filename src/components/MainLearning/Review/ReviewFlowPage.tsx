@@ -15,7 +15,6 @@ interface ReviewQuestion {
 
 export function ReviewFlowPage() {
   const [step, setStep] = useState<"problem" | "wrong" | "result">("problem")
-  const [showLevelUp, setShowLevelUp] = useState(false)
   const [questions, setQuestions] = useState<ReviewQuestion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +24,12 @@ export function ReviewFlowPage() {
     aiSummary?: string
     mcqCorrect?: number
     mcqTotal?: number
+    earnedXp?: number
+    totalXp?: number
+    level?: number
+    xpToNextLevel?: number
+    leveledUp?: boolean
+    levelUpRewardPoints?: number
   } | null>(null)
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -101,7 +106,13 @@ export function ReviewFlowPage() {
           summaryText: payload.summaryText || "",
           aiSummary: payload.aiSummary || "",
           mcqCorrect: payload.mcqCorrect || 0,
-          mcqTotal: payload.mcqTotal || 0
+          mcqTotal: payload.mcqTotal || 0,
+          earnedXp: payload.earnedXp,
+          totalXp: payload.totalXp,
+          level: payload.level,
+          xpToNextLevel: payload.xpToNextLevel,
+          leveledUp: payload.leveledUp,
+          levelUpRewardPoints: payload.levelUpRewardPoints
         })
       } catch (err: any) {
         console.error("요약 불러오기 실패:", err)
@@ -276,13 +287,16 @@ export function ReviewFlowPage() {
           onBackToDashboard={() => navigate("/learning")}
         />
 
-        {showLevelUp && (
+        {/* 경험치를 얻으면 항상 LevelUpScreen 표시 */}
+        {summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
-            currentLevel={2}
-            currentExp={60}
-            earnedExp={40}
-            expPerLevel={100}
-            onComplete={() => setShowLevelUp(false)}
+            currentLevel={summaryData.level || 1}
+            currentExp={summaryData.xpToNextLevel && summaryData.totalXp && summaryData.earnedXp
+              ? ((summaryData.totalXp - summaryData.earnedXp) % summaryData.xpToNextLevel)
+              : 0}
+            earnedExp={summaryData.earnedXp}
+            expPerLevel={summaryData.xpToNextLevel || 100}
+            onComplete={() => {}}
           />
         )}
       </>

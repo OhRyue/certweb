@@ -15,7 +15,6 @@ interface ReviewQuestion {
 
 export function ReviewFlowPracticalPage() {
   const [step, setStep] = useState<"problem" | "wrong" | "result">("problem")
-  const [showLevelUp, setShowLevelUp] = useState(false)
   const [questions, setQuestions] = useState<ReviewQuestion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +24,12 @@ export function ReviewFlowPracticalPage() {
     aiSummary?: string
     mcqCorrect?: number
     mcqTotal?: number
+    earnedXp?: number
+    totalXp?: number
+    level?: number
+    xpToNextLevel?: number
+    leveledUp?: boolean
+    levelUpRewardPoints?: number
   } | null>(null)
   const [summaryLoaded, setSummaryLoaded] = useState(false)
 
@@ -72,7 +77,7 @@ export function ReviewFlowPracticalPage() {
           id: item.questionId || item.id,
           stem: item.text || item.stem || "",  // text를 stem으로 매핑
           imageUrl: item.imageUrl || null,
-          type: item.type || "SHORT"  // SHORT 또는 LONG
+          type: item.type || "SHORT"  // SHORT 타입만 사용
         }))
         
         setQuestions(reviewQuestions)
@@ -113,7 +118,13 @@ export function ReviewFlowPracticalPage() {
           summaryText: payload.aiSummary,
           aiSummary: payload.aiSummary,
           mcqCorrect: payload.mcqCorrect,
-          mcqTotal: payload.mcqTotal
+          mcqTotal: payload.mcqTotal,
+          earnedXp: payload.earnedXp,
+          totalXp: payload.totalXp,
+          level: payload.level,
+          xpToNextLevel: payload.xpToNextLevel,
+          leveledUp: payload.leveledUp,
+          levelUpRewardPoints: payload.levelUpRewardPoints
         })
         setSummaryLoaded(true)
       } catch (err: any) {
@@ -170,23 +181,23 @@ export function ReviewFlowPracticalPage() {
           // 마지막 문제 완료 시 advance API 호출
           if (finalLearningSessionId && rootTopicId) {
             try {
-              // 세션 조회하여 PRACTICAL 단계의 메타데이터 가져오기
+              // 세션 조회하여 SHORT 단계의 메타데이터 가져오기
               const sessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
               const session = sessionRes.data
               
-              // PRACTICAL 단계의 메타데이터 추출 (실기 Review 모드는 PRACTICAL 단계 사용)
-              const practicalStep = session.steps?.find((s: any) => s.step === "PRACTICAL")
-              const metadata = practicalStep?.detailsJson ? JSON.parse(practicalStep.detailsJson) : {}
+              // SHORT 단계의 메타데이터 추출 (실기 Review 모드는 SHORT 단계 사용)
+              const shortStep = session.steps?.find((s: any) => s.step === "SHORT")
+              const metadata = shortStep?.detailsJson ? JSON.parse(shortStep.detailsJson) : {}
               
               // 정답률 계산 (0-100)
               const score = metadata.scorePct !== undefined ? Math.round(metadata.scorePct) : 0
               
-              // advance 호출하여 PRACTICAL 단계 완료
+              // advance 호출하여 SHORT 단계 완료
               const advanceRes = await axios.post("/study/session/advance", {
                 sessionId: finalLearningSessionId,
-                step: "PRACTICAL",
+                step: "SHORT",
                 score: score,
-                detailsJson: practicalStep?.detailsJson || JSON.stringify({})
+                detailsJson: shortStep?.detailsJson || JSON.stringify({})
               })
               
               // advance 응답의 movedTo 필드를 사용하여 다음 단계 결정
@@ -351,13 +362,16 @@ export function ReviewFlowPracticalPage() {
           }}
         />
 
-        {showLevelUp && (
+        {/* 경험치를 얻으면 항상 LevelUpScreen 표시 */}
+        {summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
-            currentLevel={2}
-            currentExp={60}
-            earnedExp={40}
-            expPerLevel={100}
-            onComplete={() => setShowLevelUp(false)}
+            currentLevel={summaryData.level || 1}
+            currentExp={summaryData.xpToNextLevel && summaryData.totalXp && summaryData.earnedXp
+              ? ((summaryData.totalXp - summaryData.earnedXp) % summaryData.xpToNextLevel)
+              : 0}
+            earnedExp={summaryData.earnedXp}
+            expPerLevel={summaryData.xpToNextLevel || 100}
+            onComplete={() => {}}
           />
         )}
       </>

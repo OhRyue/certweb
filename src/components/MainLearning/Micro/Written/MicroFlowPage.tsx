@@ -78,7 +78,6 @@ export function MicroFlowPage() {
   const [problemScore, setProblemScore] = useState(0)
 
   const [wrongAnswers, setWrongAnswers] = useState([])    // 객관식 문제 중 틀린 문제 목록
-  const [showLevelUp, setShowLevelUp] = useState(false)   // 레벨업 연출 유무(지금 현재 true로 바꾸지 않아 항상 숨겨진 상태, 나중에 호출하여 사용)
   const [learningSessionId, setLearningSessionId] = useState<number | null>(null)  // 실기 미니체크에서 받은 learningSessionId
   const [summaryData, setSummaryData] = useState<{
     miniTotal?: number
@@ -87,6 +86,12 @@ export function MicroFlowPage() {
     mcqCorrect?: number
     summary?: string
     aiSummary?: string
+    earnedXp?: number
+    totalXp?: number
+    level?: number
+    xpToNextLevel?: number
+    leveledUp?: boolean
+    levelUpRewardPoints?: number
   } | null>(null)  // SUMMARY API 응답 데이터
 
   const [searchParams] = useSearchParams()      // URL 쿼리 파라미터
@@ -766,18 +771,16 @@ export function MicroFlowPage() {
           onBackToDashboard={() => navigate("/learning")}
         />
 
-        {/* 
-          레벨업 연출
-          지금은 showLevelUp이 항상 false라서 화면에 안 나옴
-          점수 조건 맞을 때 setShowLevelUptrue 호출해서 레벨업 연출 켤 수 있음
-        */}
-        {showLevelUp && (
+        {/* 경험치를 얻으면 항상 LevelUpScreen 표시 */}
+        {summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
-            currentLevel={2}
-            currentExp={60}
-            earnedExp={40}
-            expPerLevel={100}
-            onComplete={() => setShowLevelUp(false)}
+            currentLevel={summaryData.level || 1}
+            currentExp={summaryData.xpToNextLevel && summaryData.totalXp && summaryData.earnedXp
+              ? ((summaryData.totalXp - summaryData.earnedXp) % summaryData.xpToNextLevel)
+              : 0}
+            earnedExp={summaryData.earnedXp}
+            expPerLevel={summaryData.xpToNextLevel || 100}
+            onComplete={() => {}}
           />
         )}
       </>
