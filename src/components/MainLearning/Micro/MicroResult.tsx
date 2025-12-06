@@ -2,16 +2,17 @@ import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { motion } from "motion/react";
-import { Trophy, Star, Home, RotateCcw, Sparkles } from "lucide-react";
+import { Trophy, Star, Home, RotateCcw, Sparkles, Loader2 } from "lucide-react";
 
 interface MicroResultProps {
   topicName: string;
-  miniCheckScore: number;
-  problemScore: number;
-  totalProblems: number; // 전체 문제 수 (미니체크 + MCQ)
+  miniCheckScore?: number; // API에서 받은 미니체크 정답 수
+  problemScore?: number; // API에서 받은 문제풀이 정답 수
+  totalProblems?: number; // 전체 문제 수 (미니체크 + MCQ)
   miniTotal?: number; // 미니체크 총 문제 수
   mcqTotal?: number; // MCQ 총 문제 수
   aiSummary?: string;
+  loadingSummary?: boolean; // 요약 로딩 중 여부
   onBackToDashboard: () => void;
   onRetry: () => void;
 }
@@ -24,19 +25,30 @@ export function MicroResult({
   miniTotal,
   mcqTotal,
   aiSummary,
+  loadingSummary = false,
   onBackToDashboard,
   onRetry 
 }: MicroResultProps) {
-  // 전체 정답 수 = 미니체크 정답 + MCQ 정답
-  const totalScore = miniCheckScore + problemScore;
-  // 전체 문제 수 = 미니체크 문제 수 + MCQ 문제 수
-  // totalProblems가 이미 합계라면 사용, 아니면 miniTotal + mcqTotal 계산
-  const actualTotalProblems = totalProblems || (miniTotal || 0) + (mcqTotal || 0);
-  const percentage = actualTotalProblems > 0 
+  // 로딩 중이거나 데이터가 없으면 로딩 상태로 처리
+  const isLoading = loadingSummary || miniCheckScore === undefined || problemScore === undefined;
+  
+  // 전체 정답 수 = 미니체크 정답 + MCQ 정답 (API 데이터만 사용)
+  const totalScore = !isLoading && miniCheckScore !== undefined && problemScore !== undefined
+    ? miniCheckScore + problemScore
+    : undefined;
+  
+  // 전체 문제 수 = 미니체크 문제 수 + MCQ 문제 수 (API 데이터만 사용)
+  const actualTotalProblems = !isLoading && miniTotal !== undefined && mcqTotal !== undefined
+    ? (totalProblems || (miniTotal + mcqTotal))
+    : undefined;
+  
+  // 정답률 계산 (API 데이터만 사용)
+  const percentage = !isLoading && totalScore !== undefined && actualTotalProblems !== undefined && actualTotalProblems > 0
     ? Math.round((totalScore / actualTotalProblems) * 100)
-    : 0;
+    : undefined;
 
   const getMessage = () => {
+    if (percentage === undefined) return { emoji: "⏳", text: "결과 확인 중...", color: "from-gray-400 to-gray-500" };
     if (percentage >= 90) return { emoji: "🎉", text: "완벽해요!", color: "from-yellow-400 to-orange-400" };
     if (percentage >= 70) return { emoji: "😊", text: "잘했어요!", color: "from-green-400 to-emerald-400" };
     if (percentage >= 50) return { emoji: "💪", text: "좋아요!", color: "from-blue-400 to-cyan-400" };
@@ -92,21 +104,42 @@ export function MicroResult({
                     <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                     <span className="text-gray-600">정답률</span>
                   </div>
-                  <div className="text-purple-600">{percentage}%</div>
+                  {isLoading || percentage === undefined ? (
+                    <div className="flex items-center justify-center gap-2 text-purple-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>계산 중...</span>
+                    </div>
+                  ) : (
+                    <div className="text-purple-600">{percentage}%</div>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <span className="text-2xl">⭕</span>
                     <span className="text-gray-600">미니체크</span>
                   </div>
-                  <div className="text-purple-600">{miniCheckScore} / {miniTotal || 4}</div>
+                  {isLoading || miniCheckScore === undefined || miniTotal === undefined ? (
+                    <div className="flex items-center justify-center gap-2 text-purple-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>확인 중...</span>
+                    </div>
+                  ) : (
+                    <div className="text-purple-600">{miniCheckScore} / {miniTotal}</div>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <Sparkles className="w-5 h-5 text-purple-500" />
                     <span className="text-gray-600">문제풀이</span>
                   </div>
-                  <div className="text-purple-600">{problemScore} / {mcqTotal || 5}</div>
+                  {isLoading || problemScore === undefined || mcqTotal === undefined ? (
+                    <div className="flex items-center justify-center gap-2 text-purple-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>확인 중...</span>
+                    </div>
+                  ) : (
+                    <div className="text-purple-600">{problemScore} / {mcqTotal}</div>
+                  )}
                 </div>
               </div>
             </Card>
@@ -122,22 +155,23 @@ export function MicroResult({
             <Card className="p-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 text-left">
               <div className="flex items-start gap-3">
                 <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0" />
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-blue-900">AI 학습 요약</h3>
                     <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
                       Beta
                     </Badge>
                   </div>
-                  <p className="text-gray-700 whitespace-pre-line">
-                    {aiSummary || (
-                      percentage >= 80 
-                        ? "이번 주제를 아주 잘 이해하고 계시네요! 핵심 개념을 정확히 파악하고 있습니다. 다음 주제로 넘어가셔도 좋습니다."
-                        : percentage >= 60
-                        ? "전반적으로 개념을 이해하고 있지만, 몇 가지 핵심 포인트를 다시 복습하면 좋을 것 같습니다. 특히 정규화의 각 단계별 특징을 정리해보세요."
-                        : "개념 이해가 조금 더 필요합니다. 핵심 포인트를 다시 한번 읽어보고, 문제를 다시 풀어보는 것을 추천합니다."
-                    )}
-                  </p>
+                  {loadingSummary ? (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>요약을 생성하는 중...</span>
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 whitespace-pre-line">
+                      {aiSummary || "요약 정보가 없습니다."}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>

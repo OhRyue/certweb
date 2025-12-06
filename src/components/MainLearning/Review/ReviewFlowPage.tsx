@@ -31,6 +31,8 @@ export function ReviewFlowPage() {
     leveledUp?: boolean
     levelUpRewardPoints?: number
   } | null>(null)
+  const [showLevelUp, setShowLevelUp] = useState(false)  // 레벨업 모달 표시 여부
+  const [loadingSummary, setLoadingSummary] = useState(false)  // SUMMARY API 로딩 상태
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -93,6 +95,7 @@ export function ReviewFlowPage() {
       if (step !== "result") return
       if (!rootTopicId || !finalLearningSessionId) return
 
+      setLoadingSummary(true)
       try {
         const res = await axios.get(`/study/written/review/summary`, {
           params: {
@@ -114,6 +117,11 @@ export function ReviewFlowPage() {
           leveledUp: payload.leveledUp,
           levelUpRewardPoints: payload.levelUpRewardPoints
         })
+        
+        // 경험치를 획득했으면 레벨업 모달 표시
+        if (payload.earnedXp && payload.earnedXp > 0) {
+          setShowLevelUp(true)
+        }
       } catch (err: any) {
         console.error("요약 불러오기 실패:", err)
         setSummaryData({
@@ -122,6 +130,8 @@ export function ReviewFlowPage() {
           mcqCorrect: 0,
           mcqTotal: 0
         })
+      } finally {
+        setLoadingSummary(false)
       }
     }
 
@@ -278,25 +288,35 @@ export function ReviewFlowPage() {
       <>
         <ReviewResult
           topicName={topicName}
-          problemScore={summaryData?.mcqCorrect || 0}
-          totalProblem={summaryData?.mcqTotal || 0}
+          problemScore={summaryData?.mcqCorrect}
+          totalProblem={summaryData?.mcqTotal}
           summaryText={summaryData?.summaryText}
           aiSummary={summaryData?.aiSummary}
-          loadingSummary={!summaryData}
+          loadingSummary={loadingSummary}
           onRetry={() => setStep("problem")}
           onBackToDashboard={() => navigate("/learning")}
         />
 
         {/* 경험치를 얻으면 항상 LevelUpScreen 표시 */}
-        {summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
+        {showLevelUp && summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
-            currentLevel={summaryData.level || 1}
-            currentExp={summaryData.xpToNextLevel && summaryData.totalXp && summaryData.earnedXp
-              ? ((summaryData.totalXp - summaryData.earnedXp) % summaryData.xpToNextLevel)
-              : 0}
             earnedExp={summaryData.earnedXp}
-            expPerLevel={summaryData.xpToNextLevel || 100}
-            onComplete={() => {}}
+            currentExp={(() => {
+              // totalXp: 획득 후의 현재 총 경험치
+              // xpToNextLevel: 다음 레벨까지 필요한 남은 경험치
+              // 레벨당 필요 경험치 = totalXp + xpToNextLevel
+              // 현재 레벨 내 경험치 = totalXp % (totalXp + xpToNextLevel)
+              if (summaryData.totalXp !== undefined && summaryData.xpToNextLevel !== undefined) {
+                const totalExpForLevel = summaryData.totalXp + summaryData.xpToNextLevel
+                return summaryData.totalXp % totalExpForLevel
+              }
+              return 0
+            })()}
+            currentLevel={summaryData.level || 1}
+            expToNextLevel={summaryData.xpToNextLevel || 100}
+            isLevelUp={summaryData.leveledUp || false}
+            earnedPoints={summaryData.levelUpRewardPoints || 0}
+            onComplete={() => setShowLevelUp(false)}
           />
         )}
       </>
