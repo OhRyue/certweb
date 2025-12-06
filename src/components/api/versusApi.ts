@@ -177,11 +177,22 @@ export interface CurrentQuestion {
   endTime: string; // ISO 8601 형식
 }
 
+// 인터미션 정보
+export interface Intermission {
+  nextQuestionId: number;
+  nextRoundNo: number;
+  nextPhase: string;
+  durationSec: number;
+  startedAt: string; // ISO 8601 형식
+  questionStartAt: string; // ISO 8601 형식
+}
+
 export interface Scoreboard {
   roomId: number;
   status: string;
   items: ScoreboardItem[];
   currentQuestion?: CurrentQuestion;
+  intermission?: Intermission;
 }
 
 // 방 정보
@@ -353,6 +364,32 @@ export async function startGoldenBellBotMatch(examMode: ExamMode): Promise<Golde
   return response.data;
 }
 
+// 토너먼트 봇전 시작 응답
+export interface TournamentBotMatchResponse {
+  roomId: number;
+  myUserId: string;
+  botUserIds: string[];
+}
+
+/**
+ * 토너먼트 봇전 시작
+ * 호출 시 방이 생성됩니다. 사용자+봇7명이 참가하여 토너먼트 매치를 시작합니다.
+ * @param examMode 시험 모드 (WRITTEN/PRACTICAL)
+ * @returns 토너먼트 봇전 시작 응답 데이터
+ */
+export async function startTournamentBotMatch(examMode: ExamMode): Promise<TournamentBotMatchResponse> {
+  const response = await axios.post<TournamentBotMatchResponse>(
+    `/versus/match/tournament/bot`,
+    null,
+    {
+      params: {
+        examMode,
+      },
+    }
+  );
+  return response.data;
+}
+
 // 문제 상세 정보 응답
 export interface VersusQuestionResponse {
   questionId?: number;
@@ -508,6 +545,32 @@ export async function createGoldenBellRoom(
   });
 }
 
+/**
+ * 토너먼트 PvP 방 생성 (간편 함수)
+ * 8명이 모이면 자동으로 시작되는 방을 생성합니다.
+ * @param examMode 시험 모드 (WRITTEN/PRACTICAL)
+ * @param difficulty 난이도 (EASY/NORMAL/HARD, 기본값: NORMAL)
+ * @param participants 초대할 사용자 ID 리스트 (선택사항)
+ * @returns 방 생성 응답 데이터
+ */
+export async function createTournamentPvPRoom(
+  examMode: ExamMode,
+  difficulty: Difficulty = "NORMAL",
+  participants?: string[]
+): Promise<CreateRoomResponse> {
+  const scopeJson = JSON.stringify({
+    examMode: examMode,
+    difficulty: difficulty,
+    topicScope: "ALL"
+  });
+
+  return createRoom({
+    mode: "TOURNAMENT",
+    scopeJson: scopeJson,
+    participants: participants
+  });
+}
+
 // 예약된 방 목록 항목
 export interface ScheduledRoom {
   roomId: number;
@@ -533,6 +596,20 @@ export async function getScheduledRooms(mode: "GOLDENBELL" | "TOURNAMENT" | "DUE
 }
 
 /**
+ * 대기 중인 방 목록 조회
+ * @param mode 게임 모드 (GOLDENBELL, TOURNAMENT, DUEL)
+ * @returns 대기 중인 방 목록
+ */
+export async function getWaitingRooms(mode: "GOLDENBELL" | "TOURNAMENT" | "DUEL"): Promise<ScheduledRoom[]> {
+  const response = await axios.get<ScheduledRoom[]>("/versus/rooms/waiting", {
+    params: {
+      mode: mode
+    }
+  });
+  return response.data;
+}
+
+/**
  * 방 참가
  * JWT 토큰에서 현재 로그인한 사용자 ID를 자동으로 가져옵니다.
  * 방 상태가 WAIT일 때만 참가 가능합니다.
@@ -542,6 +619,17 @@ export async function getScheduledRooms(mode: "GOLDENBELL" | "TOURNAMENT" | "DUE
  */
 export async function joinRoom(roomId: number): Promise<CreateRoomResponse> {
   const response = await axios.post<CreateRoomResponse>(`/versus/rooms/${roomId}/join`);
+  return response.data;
+}
+
+/**
+ * 방 시작
+ * 방장이 방을 시작할 수 있습니다. 8명이 모이면 시작할 수 있습니다.
+ * @param roomId 시작할 방 ID
+ * @returns 방 시작 응답 데이터 (CreateRoomResponse와 동일한 구조)
+ */
+export async function startRoom(roomId: number): Promise<CreateRoomResponse> {
+  const response = await axios.post<CreateRoomResponse>(`/versus/rooms/${roomId}/start`);
   return response.data;
 }
 
