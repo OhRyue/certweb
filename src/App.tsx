@@ -8,19 +8,90 @@ import { OnboardingScreen } from "./components/OnboardingScreen"
 import { PrivateRoute } from "./PrivateRoute"
 import InnerApp from "./InnerApp"
 import { Toaster } from "./components/ui/sonner"
+import axios from "./components/api/axiosConfig"
+import { isTokenExpired, logTokenInfo } from "./utils/tokenUtils"
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("accessToken"))
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isCheckingToken, setIsCheckingToken] = useState(true)
 
   useEffect(() => {
-    // accessToken 존재 여부로 로그인 유지
-    const token = localStorage.getItem("accessToken")
-    if (token) setIsLoggedIn(true)
+    async function validateAndRefreshToken() {
+      const accessToken = localStorage.getItem("accessToken")
+      const refreshToken = localStorage.getItem("refreshToken")
+
+      // 1. 토큰이 없으면 로그아웃 상태
+      if (!accessToken) {
+        console.log("🔐 [APP INIT] 토큰이 없습니다. 로그아웃 상태")
+        setIsLoggedIn(false)
+        setIsCheckingToken(false)
+        return
+      }
+
+      // 2. 액세스 토큰 유효성 검증 (60초 버퍼)
+      // 만료되었거나 60초 이내에 만료되면 갱신 시도
+      logTokenInfo(accessToken, "Access Token")
+      
+      if (isTokenExpired(accessToken, 60)) {
+        console.log("⚠️ [APP INIT] 액세스 토큰이 만료되었거나 만료 임박. 갱신 시도...")
+        
+        // 3. Refresh token으로 갱신 시도
+        if (!refreshToken) {
+          console.error("🔴 [APP INIT] Refresh 토큰이 없습니다. 로그아웃 처리")
+          localStorage.clear()
+          setIsLoggedIn(false)
+          setIsCheckingToken(false)
+          return
+        }
+
+        try {
+          console.log("🔄 [APP INIT] 토큰 갱신 중...")
+          const response = await axios.post("/account/refresh", { refreshToken })
+          
+          const newAccessToken = response.data.accessToken
+          if (newAccessToken) {
+            localStorage.setItem("accessToken", newAccessToken)
+            console.log("✅ [APP INIT] 토큰 갱신 성공")
+            logTokenInfo(newAccessToken, "New Access Token")
+            setIsLoggedIn(true)
+          } else {
+            console.error("🔴 [APP INIT] 새 액세스 토큰을 받지 못했습니다.")
+            localStorage.clear()
+            setIsLoggedIn(false)
+          }
+        } catch (error: any) {
+          console.error("🔴 [APP INIT] 토큰 갱신 실패:", error)
+          console.error("응답:", error.response?.data)
+          localStorage.clear()
+          setIsLoggedIn(false)
+        }
+      } else {
+        // 4. 액세스 토큰이 유효하면 로그인 상태 유지
+        console.log("✅ [APP INIT] 액세스 토큰이 유효합니다. 로그인 상태 유지")
+        setIsLoggedIn(true)
+      }
+
+      setIsCheckingToken(false)
+    }
+
+    validateAndRefreshToken()
   }, [])
 
   const handleLogout = () => {
     localStorage.clear()
     setIsLoggedIn(false)
+  }
+
+  // 토큰 검증 중 로딩 화면 표시
+  if (isCheckingToken) {
+    return (
+      <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4 animate-pulse">🔐</div>
+          <p className="text-gray-600">인증 확인 중...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

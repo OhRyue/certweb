@@ -13,6 +13,10 @@ if (!API_BASE_URL) {
 const instance = axios.create({
   baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : "/api",
   withCredentials: true,
+  timeout: 10000, // 10초 타임아웃
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 console.log("🔵 [AXIOS INIT] API_BASE_URL =", API_BASE_URL);
 console.log("🔵 [AXIOS INIT] 최종 baseURL =", instance.defaults.baseURL);
@@ -55,9 +59,12 @@ instance.interceptors.request.use(
     
     // 🔴 디버깅용: 실제 요청 URL 확인
     console.log("➡️ [REQUEST]", {
+      method: config.method?.toUpperCase(),
       url: config.url,
       baseURL: config.baseURL,
-      fullURL: `${config.baseURL}${config.url}`
+      fullURL: `${config.baseURL}${config.url}`,
+      withCredentials: config.withCredentials,
+      hasAuth: !!config.headers?.Authorization
     });
 
     return config
@@ -67,9 +74,63 @@ instance.interceptors.request.use(
 
 // 응답 인터셉터 - 401 에러를 JWT 만료/온보딩 미완료/기타로 구분하여 처리
 instance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // 성공 응답 로깅 (디버깅용)
+    console.log("✅ [RESPONSE]", {
+      url: response.config.url,
+      status: response.status,
+      statusText: response.statusText
+    });
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+
+    // ========================================
+    // 네트워크 에러 처리 (401 이전에 처리)
+    // ========================================
+    
+    // 네트워크 연결 실패 (백엔드 서버가 꺼져있거나 연결 불가)
+    if (!error.response) {
+      const errorMessage = error.message || "알 수 없는 네트워크 에러";
+      const errorCode = error.code || "UNKNOWN";
+      
+      console.error("🔴 [NETWORK ERROR] 네트워크 연결 실패:", {
+        message: errorMessage,
+        code: errorCode,
+        url: originalRequest?.url,
+        baseURL: originalRequest?.baseURL,
+        fullURL: originalRequest ? `${originalRequest.baseURL}${originalRequest.url}` : "N/A"
+      });
+
+      // 상세 에러 정보
+      if (error.code === "ERR_NETWORK" || error.message?.includes("Network Error")) {
+        console.error("🔴 [NETWORK ERROR] 서버에 연결할 수 없습니다.");
+        console.error("   가능한 원인:");
+        console.error("   1. 백엔드 서버가 실행되지 않았거나 꺼져있음");
+        console.error("   2. 네트워크 연결 문제");
+        console.error("   3. 방화벽이나 프록시 설정 문제");
+        console.error(`   4. API URL이 올바르지 않음: ${originalRequest?.baseURL}`);
+      } else if (error.code === "ECONNREFUSED") {
+        console.error("🔴 [NETWORK ERROR] 연결이 거부되었습니다.");
+        console.error("   백엔드 서버가 해당 포트에서 실행되지 않고 있습니다.");
+      } else if (error.code === "ETIMEDOUT") {
+        console.error("🔴 [NETWORK ERROR] 요청 시간이 초과되었습니다.");
+        console.error("   서버 응답이 너무 느리거나 연결이 끊어졌습니다.");
+      }
+
+      // 네트워크 에러는 그대로 reject (사용자에게 표시할 수 있도록)
+      return Promise.reject(error);
+    }
+
+    // HTTP 에러 응답 로깅
+    console.error("❌ [HTTP ERROR]", {
+      url: originalRequest?.url,
+      status: error.response.status,
+      statusText: error.response.statusText,
+      data: error.response.data,
+      headers: error.response.headers
+    });
 
     // 401 에러가 아니면 그대로 reject
     if (error.response?.status !== 401) {
