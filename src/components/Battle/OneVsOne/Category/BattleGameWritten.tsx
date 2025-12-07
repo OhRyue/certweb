@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Progress } from "../../../ui/progress";
 import { Swords, Clock, Sparkles, Target } from "lucide-react";
 import type { Question } from "../../../../types";
 import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
-import { submitAnswer, getScoreboard, getRoomState } from "../../../api/versusApi";
+import { submitAnswer, getScoreboard, getRoomState, getVersusQuestion, type CurrentQuestion } from "../../../api/versusApi";
+import axios from "../../../api/axiosConfig";
 
 interface BattleGameWrittenProps {
     questions: Question[];
+    setQuestions?: (questions: Question[]) => void; // 문제 업데이트용 (토너먼트 방식)
     roomId?: number; // 답안 제출용
     opponentName: string;
     myUserId?: string;
@@ -21,6 +23,7 @@ interface BattleGameWrittenProps {
 
 export function BattleGameWritten({
     questions,
+    setQuestions,
     roomId,
     opponentName,
     myUserId,
@@ -42,12 +45,14 @@ export function BattleGameWritten({
     const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
     const [serverCorrect, setServerCorrect] = useState<boolean | null>(null);
     const [gameStatus, setGameStatus] = useState<string>("IN_PROGRESS");
+    const [currentQuestionFromServer, setCurrentQuestionFromServer] = useState<CurrentQuestion | null>(null);
+    const [questionLoading, setQuestionLoading] = useState(false);
+    const currentQuestionIdRef = useRef<number | null>(null);
+    
+    // questions prop을 업데이트하여 현재 문제만 저장 (토너먼트 방식)
 
     // 여기 추가: 상대 퇴장 여부
     const [opponentLeft, setOpponentLeft] = useState(false);
-
-    const totalQuestions = questions.length;
-    const question = questions[currentQuestionIndex];
 
     // 1초 폴링으로 실시간 스코어보드 조회
     useEffect(() => {
@@ -83,6 +88,7 @@ export function BattleGameWritten({
                 if (scoreboard.currentQuestion) {
                     const { orderNo, endTime } = scoreboard.currentQuestion;
                     setCurrentQuestionNumber(orderNo);
+                    setCurrentQuestionFromServer(scoreboard.currentQuestion);
                     
                     // endTime은 UTC 형식이므로 UTC 기준으로 파싱
                     // ISO 8601 형식 (예: "2025-12-02T03:15:06Z")은 자동으로 UTC로 파싱됨
@@ -106,9 +112,15 @@ export function BattleGameWritten({
                     
                     // orderNo는 1부터 시작하므로 인덱스로 변환 (orderNo - 1)
                     const questionIndex = orderNo - 1;
-                    if (questionIndex >= 0 && questionIndex < questions.length && questionIndex !== currentQuestionIndex) {
+                    if (questionIndex >= 0 && questionIndex !== currentQuestionIndex) {
                         setCurrentQuestionIndex(questionIndex);
-                        // 문제 인덱스 변경은 currentQuestionNumber useEffect에서 상태 초기화 처리됨
+                    }
+                } else {
+                    // currentQuestion이 null이면 쉬는 시간 (인터미션)
+                    setCurrentQuestionFromServer(null);
+                    currentQuestionIdRef.current = null;
+                    if (setQuestions) {
+                        setQuestions([]);
                     }
                 }
 
@@ -138,7 +150,7 @@ export function BattleGameWritten({
         const interval = setInterval(pollScoreboard, 1000);
 
         return () => clearInterval(interval);
-    }, [roomId, myUserId]);
+    }, [roomId, myUserId, previousScore, isAnswered, serverCorrect, currentQuestionIndex]);
 
     // 게임 종료 처리
     useEffect(() => {
@@ -149,6 +161,133 @@ export function BattleGameWritten({
             }, 2000);
         }
     }, [gameStatus, myScore, opponentScore, onComplete]);
+
+    // currentQuestion이 변경되면 문제를 하나씩 가져오기 (토너먼트 방식)
+    useEffect(() => {
+        const fetchQuestion = async () => {
+            if (!currentQuestionFromServer || !roomId) {
+                if (setQuestions) {
+                    setQuestions([]); // 문제 목록 비우기
+                }
+                return;
+            }
+
+            // 이미 같은 문제를 가져왔으면 다시 가져오지 않음
+            if (currentQuestionIdRef.current === currentQuestionFromServer.questionId) {
+                return;
+            }
+
+            setQuestionLoading(true);
+            try {
+                const data = await getVersusQuestion(currentQuestionFromServer.questionId);
+
+                // answerKey를 인덱스로 변환 (A=0, B=1, C=2, D=3)
+                const answerKeyToIndex = (key: string): number => {
+                    if (typeof key === "number") return key;
+                    const upperKey = String(key).toUpperCase();
+                    return upperKey.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+                };
+
+                // type 변환
+                const convertType = (type: string, mode: string): "multiple" | "ox" | "typing" => {
+                    if (mode === "PRACTICAL") return "typing";
+                    if (type === "OX") return "ox";
+                    return "multiple";
+                };
+
+                // mode 변환
+                const convertMode = (mode: string): "written" | "practical" => {
+                    return mode === "PRACTICAL" ? "practical" : "written";
+                };
+
+                // difficulty 변환
+                const convertDifficulty = (diff: string): "easy" | "medium" | "hard" => {
+                    if (diff === "EASY") return "easy";
+                    if (diff === "HARD") return "hard";
+                    return "medium";
+                };
+
+                // payloadJson에서 choices 추출 (있는 경우)
+                let options: { label: string; text: string }[] = [];
+                let correctAnswerIndex = 0;
+                
+                if (data.payloadJson) {
+                    try {
+                        const payload = typeof data.payloadJson === "string" 
+                            ? JSON.parse(data.payloadJson) 
+                            : data.payloadJson;
+                        if (payload.choices && Array.isArray(payload.choices)) {
+                            options = payload.choices.map((choice: any) => ({
+                                label: choice.label || "",
+                                text: choice.content || choice.text || ""
+                            }));
+                            
+                            // correct: true인 선택지의 인덱스 찾기
+                            const correctIndex = payload.choices.findIndex((choice: any) => choice.correct === true);
+                            if (correctIndex !== -1) {
+                                correctAnswerIndex = correctIndex;
+                            } else {
+                                // correct 필드가 없으면 answerKey 사용 (fallback)
+                                correctAnswerIndex = data.answerKey !== undefined 
+                                    ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                                    : 0;
+                            }
+                        } else {
+                            // choices가 없으면 answerKey 사용 (fallback)
+                            correctAnswerIndex = data.answerKey !== undefined 
+                                ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                                : 0;
+                        }
+                    } catch (e) {
+                        console.error("payloadJson 파싱 실패", e);
+                        // 파싱 실패 시 answerKey 사용 (fallback)
+                        correctAnswerIndex = data.answerKey !== undefined 
+                            ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                            : 0;
+                    }
+                } else {
+                    // payloadJson이 없으면 answerKey 사용 (fallback)
+                    correctAnswerIndex = data.answerKey !== undefined 
+                        ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+                        : 0;
+                }
+
+                // API 응답을 Question 타입으로 변환
+                const questionData: Question = {
+                    id: String(data.id || currentQuestionFromServer.questionId),
+                    topicId: "",
+                    tags: [],
+                    difficulty: convertDifficulty(data.difficulty || "NORMAL"),
+                    type: convertType(data.type || "MCQ", data.mode || "WRITTEN"),
+                    examType: convertMode(data.mode || "WRITTEN"),
+                    question: data.stem || "",
+                    options: options,
+                    correctAnswer: correctAnswerIndex,
+                    explanation: data.solutionText || "",
+                    imageUrl: undefined,
+                    timeLimitSec: currentQuestionFromServer.timeLimitSec,
+                    roomQuestionId: currentQuestionFromServer.questionId, // 답안 제출용
+                    roundNo: currentQuestionFromServer.roundNo, // 답안 제출용
+                    phase: currentQuestionFromServer.phase as "MAIN" | "REVIVAL" // 답안 제출용
+                };
+
+                // 현재 문제만 배열에 저장 (토너먼트 방식)
+                currentQuestionIdRef.current = currentQuestionFromServer.questionId;
+                if (setQuestions) {
+                    setQuestions([questionData]);
+                }
+            } catch (error) {
+                console.error("문제 가져오기 실패:", error);
+                if (setQuestions) {
+                    setQuestions([]);
+                }
+            } finally {
+                setQuestionLoading(false);
+            }
+        };
+
+        fetchQuestion();
+    }, [currentQuestionFromServer, roomId, setQuestions]);
 
     // 문제 인덱스나 문제 번호가 변경될 때마다 상태 초기화 (첫 문제 포함)
     useEffect(() => {
@@ -185,16 +324,9 @@ export function BattleGameWritten({
         );
     }
 
-    // question이 없으면 로딩 중이거나 문제가 없는 경우
-    if (!question) {
-        return (
-            <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-gray-600">문제를 불러오는 중...</p>
-                </div>
-            </div>
-        );
-    }
+    // 문제가 있는지 확인 (토너먼트 방식 참고)
+    const hasQuestion = currentQuestionFromServer && questions && questions.length > 0 && !questionLoading;
+    const question = questions?.[0]; // 현재 문제는 항상 첫 번째 요소
 
     // Handle Answer - 답안 제출 (백엔드가 채점 및 점수 관리)
     const handleAnswer = async (answer: number | null) => {
@@ -302,8 +434,8 @@ export function BattleGameWritten({
                                 <div className="text-5xl">👨‍💻</div>
                             </div>
                              <div className="flex items-center gap-2 text-xs text-gray-600">
-                                 <Target className="w-3 h-3" />
-                                 <span>문제 {currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1}/{totalQuestions}</span>
+                                <Target className="w-3 h-3" />
+                                 <span>문제 {currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1}</span>
                              </div>
                         </Card>
 
@@ -334,63 +466,76 @@ export function BattleGameWritten({
                 <Card className="p-5 mb-6 border-2 border-purple-200 bg-white/80 backdrop-blur-sm">
                     <div className="flex items-center justify-between mb-3">
                          <div className="flex items-center gap-3">
-                             <Badge variant="secondary" className="bg-purple-100 text-purple-700">필기 모드 ✏️</Badge>
-                             <span className="text-sm text-gray-600">{currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1} / {totalQuestions}</span>
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">필기 모드 ✏️</Badge>
+                             <span className="text-sm text-gray-600">
+                                {hasQuestion ? (currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1) : "대기 중"}
+                             </span>
                          </div>
-                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${timeLeft <= 10 ? "bg-red-100 text-red-700 animate-pulse" :
-                             timeLeft <= 20 ? "bg-orange-100 text-orange-700" :
-                                 "bg-blue-100 text-blue-700"
-                             }`}>
-                             <Clock className="w-5 h-5" />
-                             <span className="font-mono">{timeLeft}초</span>
-                         </div>
+                         {hasQuestion && (
+                             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${timeLeft <= 10 ? "bg-red-100 text-red-700 animate-pulse" :
+                                 timeLeft <= 20 ? "bg-orange-100 text-orange-700" :
+                                     "bg-blue-100 text-blue-700"
+                                 }`}>
+                                 <Clock className="w-5 h-5" />
+                                 <span className="font-mono">{timeLeft}초</span>
+                             </div>
+                         )}
                      </div>
-                     <Progress value={((currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1) / totalQuestions) * 100} className="h-2.5" />
+                     {hasQuestion && <Progress value={currentQuestionNumber !== null ? (currentQuestionNumber / 20) * 100 : 0} className="h-2.5" />}
                 </Card>
 
                 {/* Questions */}
-                <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm">
-                    <h2 className="text-gray-900 text-base mb-4">{question.question}</h2>
-                    <div className="space-y-3">
-                        {question.options?.map((option, index) => {
-                            const isSelected = selectedAnswer === index;
-                            // 선택한 답은 항상 초록색으로 표시
-                            const isSelectedAnswer = isSelected && isAnswered;
+                {hasQuestion ? (
+                    <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm">
+                        <h2 className="text-gray-900 text-base mb-4">{question.question}</h2>
+                        <div className="space-y-3">
+                            {question.options?.map((option, index) => {
+                                const isSelected = selectedAnswer === index;
+                                // 선택한 답은 항상 초록색으로 표시
+                                const isSelectedAnswer = isSelected && isAnswered;
 
-                            return (
-                                <button
-                                    key={index}
-                                    onClick={() => !isAnswered && handleAnswer(index)}
-                                    disabled={isAnswered}
-                                    className={`w-full p-5 rounded-xl border-2 text-left transition-all ${
-                                        isSelectedAnswer
-                                            ? "border-green-500 bg-green-50 scale-[1.02]"
-                                            : isAnswered
-                                                ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
-                                                : isSelected
-                                                    ? "border-purple-500 bg-purple-50"
-                                                    : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/30"
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                return (
+                                    <button
+                                        key={index}
+                                        onClick={() => !isAnswered && handleAnswer(index)}
+                                        disabled={isAnswered}
+                                        className={`w-full p-5 rounded-xl border-2 text-left transition-all ${
                                             isSelectedAnswer
-                                                ? "bg-green-500 text-white"
+                                                ? "border-green-500 bg-green-50 scale-[1.02]"
                                                 : isAnswered
-                                                    ? "bg-gray-300 text-gray-500"
+                                                    ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
                                                     : isSelected
-                                                        ? "bg-purple-500 text-white"
-                                                        : "bg-gray-200 text-gray-600"
-                                        }`}>
-                                            {isSelectedAnswer ? "✓" : option.label || String.fromCharCode(65 + index)}
+                                                        ? "border-purple-500 bg-purple-50"
+                                                        : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/30"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                                isSelectedAnswer
+                                                    ? "bg-green-500 text-white"
+                                                    : isAnswered
+                                                        ? "bg-gray-300 text-gray-500"
+                                                        : isSelected
+                                                            ? "bg-purple-500 text-white"
+                                                            : "bg-gray-200 text-gray-600"
+                                            }`}>
+                                                {isSelectedAnswer ? "✓" : option.label || String.fromCharCode(65 + index)}
+                                            </div>
+                                            <span className={`${isAnswered && !isSelected ? "text-gray-500" : "text-gray-800"}`}>{option.text}</span>
                                         </div>
-                                        <span className={`${isAnswered && !isSelected ? "text-gray-500" : "text-gray-800"}`}>{option.text}</span>
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </Card>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </Card>
+                ) : (
+                    <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm">
+                        <div className="h-full flex flex-col items-center justify-center text-center min-h-[400px]">
+                            <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <p className="text-gray-600">문제를 불러오는 중...</p>
+                        </div>
+                    </Card>
+                )}
 
                 {/* 상대 나감 오버레이 표시 */}
                 {opponentLeft && (
