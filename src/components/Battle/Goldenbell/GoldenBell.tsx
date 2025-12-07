@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
-import { Bell, Users, Clock, Award, Zap, Bot, CalendarPlus, RefreshCw } from "lucide-react";
+import { Bell, Users, Clock, Award, Zap, Bot, CalendarPlus, RefreshCw, FileText, Code } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { type ExamMode, type Difficulty, createGoldenBellRoom, getScheduledRooms, type ScheduledRoom, joinRoom } from "../../api/versusApi";
 import { toast } from "sonner";
@@ -95,6 +95,21 @@ export function GoldenBell() {
       
       // Date 객체로 변환 (자동으로 UTC로 변환됨)
       const date = new Date(koreanDateStr);
+      
+      // 현재 시각과 비교하여 과거 시각인지 확인
+      const now = new Date();
+      if (date <= now) {
+        toast.error(
+          "시작 시각을 현재 시각보다 늦게 설정해주세요.",
+          {
+            description: "과거 시각으로는 방을 생성할 수 없습니다.",
+            duration: 5000,
+          }
+        );
+        setCreatingRoom(false);
+        return;
+      }
+      
       const scheduledAt = date.toISOString(); // UTC 시각으로 변환됨 (예: "2025-12-05T02:30:00Z")
       
       const response = await createGoldenBellRoom(selectedExamMode, selectedDifficulty, scheduledAt);
@@ -337,7 +352,7 @@ export function GoldenBell() {
                 className="border-2 border-green-500 text-green-600 hover:bg-green-50"
               >
                 <CalendarPlus className="w-4 h-4 mr-2" />
-                사람전 방 만들기
+                PVP 방 만들기
               </Button>
             </div>
           </div>
@@ -435,9 +450,31 @@ export function GoldenBell() {
                           >
                             {getStatusText(room.status, room.scheduledAt)}
                           </Badge>
+                          {room.examMode && (
+                            <Badge
+                              variant="outline"
+                              className={
+                                room.examMode === "WRITTEN"
+                                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                                  : "bg-purple-50 text-purple-700 border-purple-300"
+                              }
+                            >
+                              {room.examMode === "WRITTEN" ? (
+                                <>
+                                  <FileText className="w-3 h-3 mr-1" />
+                                  필기
+                                </>
+                              ) : (
+                                <>
+                                  <Code className="w-3 h-3 mr-1" />
+                                  실기
+                                </>
+                              )}
+                            </Badge>
+                          )}
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <p className="text-gray-600 mb-1">시작 시간</p>
                             <div className="flex items-center gap-1">
@@ -455,12 +492,6 @@ export function GoldenBell() {
                                 {room.participantCount}/20
                               </span>
                             </div>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 mb-1">방 생성</p>
-                            <p className="text-gray-800 text-xs">
-                              {formatKoreanDateTime(room.createdAt)}
-                            </p>
                           </div>
                         </div>
 
@@ -549,10 +580,11 @@ export function GoldenBell() {
                 type="datetime-local"
                 value={selectedDateTime}
                 onChange={(e) => setSelectedDateTime(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
                 className="w-full"
               />
               <p className="text-xs text-gray-500">
-                예약 시간 10분 전부터 입장이 가능합니다.
+                예약 시간 10분 전부터 입장이 가능합니다. 현재 시각보다 늦은 시각만 선택 가능합니다.
               </p>
             </div>
 

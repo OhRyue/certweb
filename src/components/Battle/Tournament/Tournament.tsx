@@ -123,15 +123,15 @@ export function Tournament({ onBack }: TournamentProps) {
         `방이 생성되었습니다! (방 ID: ${response.room.roomId})`,
         {
           description: "8명이 모이면 자동으로 시작됩니다.",
-          duration: 5000,
+          duration: 3000,
         }
       );
 
       // 다이얼로그 닫기
       setShowCreateDialog(false);
       
-      // 방 목록 새로고침
-      fetchScheduledRooms();
+      // 대기실로 바로 이동
+      navigate(`/battle/tournament/game/${response.room.roomId}`);
     } catch (error: any) {
       console.error("토너먼트 PvP 방 생성 실패:", error);
       toast.error(
@@ -410,6 +410,28 @@ export function Tournament({ onBack }: TournamentProps) {
                           >
                             {getStatusText(room.status)}
                           </Badge>
+                          {room.examMode && (
+                            <Badge
+                              variant="outline"
+                              className={
+                                room.examMode === "WRITTEN"
+                                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                                  : "bg-purple-50 text-purple-700 border-purple-300"
+                              }
+                            >
+                              {room.examMode === "WRITTEN" ? (
+                                <>
+                                  <FileText className="w-3 h-3 mr-1" />
+                                  필기
+                                </>
+                              ) : (
+                                <>
+                                  <Code className="w-3 h-3 mr-1" />
+                                  실기
+                                </>
+                              )}
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
