@@ -8,7 +8,7 @@ import axios from "../../../api/axiosConfig";
 
 interface PracticalWrongAnswer {
   questionId: number;
-  type: string; // SHORT, LONG
+  type: string; // SHORT 타입만 사용
   text: string; // 문제 본문
   myAnswer: string; // 내가 입력한 답
   correctAnswer: string; // 정답 (호환성을 위해 유지)

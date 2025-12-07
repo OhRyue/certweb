@@ -202,3 +202,97 @@ export interface CanvasEffect {
   position?: { x: number; y: number };
   data?: any;
 }
+
+// Activity API Types
+export interface RecentActivity {
+  activityId: number;
+  activityGroup: string;
+  mainType: string;
+  assistType: string;
+  battleType: string;
+  mode: string;
+  displayText: string;
+  startedAt: string;
+  finishedAt: string;
+}
+
+export interface ActivityDetail {
+  activityId: number;
+  activityGroup: string;
+  mainType: string;
+  assistType: string;
+  battleType: string;
+  mode: string;
+  topicName?: string;
+  weaknessTagName?: string;
+  difficulty?: string;
+  accuracyPct?: number;
+  finalRank?: number;
+  xpGained?: number;
+  performedAt: string;
+}
+
+export interface ActivityListResponse {
+  totalPages: number;
+  totalElements: number;
+  first: boolean;
+  size: number;
+  content: ActivityDetail[];
+  number: number;
+  sort: {
+    empty: boolean;
+    sorted: boolean;
+    unsorted: boolean;
+  };
+  numberOfElements: number;
+  pageable: {
+    offset: number;
+    sort: {
+      empty: boolean;
+      sorted: boolean;
+      unsorted: boolean;
+    };
+    paged: boolean;
+    pageNumber: number;
+    pageSize: number;
+    unpaged: boolean;
+  };
+  last: boolean;
+  empty: boolean;
+}
+
+export interface ActivityQuestion {
+  order: number;
+  questionId: number;
+  questionType: string;
+  stem: string;
+  myAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+  answeredAt: string;
+  timeTakenMs: number;
+  score: number;
+}
+
+export interface ActivityDetailHeader {
+  activityId: number;
+  activityGroup: string;
+  mainType: string;
+  assistType: string | null;
+  battleType: string | null;
+  mode: string;
+  topicName: string | null;
+  weaknessTagName: string | null;
+  difficulty: string | null;
+  performedAt: string;
+  questionCount: number;
+  correctCount: number;
+  accuracyPct: number;
+  finalRank: number | null;
+  xpGained: number;
+}
+
+export interface ActivityDetailResponse {
+  header: ActivityDetailHeader;
+  questions: ActivityQuestion[];
+}

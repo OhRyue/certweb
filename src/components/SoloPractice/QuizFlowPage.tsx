@@ -37,13 +37,20 @@ export function QuizFlowPage() {
 
   // 단계 상태 문제 -> 오답 -> 결과
   const [step, setStep] = useState<"problem" | "wrong" | "result">("problem")
-  const [showLevelUp, setShowLevelUp] = useState(false)
+  const [showLevelUpScreen, setShowLevelUpScreen] = useState(false)
   
   // API에서 받은 결과 데이터
   const [summaryData, setSummaryData] = useState<{
     mcqTotal?: number
     mcqCorrect?: number
     aiSummary?: string
+    completed?: boolean
+    earnedXp?: number
+    totalXp?: number
+    level?: number
+    xpToNextLevel?: number
+    leveledUp?: boolean
+    levelUpRewardPoints?: number
   } | null>(null)
   const [loadingSummary, setLoadingSummary] = useState(false)
 
@@ -58,23 +65,55 @@ export function QuizFlowPage() {
       if (step === "result" && learningSessionId && !summaryData) {
         setLoadingSummary(true)
         try {
-          const apiEndpoint = examType === "practical" 
-            ? "/study/practical/summary"
-            : "/study/written/summary"
+          let apiEndpoint: string
+          let params: any
           
-          const res = await axios.get(apiEndpoint, {
-            params: {
+          if (examType === "practical") {
+            // 실기 모드: 기존 API 사용
+            apiEndpoint = "/study/practical/summary"
+            params = {
               topicId: topicId || 0,
               sessionId: learningSessionId
             }
-          })
+          } else {
+            // 필기 모드: 보조학습 API 사용
+            apiEndpoint = "/study/assist/written/summary"
+            params = {
+              learningSessionId: learningSessionId
+            }
+          }
+          
+          const res = await axios.get(apiEndpoint, { params })
           
           const payload = res.data.payload || {}
-          setSummaryData({
-            mcqTotal: payload.mcqTotal || payload.practicalTotal || 0,
-            mcqCorrect: payload.mcqCorrect || payload.practicalCorrect || 0,
-            aiSummary: payload.aiSummary || ""
-          })
+          
+          if (examType === "written") {
+            // 보조학습 필기 모드: 새로운 응답 구조 사용
+            setSummaryData({
+              mcqTotal: payload.total || 0,
+              mcqCorrect: payload.correct || 0,
+              aiSummary: payload.aiSummary || "",
+              completed: payload.completed,
+              earnedXp: payload.earnedXp,
+              totalXp: payload.totalXp,
+              level: payload.level,
+              xpToNextLevel: payload.xpToNextLevel,
+              leveledUp: payload.leveledUp,
+              levelUpRewardPoints: payload.levelUpRewardPoints
+            })
+            
+            // 경험치를 획득했으면 LevelUpScreen 표시
+            if (payload.earnedXp && payload.earnedXp > 0) {
+              setShowLevelUpScreen(true)
+            }
+          } else {
+            // 실기 모드: 기존 응답 구조 사용
+            setSummaryData({
+              mcqTotal: payload.mcqTotal || payload.practicalTotal || 0,
+              mcqCorrect: payload.mcqCorrect || payload.practicalCorrect || 0,
+              aiSummary: payload.aiSummary || ""
+            })
+          }
         } catch (err: any) {
           console.error("요약 불러오기 실패:", err)
           setSummaryData({
@@ -90,12 +129,6 @@ export function QuizFlowPage() {
     
     loadSummary()
   }, [step, learningSessionId, examType, topicId, summaryData])
-
-  useEffect(() => {
-    if (step === "result" && percentage === 100) {
-      setShowLevelUp(true)
-    }
-  }, [step, percentage])
 
   // 문제가 없거나 examType이 없을 때 처리
   if (!relatedQuestions || relatedQuestions.length === 0) {
@@ -155,12 +188,12 @@ export function QuizFlowPage() {
               const res = await axios.post(
                 gradeEndpoint,
                 {
+                  questionId: questionId,
                   label: label
                 },
                 {
                   params: {
-                    learningSessionId: learningSessionId,
-                    questionId: questionId
+                    learningSessionId: learningSessionId
                   }
                 }
               )
@@ -437,13 +470,26 @@ export function QuizFlowPage() {
             navigate("/solo")
           }}
         />
-        {showLevelUp && (
+        {/* LevelUpScreen: 경험치를 획득했을 때만 표시 */}
+        {showLevelUpScreen && summaryData && summaryData.earnedXp && summaryData.earnedXp > 0 && (
           <LevelUpScreen
-            currentLevel={3}
-            currentExp={80}
-            earnedExp={20}
-            expPerLevel={100}
-            onComplete={() => setShowLevelUp(false)}
+            earnedExp={summaryData.earnedXp}
+            currentExp={(() => {
+              // totalXp: 획득 후의 현재 총 경험치
+              // xpToNextLevel: 다음 레벨까지 필요한 남은 경험치
+              // 레벨당 필요 경험치 = totalXp + xpToNextLevel
+              // 현재 레벨 내 경험치 = totalXp % (totalXp + xpToNextLevel)
+              if (summaryData.totalXp !== undefined && summaryData.xpToNextLevel !== undefined) {
+                const totalExpForLevel = summaryData.totalXp + summaryData.xpToNextLevel
+                return summaryData.totalXp % totalExpForLevel
+              }
+              return 0
+            })()}
+            currentLevel={summaryData.level || 1}
+            expToNextLevel={summaryData.xpToNextLevel || 100}
+            isLevelUp={summaryData.leveledUp || false}
+            earnedPoints={summaryData.levelUpRewardPoints || 0}
+            onComplete={() => setShowLevelUpScreen(false)}
           />
         )}
       </>

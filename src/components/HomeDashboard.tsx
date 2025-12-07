@@ -16,8 +16,11 @@ import {
   Star,
   Award,
   ChevronRight,
-  Settings
+  Settings,
+  Bell
 } from "lucide-react";
+import { NotificationModal } from "./NotificationModal";
+import { getNotifications, NOTIFICATION_ICON_MAP, type Notification } from "./api/notificationsApi";
 // Format date to YYYY-MM-DD
 const formatDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -158,6 +161,9 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [dateSettingLoading, setDateSettingLoading] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationLoading, setNotificationLoading] = useState(true);
+  const [notificationModalOpen, setNotificationModalOpen] = useState(false);
 
   // Get the target certification exam from API
   const targetCertName = overview?.goal?.certId 
@@ -274,6 +280,28 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     }
 
     fetchProgress();
+  }, []);
+
+  // Fetch notifications (최근 4개만)
+  useEffect(() => {
+    async function fetchNotifications() {
+      try {
+        setNotificationLoading(true);
+        const res = await getNotifications({
+          unreadOnly: false,
+          page: 0,
+          size: 4,
+        });
+        setNotifications(res.content);
+      } catch (err) {
+        console.error("알림 데이터 불러오기 실패", err);
+        setNotifications([]);
+      } finally {
+        setNotificationLoading(false);
+      }
+    }
+
+    fetchNotifications();
   }, []);
 
   return (
@@ -589,64 +617,94 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
               </Card>
             </motion.div>
 
-            {/* Quick Actions */}
+            {/* Today's Achievements */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
               className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-yellow-100 to-orange-100 border-0 shadow-lg h-full flex flex-col">
+              <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-0 shadow-lg h-full flex flex-col">
                 <div className="p-6 flex-1 flex flex-col justify-between">
-                  <h3 className="text-orange-800 mb-4">빠른 시작 🚀</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Award className="w-5 h-5 text-green-600" />
+                    <h3 className="text-green-800">오늘의 성과 ✨</h3>
+                  </div>
 
-                  <div className="grid grid-cols-2 gap-3 flex-1">
-                    <Button
-                      asChild
-                      className="bg-white hover:bg-purple-50 text-purple-700 border-2 border-purple-200 h-full py-6 flex flex-col items-center gap-2"
-                      variant="outline"
-                    >
-                      <Link to="/learning" className="flex flex-col items-center gap-2">
-                        <div className="text-3xl">📖</div>
-                        <span className="text-sm">메인학습</span>
-                      </Link>
-                    </Button>
+                  <div className="flex-1 flex flex-col justify-between">
+                  {loading ? (
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
+                      <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
+                        <span className="text-green-600 text-sm">로딩 중...</span>
+                      </div>
+                    </div>
+                  ) : quickStats ? (
+                    <>
+                      <div className="space-y-3 flex-1">
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-2xl">📝</div>
+                            <span className="text-green-800">문제 풀이</span>
+                          </div>
+                          <span className="text-green-600 font-semibold">{quickStats.solvedToday}문제</span>
+                        </div>
 
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-2xl">⏱️</div>
+                            <span className="text-green-800">학습 시간</span>
+                          </div>
+                          <span className="text-green-600 font-semibold">{quickStats.minutesToday}분</span>
+                        </div>
 
-                    <Button
-                      asChild
-                      className="bg-white hover:bg-pink-50 text-pink-700 border-2 border-pink-200 h-full py-6 flex flex-col items-center gap-2"
-                      variant="outline"
-                    >
-                      <Link to="/solo" className="flex flex-col items-center gap-2">
-                        <div className="text-3xl">💪</div>
-                        <span className="text-sm">보조학습</span>
-                      </Link>
-                    </Button>
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-2xl">✅</div>
+                            <span className="text-green-800">정답률</span>
+                          </div>
+                          <span className="text-green-600 font-semibold">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
+                        </div>
 
+                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-2xl">⭐</div>
+                            <span className="text-green-800">획득 XP</span>
+                          </div>
+                          <span className="text-green-600 font-semibold">+{quickStats.xpToday.toLocaleString()} XP</span>
+                        </div>
+                      </div>
 
-                    <Button
-                      asChild
-                      className="bg-white hover:bg-red-50 text-red-700 border-2 border-red-200 h-full py-6 flex flex-col items-center gap-2"
-                      variant="outline"
-                    >
-                      <Link to="/battle" className="flex flex-col items-center gap-2">
-                        <div className="text-3xl">⚔️</div>
-                        <span className="text-sm">대전</span>
-                      </Link>
-                    </Button>
-
-
-                    <Button
-                      asChild
-                      className="bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-200 h-full py-6 flex flex-col items-center gap-2"
-                      variant="outline"
-                    >
-                      <Link to="/community" className="flex flex-col items-center gap-2">
-                        <div className="text-3xl">🏆</div>
-                        <span className="text-sm">커뮤니티</span>
-                      </Link>
-                    </Button>
+                      <div className={`mt-4 text-center text-sm ${
+                        quickStats.accuracyDelta > 0 
+                          ? "text-green-700" 
+                          : quickStats.accuracyDelta < 0 
+                          ? "text-orange-600" 
+                          : "text-green-600"
+                      }`}>
+                        {quickStats.accuracyDelta > 0 ? (
+                          <>
+                            <TrendingUp className="w-4 h-4 inline-block mr-1" />
+                            정답률이 어제보다 {(quickStats.accuracyDelta * 100).toFixed(0)}% 향상되었어요! 🎉
+                          </>
+                        ) : quickStats.accuracyDelta < 0 ? (
+                          <>
+                            <TrendingUp className="w-4 h-4 inline-block mr-1 rotate-180" />
+                            정답률이 어제보다 {(Math.abs(quickStats.accuracyDelta) * 100).toFixed(0)}% 감소했어요
+                          </>
+                        ) : (
+                          <>
+                            정답률이 어제와 동일해요
+                          </>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-3 flex-1 flex items-center justify-center">
+                      <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
+                        <span className="text-green-600 text-sm">데이터를 불러올 수 없습니다</span>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 </div>
               </Card>
@@ -752,101 +810,100 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
               </Card>
             </motion.div>
 
-            {/* Today's Achievements */}
+            {/* Notifications */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.6 }}
               className="flex-1"
             >
-              <Card className="bg-gradient-to-br from-green-100 to-emerald-100 border-0 shadow-lg h-full flex flex-col">
+              <Card className="bg-gradient-to-br from-indigo-100 to-purple-100 border-0 shadow-lg h-full flex flex-col">
                 <div className="p-6 flex-1 flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-4">
-                    <Award className="w-5 h-5 text-green-600" />
-                    <h3 className="text-green-800">오늘의 성과 ✨</h3>
+                    <Bell className="w-5 h-5 text-indigo-600" />
+                    <h3 className="text-indigo-800">알림 🔔</h3>
                   </div>
 
                   <div className="flex-1 flex flex-col justify-between">
-                  {loading ? (
+                  {notificationLoading ? (
                     <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
-                        <span className="text-green-600 text-sm">로딩 중...</span>
+                        <span className="text-indigo-600 text-sm">로딩 중...</span>
                       </div>
                     </div>
-                  ) : quickStats ? (
-                    <>
-                      <div className="space-y-3 flex-1">
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="text-2xl">📝</div>
-                            <span className="text-green-800">문제 풀이</span>
+                  ) : notifications.length > 0 ? (
+                    <div className="space-y-2 flex-1">
+                      {notifications.map((notification) => (
+                        <motion.div
+                          key={notification.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`rounded-lg p-3 cursor-pointer transition-all ${
+                            notification.isRead
+                              ? "bg-white/50 backdrop-blur hover:bg-white/70"
+                              : "bg-white/80 backdrop-blur border-l-4 border-indigo-500 hover:bg-white"
+                          }`}
+                          onClick={() => setNotificationModalOpen(true)}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="text-xl flex-shrink-0">
+                              {NOTIFICATION_ICON_MAP[notification.type]}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4
+                                className={`text-sm mb-1 truncate ${
+                                  notification.isRead
+                                    ? "text-gray-700"
+                                    : "text-gray-900 font-bold"
+                                }`}
+                              >
+                                {notification.title}
+                              </h4>
+                              <p
+                                className={`text-xs line-clamp-2 ${
+                                  notification.isRead
+                                    ? "text-gray-600"
+                                    : "text-gray-800"
+                                }`}
+                              >
+                                {notification.message}
+                              </p>
+                            </div>
+                            {!notification.isRead && (
+                              <div className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-1"></div>
+                            )}
                           </div>
-                          <span className="text-green-600 font-semibold">{quickStats.solvedToday}문제</span>
-                        </div>
-
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="text-2xl">⏱️</div>
-                            <span className="text-green-800">학습 시간</span>
-                          </div>
-                          <span className="text-green-600 font-semibold">{quickStats.minutesToday}분</span>
-                        </div>
-
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="text-2xl">✅</div>
-                            <span className="text-green-800">정답률</span>
-                          </div>
-                          <span className="text-green-600 font-semibold">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
-                        </div>
-
-                        <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="text-2xl">⭐</div>
-                            <span className="text-green-800">획득 XP</span>
-                          </div>
-                          <span className="text-green-600 font-semibold">+{quickStats.xpToday.toLocaleString()} XP</span>
-                        </div>
-                      </div>
-
-                      <div className={`mt-4 text-center text-sm ${
-                        quickStats.accuracyDelta > 0 
-                          ? "text-green-700" 
-                          : quickStats.accuracyDelta < 0 
-                          ? "text-orange-600" 
-                          : "text-green-600"
-                      }`}>
-                        {quickStats.accuracyDelta > 0 ? (
-                          <>
-                            <TrendingUp className="w-4 h-4 inline-block mr-1" />
-                            정답률이 어제보다 {(quickStats.accuracyDelta * 100).toFixed(0)}% 향상되었어요! 🎉
-                          </>
-                        ) : quickStats.accuracyDelta < 0 ? (
-                          <>
-                            <TrendingUp className="w-4 h-4 inline-block mr-1 rotate-180" />
-                            정답률이 어제보다 {(Math.abs(quickStats.accuracyDelta) * 100).toFixed(0)}% 감소했어요
-                          </>
-                        ) : (
-                          <>
-                            정답률이 어제와 동일해요
-                          </>
-                        )}
-                      </div>
-                    </>
+                        </motion.div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="space-y-3 flex-1 flex items-center justify-center">
                       <div className="bg-white/50 backdrop-blur rounded-lg p-3 flex items-center justify-center">
-                        <span className="text-green-600 text-sm">데이터를 불러올 수 없습니다</span>
+                        <span className="text-indigo-600 text-sm">알림이 없습니다</span>
                       </div>
                     </div>
                   )}
                   </div>
+
+                  <Button
+                    onClick={() => setNotificationModalOpen(true)}
+                    className="w-full mt-4 bg-indigo-500 hover:bg-indigo-600 text-white"
+                  >
+                    더 보기
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
                 </div>
               </Card>
             </motion.div>
           </div>
         </div>
       </div>
+
+      {/* Notification Modal */}
+      <NotificationModal
+        open={notificationModalOpen}
+        onOpenChange={setNotificationModalOpen}
+      />
     </div>
   );
 }
