@@ -155,15 +155,22 @@ export function BattleGamePractical({
   // 답안 제출 중복 방지를 위한 ref
   const isSubmittingRef = useRef(false);
 
-  // 새 문제가 로드될 때 상태 리셋
+  // 새 문제가 로드될 때 상태 리셋 (문제 ID가 실제로 변경된 경우에만)
+  const previousQuestionIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (hasQuestion && question) {
-      setIsAnswered(false);
-      setShowResult(false);
-      setShowOpponentAnswer(false);
-      setIsCorrect(false);
-      setTypingAnswer("");
-      isSubmittingRef.current = false; // 제출 플래그도 리셋
+      const currentQuestionId = question.id;
+      // 이전 문제 ID와 다를 때만 초기화 (같은 문제면 초기화하지 않음)
+      if (previousQuestionIdRef.current !== currentQuestionId) {
+        previousQuestionIdRef.current = currentQuestionId;
+        // 문제가 변경되면 무조건 모든 상태 초기화
+        setTypingAnswer("");
+        setIsAnswered(false);
+        setShowResult(false);
+        setShowOpponentAnswer(false);
+        setIsCorrect(false);
+        isSubmittingRef.current = false; // 제출 플래그도 리셋
+      }
     }
   }, [question?.id, hasQuestion]);
 

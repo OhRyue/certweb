@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card } from "../../../ui/card";
 import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
@@ -94,7 +94,8 @@ export function BattleGamePractical({
   const [gameStatus, setGameStatus] = useState<string>("IN_PROGRESS");
   const [currentQuestionFromServer, setCurrentQuestionFromServer] = useState<CurrentQuestion | null>(null);
   const [questionLoading, setQuestionLoading] = useState(false);
-  const currentQuestionIdRef = useRef<number | null>(null);
+  const currentQuestionIdRef = useRef<number | null>(null); // 문제 가져오기 중복 방지용
+  const lastResetQuestionIdRef = useRef<number | null>(null); // 상태 초기화 추적용 (별도 ref)
 
   // 오버레이 상태 추가
   const [opponentLeft, setOpponentLeft] = useState(false);
@@ -250,7 +251,7 @@ export function BattleGamePractical({
           timeLimitSec: currentQuestionFromServer.timeLimitSec,
           roomQuestionId: currentQuestionFromServer.questionId,
           roundNo: currentQuestionFromServer.roundNo,
-          phase: currentQuestionFromServer.phase as "MAIN" | "REVIVAL"
+          phase: currentQuestionFromServer.phase as "MAIN" | "REVIVAL" | undefined
         };
 
         // 현재 문제만 배열에 저장 (토너먼트 방식)
@@ -271,41 +272,12 @@ export function BattleGamePractical({
     fetchQuestion();
   }, [currentQuestionFromServer, roomId, setQuestions]);
 
-  // 게임이 종료되었을 때만 렌더링 중단
-  if (gameStatus === "DONE") {
-    return (
-      <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">게임이 종료되었습니다...</p>
-        </div>
-      </div>
-    );
-  }
-
   // 문제가 있는지 확인 (토너먼트 방식 참고)
   const hasQuestion = currentQuestionFromServer && questions && questions.length > 0 && !questionLoading;
   const question = questions?.[0]; // 현재 문제는 항상 첫 번째 요소
 
-  // 게임 종료 처리
-  useEffect(() => {
-    if (gameStatus === "DONE") {
-      // 모든 문제를 풀었거나 게임이 종료된 경우
-      setTimeout(() => {
-        onComplete(myScore, opponentScore);
-      }, 2000);
-    }
-  }, [gameStatus, myScore, opponentScore, onComplete]);
-
-  // Timer - 백엔드 endTime 기반으로 계산하므로 프론트에서 직접 세지 않음
-  // 스코어보드 폴링에서 timeLeft를 업데이트하므로 별도 타이머 불필요
-  useEffect(() => {
-    if (timeLeft === 0 && !isAnswered && question) {
-      handleAnswer();
-    }
-  }, [timeLeft, isAnswered, question]);
-
   // Handle answer - 답안 제출 (백엔드가 채점 및 점수 관리)
-  const handleAnswer = async () => {
+  const handleAnswer = useCallback(async () => {
     setIsAnswered(true);
     setShowOpponentAnswer(true);
 
@@ -314,7 +286,7 @@ export function BattleGamePractical({
     const isCorrect = false; // 백엔드가 채점하므로 프론트에서는 알 수 없음
 
     // 답안 제출 API 호출
-    if (roomId && question.roomQuestionId !== undefined && question.roundNo !== undefined && question.phase) {
+    if (roomId && question?.roomQuestionId !== undefined && question.roundNo !== undefined && question.phase) {
       try {
         const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
         
@@ -343,18 +315,53 @@ export function BattleGamePractical({
     // 백엔드에서 currentQuestion이 바뀌면 자동으로 다음 문제로 전환되므로
     // 여기서는 별도 처리 없음 (상태 초기화는 currentQuestion 변경 시 처리됨)
     setShowResult(true);
-  };
+  }, [roomId, question, timeLeft, typingAnswer]);
 
-  // 문제가 변경되면 상태 초기화
+  // 게임 종료 처리
+  useEffect(() => {
+    if (gameStatus === "DONE") {
+      // 모든 문제를 풀었거나 게임이 종료된 경우
+      setTimeout(() => {
+        onComplete(myScore, opponentScore);
+      }, 2000);
+    }
+  }, [gameStatus, myScore, opponentScore, onComplete]);
+
+  // Timer - 백엔드 endTime 기반으로 계산하므로 프론트에서 직접 세지 않음
+  // 스코어보드 폴링에서 timeLeft를 업데이트하므로 별도 타이머 불필요
+  useEffect(() => {
+    if (timeLeft === 0 && !isAnswered && question) {
+      handleAnswer();
+    }
+  }, [timeLeft, isAnswered, question, handleAnswer]);
+
+  // 문제가 변경되면 상태 초기화 (실제로 문제 ID가 변경된 경우에만)
   useEffect(() => {
     if (currentQuestionFromServer && question) {
-      setTypingAnswer("");
-      setIsAnswered(false);
-      setShowResult(false);
-      setShowOpponentAnswer(false);
-      setIsCorrect(false);
+      const currentQuestionId = currentQuestionFromServer.questionId;
+      // 이전에 초기화한 문제 ID와 다를 때만 초기화 (같은 문제면 초기화하지 않음)
+      if (lastResetQuestionIdRef.current !== currentQuestionId) {
+        lastResetQuestionIdRef.current = currentQuestionId;
+        // 문제가 변경되면 무조건 모든 상태 초기화
+        setTypingAnswer("");
+        setIsAnswered(false);
+        setShowResult(false);
+        setShowOpponentAnswer(false);
+        setIsCorrect(false);
+      }
     }
-  }, [currentQuestionFromServer, question]);
+  }, [currentQuestionFromServer?.questionId, question?.id]);
+
+  // 게임이 종료되었을 때만 렌더링 중단
+  if (gameStatus === "DONE") {
+    return (
+      <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">게임이 종료되었습니다...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
