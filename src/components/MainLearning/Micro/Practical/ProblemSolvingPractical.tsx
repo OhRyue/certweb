@@ -4,7 +4,6 @@ import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
 import { Progress } from "../../../ui/progress";
 import { Input } from "../../../ui/input"
-import { Textarea } from "../../../ui/textarea";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import type { Question } from "../../../../types";
@@ -245,31 +244,20 @@ export function ProblemSolvingPractical({
                 <label className="block text-sm mb-2 text-purple-800">
                   답안을 입력하세요
                 </label>
-                {/* questionType이 LONG이면 Textarea, SHORT이면 Input */}
-                {(currentQuestion as any).questionType === "LONG" ? (
-                  <Textarea
-                    value={typedAnswer}
-                    onChange={(e) => setTypedAnswer(e.target.value)}
-                    placeholder="정답을 입력하세요..."
-                    disabled={showResult || isGrading}
-                    className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400 min-h-32"
-                    rows={6}
-                  />
-                ) : (
-                  <Input
-                    type="text"
-                    value={typedAnswer}
-                    onChange={(e) => setTypedAnswer(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !showResult && !isGrading) {
-                        handleSubmitTypedAnswer();
-                      }
-                    }}
-                    placeholder="정답을 입력하세요..."
-                    disabled={showResult || isGrading}
-                    className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400"
-                  />
-                )}
+                {/* SHORT 문제만 사용 (Input) */}
+                <Input
+                  type="text"
+                  value={typedAnswer}
+                  onChange={(e) => setTypedAnswer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !showResult && !isGrading) {
+                      handleSubmitTypedAnswer();
+                    }
+                  }}
+                  placeholder="정답을 입력하세요..."
+                  disabled={showResult || isGrading}
+                  className="w-full p-4 text-lg border-2 border-purple-200 focus:border-purple-400"
+                />
               </div>
 
               {!showResult && !isGrading && (

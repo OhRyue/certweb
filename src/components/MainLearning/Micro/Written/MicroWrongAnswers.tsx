@@ -14,7 +14,7 @@ interface WrongAnswer {
   explanation?: string; // 해설 (baseExplanation 또는 aiExplanation)
   text?: string; // 문제 본문 (실기 모드에서 사용)
   imageUrl?: string | null; // 문제 이미지 (실기 모드에서 사용)
-  type?: string; // 문제 유형 (SHORT, LONG 등, 실기 모드에서 사용)
+  type?: string; // 문제 유형 (SHORT 타입만 사용, 실기 모드에서 사용)
   score?: number; // 채점 점수 (실기 모드에서 사용)
 }
 

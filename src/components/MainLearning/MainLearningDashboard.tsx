@@ -717,17 +717,13 @@ export function MainLearningDashboard() {
                                 const requestBody: {
                                   topicId: number
                                   mode: "REVIEW"
-                                  examMode?: "PRACTICAL"
-                                  resume?: boolean
+                                  examMode: "WRITTEN" | "PRACTICAL"
+                                  resume: boolean
                                 } = {
                                   topicId: mainTopic.id,  // mainTopicId는 rootTopicId
                                   mode: "REVIEW",
+                                  examMode: selectedExamType === "practical" ? "PRACTICAL" : "WRITTEN",
                                   resume: false
-                                }
-                                
-                                // 실기 Review는 examMode 필수
-                                if (selectedExamType === "practical") {
-                                  requestBody.examMode = "PRACTICAL"
                                 }
                                 
                                 const startRes = await axios.post("/study/session/start", requestBody)
@@ -857,11 +853,11 @@ export function MainLearningDashboard() {
                                   
                                   // 그 외의 경우는 바로 세션 시작
                                   try {
-                                    // 세션 시작 API 호출
-                                    const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
+                                    // Micro 모드 세션 시작 API 호출
                                     const res = await axios.post("/study/session/start", {
                                       topicId: subTopic.id,
-                                      mode,
+                                      mode: "MICRO",
+                                      examMode: selectedExamType === "written" ? "WRITTEN" : "PRACTICAL",
                                       resume: false
                                     })
                                     
@@ -957,10 +953,10 @@ export function MainLearningDashboard() {
                 
                 try {
                   // 처음부터 하기
-                  const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
                   const res = await axios.post("/study/session/start", {
                     topicId: selectedSubTopicId,
-                    mode,
+                    mode: "MICRO",
+                    examMode: selectedExamType === "written" ? "WRITTEN" : "PRACTICAL",
                     resume: false
                   })
                   
@@ -989,10 +985,10 @@ export function MainLearningDashboard() {
                 
                 try {
                   // 이어서 하기
-                  const mode = selectedExamType === "written" ? "WRITTEN" : "PRACTICAL"
                   const res = await axios.post("/study/session/start", {
                     topicId: selectedSubTopicId,
-                    mode,
+                    mode: "MICRO",
+                    examMode: selectedExamType === "written" ? "WRITTEN" : "PRACTICAL",
                     resume: true
                   })
                   

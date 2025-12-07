@@ -2,7 +2,7 @@ import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { motion } from "motion/react"
-import { Trophy, Star, Home, RotateCcw, Sparkles } from "lucide-react"
+import { Trophy, Star, Home, RotateCcw, Sparkles, Loader2 } from "lucide-react"
 
 interface ReviewResultProps {
   topicName: string
@@ -28,11 +28,13 @@ export function ReviewResult({
   onRetry,
 }: ReviewResultProps) {
   // API 데이터 우선 사용, 없으면 프론트 데이터 사용 (카테고리 퀴즈용)
-  const total = mcqTotal ?? totalProblem ?? 0
-  const correct = mcqCorrect ?? problemScore ?? 0
-  const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
+  // 로딩 중이거나 데이터가 없을 때는 undefined로 처리
+  const total = loadingSummary ? undefined : (mcqTotal ?? totalProblem)
+  const correct = loadingSummary ? undefined : (mcqCorrect ?? problemScore)
+  const percentage = total && total > 0 ? Math.round((correct! / total) * 100) : undefined
 
   const getMessage = () => {
+    if (percentage === undefined) return { emoji: "⏳", text: "결과 확인 중...", color: "from-gray-400 to-gray-500" }
     if (percentage >= 90) return { emoji: "🎉", text: "완벽해요!", color: "from-yellow-400 to-orange-400" }
     if (percentage >= 70) return { emoji: "😊", text: "잘했어요!", color: "from-green-400 to-emerald-400" }
     if (percentage >= 50) return { emoji: "💪", text: "좋아요!", color: "from-blue-400 to-cyan-400" }
@@ -88,16 +90,30 @@ export function ReviewResult({
                     <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
                     <span className="text-gray-600">정답률</span>
                   </div>
-                  <div className="text-purple-600 text-3xl">{percentage}%</div>
+                  {loadingSummary || percentage === undefined ? (
+                    <div className="flex items-center justify-center gap-2 text-purple-600">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span className="text-lg">계산 중...</span>
+                    </div>
+                  ) : (
+                    <div className="text-purple-600 text-3xl">{percentage}%</div>
+                  )}
                 </div>
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-3">
                     <Sparkles className="w-6 h-6 text-purple-500" />
                     <span className="text-gray-600">문제풀이</span>
                   </div>
-                  <div className="text-purple-600 text-3xl">
-                    {correct} / {total}
-                  </div>
+                  {loadingSummary || total === undefined || correct === undefined ? (
+                    <div className="flex items-center justify-center gap-2 text-purple-600">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span className="text-lg">확인 중...</span>
+                    </div>
+                  ) : (
+                    <div className="text-purple-600 text-3xl">
+                      {correct} / {total}
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>

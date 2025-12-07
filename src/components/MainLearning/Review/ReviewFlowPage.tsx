@@ -15,7 +15,6 @@ interface ReviewQuestion {
 
 export function ReviewFlowPage() {
   const [step, setStep] = useState<"problem" | "wrong" | "result">("problem")
-  const [showLevelUp, setShowLevelUp] = useState(false)
   const [questions, setQuestions] = useState<ReviewQuestion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +24,15 @@ export function ReviewFlowPage() {
     aiSummary?: string
     mcqCorrect?: number
     mcqTotal?: number
+    earnedXp?: number
+    totalXp?: number
+    level?: number
+    xpToNextLevel?: number
+    leveledUp?: boolean
+    levelUpRewardPoints?: number
   } | null>(null)
+  const [showLevelUp, setShowLevelUp] = useState(false)  // 레벨업 모달 표시 여부
+  const [loadingSummary, setLoadingSummary] = useState(false)  // SUMMARY API 로딩 상태
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
@@ -88,6 +95,7 @@ export function ReviewFlowPage() {
       if (step !== "result") return
       if (!rootTopicId || !finalLearningSessionId) return
 
+      setLoadingSummary(true)
       try {
         const res = await axios.get(`/study/written/review/summary`, {
           params: {
@@ -101,8 +109,19 @@ export function ReviewFlowPage() {
           summaryText: payload.summaryText || "",
           aiSummary: payload.aiSummary || "",
           mcqCorrect: payload.mcqCorrect || 0,
-          mcqTotal: payload.mcqTotal || 0
+          mcqTotal: payload.mcqTotal || 0,
+          earnedXp: payload.earnedXp,
+          totalXp: payload.totalXp,
+          level: payload.level,
+          xpToNextLevel: payload.xpToNextLevel,
+          leveledUp: payload.leveledUp,
+          levelUpRewardPoints: payload.levelUpRewardPoints
         })
+        
+        // 경험치를 획득했으면 레벨업 모달 표시
+        if (payload.earnedXp && payload.earnedXp > 0) {
+          setShowLevelUp(true)
+        }
       } catch (err: any) {
         console.error("요약 불러오기 실패:", err)
         setSummaryData({
@@ -111,6 +130,8 @@ export function ReviewFlowPage() {
           mcqCorrect: 0,
           mcqTotal: 0
         })
+      } finally {
+        setLoadingSummary(false)
       }
     }
 
@@ -267,21 +288,34 @@ export function ReviewFlowPage() {
       <>
         <ReviewResult
           topicName={topicName}
-          problemScore={summaryData?.mcqCorrect || 0}
-          totalProblem={summaryData?.mcqTotal || 0}
+          problemScore={summaryData?.mcqCorrect}
+          totalProblem={summaryData?.mcqTotal}
           summaryText={summaryData?.summaryText}
           aiSummary={summaryData?.aiSummary}
-          loadingSummary={!summaryData}
+          loadingSummary={loadingSummary}
           onRetry={() => setStep("problem")}
           onBackToDashboard={() => navigate("/learning")}
         />
 
-        {showLevelUp && (
+        {/* 경험치를 얻으면 항상 LevelUpScreen 표시 */}
+        {showLevelUp && summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
-            currentLevel={2}
-            currentExp={60}
-            earnedExp={40}
-            expPerLevel={100}
+            earnedExp={summaryData.earnedXp}
+            currentExp={(() => {
+              // totalXp: 획득 후의 현재 총 경험치
+              // xpToNextLevel: 다음 레벨까지 필요한 남은 경험치
+              // 레벨당 필요 경험치 = totalXp + xpToNextLevel
+              // 현재 레벨 내 경험치 = totalXp % (totalXp + xpToNextLevel)
+              if (summaryData.totalXp !== undefined && summaryData.xpToNextLevel !== undefined) {
+                const totalExpForLevel = summaryData.totalXp + summaryData.xpToNextLevel
+                return summaryData.totalXp % totalExpForLevel
+              }
+              return 0
+            })()}
+            currentLevel={summaryData.level || 1}
+            expToNextLevel={summaryData.xpToNextLevel || 100}
+            isLevelUp={summaryData.leveledUp || false}
+            earnedPoints={summaryData.levelUpRewardPoints || 0}
             onComplete={() => setShowLevelUp(false)}
           />
         )}

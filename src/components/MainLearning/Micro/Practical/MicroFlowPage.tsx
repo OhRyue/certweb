@@ -10,8 +10,8 @@ import { MicroResult } from "../MicroResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
 
 // 세션 단계 타입
-// 실기: CONCEPT, MINI, REVIEW_WRONG, PRACTICAL (또는 PRACTICAL_SET), SUMMARY
-type SessionStep = "CONCEPT" | "MINI" | "REVIEW_WRONG" | "MCQ" | "PRACTICAL" | "PRACTICAL_SET" | "SUMMARY"
+// 실기: CONCEPT, MINI, REVIEW_WRONG, SHORT, SUMMARY
+type SessionStep = "CONCEPT" | "MINI" | "REVIEW_WRONG" | "MCQ" | "SHORT" | "SUMMARY"
 type StepState = "READY" | "IN_PROGRESS" | "COMPLETE" | "CLOSED"
 
 // 세션 단계 정보 (새로운 API 응답 구조에 맞춤)
@@ -46,9 +46,7 @@ function mapSessionStepToInternalStep(sessionStep: SessionStep | null): string {
       return "mini"
     case "REVIEW_WRONG":
       return "wrong"
-    case "PRACTICAL":     // 실기 문제 풀이 (백엔드에서 PRACTICAL로 반환)
-      return "problem"
-    case "PRACTICAL_SET": // 실기 문제 풀이 (호환성을 위해 유지)
+    case "SHORT":     // 실기 문제 풀이 (백엔드에서 SHORT로 반환)
       return "problem"
     case "SUMMARY":
       return "result"
@@ -80,7 +78,6 @@ export function MicroFlowPage() {
   const [problemScore, setProblemScore] = useState(0)
 
   // wrongAnswers는 MicroWrongAnswersPractical에서 직접 API로 가져옴
-  const [showLevelUp, setShowLevelUp] = useState(false)   // 레벨업 연출 유무(지금 현재 true로 바꾸지 않아 항상 숨겨진 상태, 나중에 호출하여 사용)
   const [learningSessionId, setLearningSessionId] = useState<number | null>(null)  // 실기 미니체크에서 받은 learningSessionId
   const [summaryData, setSummaryData] = useState<{
     miniTotal?: number
@@ -89,7 +86,15 @@ export function MicroFlowPage() {
     mcqCorrect?: number
     summary?: string
     aiSummary?: string
+    earnedXp?: number
+    totalXp?: number
+    level?: number
+    xpToNextLevel?: number
+    leveledUp?: boolean
+    levelUpRewardPoints?: number
   } | null>(null)  // SUMMARY API 응답 데이터
+  const [showLevelUp, setShowLevelUp] = useState(false)  // 레벨업 모달 표시 여부
+  const [loadingSummary, setLoadingSummary] = useState(false)  // SUMMARY API 로딩 상태
 
   const [searchParams] = useSearchParams()      // URL 쿼리 파라미터
   const navigate = useNavigate()
@@ -149,7 +154,7 @@ export function MicroFlowPage() {
       id: String(q.questionId),   // 문제 아이디 (문자열로 변환)
       question: q.text,           // 문제 본문
       imageUrl: q.imageUrl || null, // 이미지 URL (실기용, 선택적)
-      questionType: q.type || null, // SHORT 또는 LONG 타입
+      questionType: q.type || "SHORT", // SHORT 타입만 사용
       
       // 실기는 타이핑 방식이므로 선택지 없음
       options: [],
@@ -317,6 +322,7 @@ export function MicroFlowPage() {
     const loadSummary = async () => {
       // learningSessionId가 있어야 summary API 호출 가능 (API 스펙상 sessionId는 LearningSession ID)
       if (step === "result" && !summaryData && learningSessionId && topicId) {
+        setLoadingSummary(true)
         try {
           // SUMMARY API 호출
           const res = await axios.get(`/study/${examType}/summary`, {
@@ -325,7 +331,13 @@ export function MicroFlowPage() {
               sessionId: learningSessionId // LearningSession ID 사용
             }
           })
-          setSummaryData(res.data.payload || {})
+          const payload = res.data.payload || {}
+          setSummaryData(payload)
+          
+          // 경험치를 획득했으면 레벨업 모달 표시
+          if (payload.earnedXp && payload.earnedXp > 0) {
+            setShowLevelUp(true)
+          }
           
           // SUMMARY 단계 완료: advance API 호출
           // 세션이 있으면 advance API 호출
@@ -353,6 +365,8 @@ export function MicroFlowPage() {
         } catch (err) {
           console.error("SUMMARY 불러오기 실패:", err)
           setError("요약 정보를 불러오는 중 오류가 발생했습니다")
+        } finally {
+          setLoadingSummary(false)
         }
       }
     }
@@ -568,31 +582,31 @@ export function MicroFlowPage() {
               // 세션 정보 가져오기
               const session = await fetchSessionInfo(sessionId)
               
-              // PRACTICAL 단계의 메타데이터 확인
-              const practicalStep = session.steps.find(s => s.step === "PRACTICAL" || s.step === "PRACTICAL_SET")
-              if (practicalStep) {
+              // SHORT 단계의 메타데이터 확인
+              const shortStep = session.steps.find(s => s.step === "SHORT")
+              if (shortStep) {
                 // 단계 상태 확인 (IN_PROGRESS 또는 READY 상태여야 함)
-                if (practicalStep.state !== "IN_PROGRESS" && practicalStep.state !== "READY") {
-                  console.warn(`PRACTICAL 단계가 진행 가능한 상태가 아닙니다. 현재 상태: ${practicalStep.state}`)
+                if (shortStep.state !== "IN_PROGRESS" && shortStep.state !== "READY") {
+                  console.warn(`SHORT 단계가 진행 가능한 상태가 아닙니다. 현재 상태: ${shortStep.state}`)
                   await syncSessionAndNavigate(sessionId)
                   return
                 }
                 
                 // 메타데이터 파싱 (detailsJson 우선, 없으면 metadata 사용)
-                const detailsJson = (practicalStep as any).detailsJson || practicalStep.metadata
+                const detailsJson = (shortStep as any).detailsJson || shortStep.metadata
                 const metadata = detailsJson ? JSON.parse(detailsJson) : {}
                 const totalAnswered = metadata.total || 0
-                const allocatedTotal = 5  // PRACTICAL은 보통 5문제 (SHORT 3 + LONG 2)
+                const allocatedTotal = 5  // SHORT는 보통 5문제
                 
-                // 모든 문제를 풀었는지 확인 (PRACTICAL은 5문제)
+                // 모든 문제를 풀었는지 확인 (SHORT는 5문제)
                 if (totalAnswered >= allocatedTotal) {
                   try {
-                    // PRACTICAL 단계 완료: advance API 호출
+                    // SHORT 단계 완료: advance API 호출
                     // 백엔드에서 오답이 없으면 자동으로 REVIEW_WRONG을 건너뛰고 SUMMARY로 이동
                     await axios.post("/study/session/advance", {
                       sessionId: learningSessionId,
-                      step: practicalStep.step, // "PRACTICAL" 또는 "PRACTICAL_SET"
-                      score: practicalStep.scorePct || 0,
+                      step: "SHORT",
+                      score: shortStep.scorePct || 0,
                       detailsJson: detailsJson
                     })
                     
@@ -618,7 +632,7 @@ export function MicroFlowPage() {
                   await syncSessionAndNavigate(sessionId)
                 }
               } else {
-                // PRACTICAL 단계 정보가 없으면 세션 상태만 확인
+                // SHORT 단계 정보가 없으면 세션 상태만 확인
                 await syncSessionAndNavigate(sessionId)
               }
             } else {
@@ -693,39 +707,45 @@ export function MicroFlowPage() {
   // 여기서 점수와 전체 문제 수를 보여주고
   // 다시 풀기 또는 대시보드로 이동 같은 행동 제공
   if (step === "result") {
-    // 실기 모드: mcqTotal, mcqCorrect (맞은 문제 수)
-    const mcqTotal = summaryData?.mcqTotal || mcqData?.length || 0
-    const mcqCorrect = summaryData?.mcqCorrect ?? problemScore // 맞은 문제 수
-    
     return (
       <>
         <MicroResult
           topicName={conceptData?.title || ""}
-          miniCheckScore={summaryData?.miniCorrect || miniScore}
-          problemScore={mcqCorrect}
+          miniCheckScore={summaryData?.miniCorrect}
+          problemScore={summaryData?.mcqCorrect}
           totalProblems={
-            (summaryData?.miniTotal || miniData?.length || 0) + 
-            mcqTotal
+            summaryData?.miniTotal !== undefined && summaryData?.mcqTotal !== undefined
+              ? summaryData.miniTotal + summaryData.mcqTotal
+              : undefined
           }
-          miniTotal={summaryData?.miniTotal || miniData?.length}
-          mcqTotal={mcqTotal}
-          aiSummary={summaryData?.summary || summaryData?.aiSummary || ""}
+          miniTotal={summaryData?.miniTotal}
+          mcqTotal={summaryData?.mcqTotal}
+          aiSummary={summaryData?.summary || summaryData?.aiSummary}
+          loadingSummary={loadingSummary}
           onRetry={() => setStep("concept")}
           // 메인 학습 대시보드로 이동
           onBackToDashboard={() => navigate("/learning")}
         />
 
-        {/* 
-          레벨업 연출
-          지금은 showLevelUp이 항상 false라서 화면에 안 나옴
-          점수 조건 맞을 때 setShowLevelUptrue 호출해서 레벨업 연출 켤 수 있음
-        */}
-        {showLevelUp && (
+        {/* 경험치를 얻으면 항상 LevelUpScreen 표시 */}
+        {showLevelUp && summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
-            currentLevel={2}
-            currentExp={60}
-            earnedExp={40}
-            expPerLevel={100}
+            earnedExp={summaryData.earnedXp}
+            currentExp={(() => {
+              // totalXp: 획득 후의 현재 총 경험치
+              // xpToNextLevel: 다음 레벨까지 필요한 남은 경험치
+              // 레벨당 필요 경험치 = totalXp + xpToNextLevel
+              // 현재 레벨 내 경험치 = totalXp % (totalXp + xpToNextLevel)
+              if (summaryData.totalXp !== undefined && summaryData.xpToNextLevel !== undefined) {
+                const totalExpForLevel = summaryData.totalXp + summaryData.xpToNextLevel
+                return summaryData.totalXp % totalExpForLevel
+              }
+              return 0
+            })()}
+            currentLevel={summaryData.level || 1}
+            expToNextLevel={summaryData.xpToNextLevel || 100}
+            isLevelUp={summaryData.leveledUp || false}
+            earnedPoints={summaryData.levelUpRewardPoints || 0}
             onComplete={() => setShowLevelUp(false)}
           />
         )}
