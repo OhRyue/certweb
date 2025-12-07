@@ -65,6 +65,8 @@ export function TournamentGameFlow() {
 
     // payloadJson에서 choices 추출 (있는 경우)
     let options: { label: string; text: string }[] = [];
+    let correctAnswerIndex = 0;
+    
     if (data.payloadJson) {
       try {
         const payload = typeof data.payloadJson === "string" 
@@ -72,13 +74,38 @@ export function TournamentGameFlow() {
           : data.payloadJson;
         if (payload.choices && Array.isArray(payload.choices)) {
           options = payload.choices.map((choice: { label?: string; content?: string; text?: string }) => ({
-            label: choice.label || "", // 백엔드에서 받은 label (예: "A", "B", "C", "D")
+            label: choice.label || "", // 백엔드에서 받은 label (예: "A", "B", "C", "D", "O", "X")
             text: choice.content || choice.text || "" // 백엔드에서 받은 content를 text 필드에 저장
           }));
+          
+          // correct: true인 선택지의 인덱스 찾기 (OX 문제 포함)
+          const correctIndex = payload.choices.findIndex((choice: any) => choice.correct === true);
+          if (correctIndex !== -1) {
+            correctAnswerIndex = correctIndex;
+          } else {
+            // correct 필드가 없으면 answerKey 사용 (fallback)
+            correctAnswerIndex = data.answerKey !== undefined 
+              ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+              : 0;
+          }
+        } else {
+          // choices가 없으면 answerKey 사용 (fallback)
+          correctAnswerIndex = data.answerKey !== undefined 
+            ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+            : 0;
         }
       } catch (e) {
         console.error("payloadJson 파싱 실패", e);
+        // 파싱 실패 시 answerKey 사용 (fallback)
+        correctAnswerIndex = data.answerKey !== undefined 
+          ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+          : 0;
       }
+    } else {
+      // payloadJson이 없으면 answerKey 사용 (fallback)
+      correctAnswerIndex = data.answerKey !== undefined 
+        ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
+        : 0;
     }
 
     return {
@@ -90,9 +117,7 @@ export function TournamentGameFlow() {
       examType: convertMode(data.mode || "WRITTEN"),
       question: data.stem || "",
       options: options,
-      correctAnswer: data.answerKey !== undefined 
-        ? (typeof data.answerKey === "string" ? answerKeyToIndex(data.answerKey) : data.answerKey)
-        : 0,
+      correctAnswer: correctAnswerIndex,
       explanation: data.solutionText || "",
       imageUrl: undefined,
       timeLimitSec: timeLimitSec,

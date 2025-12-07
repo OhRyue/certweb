@@ -172,11 +172,25 @@ export function BattleGameWritten({
                     : null;
                 const answerLabel = selectedOption?.label || "";
                 
+                // 정답 판단: correctAnswer와 비교
+                let isCorrect = false;
+                if (answer !== null && question.correctAnswer !== undefined) {
+                    if (question.type === "ox") {
+                        // OX 문제: correctAnswer는 인덱스 (0 또는 1)
+                        // answerLabel은 "O" 또는 "X"
+                        const correctOption = question.options?.[question.correctAnswer as number];
+                        isCorrect = correctOption?.label === answerLabel;
+                    } else {
+                        // 객관식 문제: correctAnswer는 인덱스
+                        isCorrect = answer === question.correctAnswer;
+                    }
+                }
+                
                 // 서버 응답 받기
                 const response = await submitAnswer(roomId, {
                     questionId: question.roomQuestionId,
                     userAnswer: answerLabel, // 백엔드에서 받은 label을 제출
-                    correct: false, // 서버가 채점하므로 프론트에서는 false로 전송
+                    correct: isCorrect, // 정답 여부 판단
                     timeMs: 0, // 백엔드가 계산하므로 0으로 전송 (실제로는 백엔드가 계산)
                     roundNo: question.roundNo,
                     phase: question.phase,

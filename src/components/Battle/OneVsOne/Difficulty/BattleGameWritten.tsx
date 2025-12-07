@@ -227,13 +227,26 @@ export function BattleGameWritten({
                  // 현재는 timeLeft를 사용하되, 백엔드가 정확한 시간을 관리
                  const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
                 
+                // 정답 판단: correctAnswer와 비교
+                let isCorrect = false;
+                if (answer !== null && question.correctAnswer !== undefined) {
+                    if (question.type === "ox") {
+                        // OX 문제: correctAnswer는 인덱스 (0 또는 1)
+                        // answerString은 "O" 또는 "X"
+                        const correctOption = question.options?.[question.correctAnswer as number];
+                        isCorrect = correctOption?.label === answerString;
+                    } else {
+                        // 객관식 문제: correctAnswer는 인덱스
+                        isCorrect = answer === question.correctAnswer;
+                    }
+                }
+                
                 // 답안 제출 (백엔드가 채점 및 점수 저장)
                 // OX 문제: userAnswer는 "O" 또는 "X"
-                // 프론트에서는 채점하지 않으므로 correct는 false로 전송 (백엔드가 채점)
                 await submitAnswer(roomId, {
                     questionId: question.roomQuestionId,
                     userAnswer: answerString, // OX: "O" 또는 "X", MCQ: "A", "B", "C", "D"
-                    correct: false, // 백엔드가 채점하므로 프론트에서는 false로 전송
+                    correct: isCorrect, // 정답 여부 판단
                     timeMs: Math.max(0, timeMs),
                     roundNo: question.roundNo,
                     phase: question.phase,
