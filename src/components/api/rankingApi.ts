@@ -6,6 +6,8 @@ export type RankingScope = "OVERALL" | "WEEKLY" | "HALL_OF_FAME";
 // 랭킹 사용자 정보
 export interface RankingUser {
   userId: string;
+  nickname: string;
+  skinId: number;
   score: number;
   rank: number;
   xp: number;

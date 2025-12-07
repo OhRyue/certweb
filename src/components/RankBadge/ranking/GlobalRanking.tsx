@@ -5,10 +5,13 @@ import { Badge } from "../../ui/badge"
 import { Crown, Medal, Trophy, TrendingUp } from "lucide-react"
 import { getRankColor, getRankIcon } from "../hooks/useRankingData"
 import { getRankings, type RankingUser } from "../../api/rankingApi"
+import { getProfileImage } from "../../../utils/profileUtils"
 
 interface RankingDisplayUser {
   rank: number
   userId: string
+  nickname: string
+  skinId: number
   xp: number
   score: number
   streak: number
@@ -58,6 +61,8 @@ export function GlobalRanking() {
         const top3 = response.top.slice(0, 3).map((user) => ({
           rank: user.rank ?? 0,
           userId: user.userId ?? "",
+          nickname: user.nickname ?? "",
+          skinId: user.skinId ?? 1,
           xp: user.xp ?? 0,
           score: user.score ?? 0,
           streak: user.streak ?? 0,
@@ -68,6 +73,8 @@ export function GlobalRanking() {
         const top3 = topResponse.top.slice(0, 3).map((user) => ({
           rank: user.rank ?? 0,
           userId: user.userId ?? "",
+          nickname: user.nickname ?? "",
+          skinId: user.skinId ?? 1,
           xp: user.xp ?? 0,
           score: user.score ?? 0,
           streak: user.streak ?? 0,
@@ -80,6 +87,8 @@ export function GlobalRanking() {
       const allData = response.top.map((user) => ({
         rank: user.rank ?? 0,
         userId: user.userId ?? "",
+        nickname: user.nickname ?? "",
+        skinId: user.skinId ?? 1,
         xp: user.xp ?? 0,
         score: user.score ?? 0,
         streak: user.streak ?? 0,
@@ -151,17 +160,6 @@ export function GlobalRanking() {
     )
   }
 
-  // 사용자 아바타 생성 함수 (userId 기반)
-  const getUserAvatar = (userId: string) => {
-    const avatars = ["🦸‍♂️", "🧙‍♀️", "🦊", "🐻", "🐱", "🎓", "💪", "🐝", "🎯", "😊"]
-    const hash = userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return avatars[hash % avatars.length]
-  }
-
-  // 사용자 이름 생성 함수 (userId 기반)
-  const getUserName = (userId: string) => {
-    return userId.length > 10 ? `${userId.substring(0, 8)}...` : userId
-  }
 
   // 레벨 계산 함수 (XP 기반)
   const calculateLevel = (xp: number) => {
@@ -185,10 +183,14 @@ export function GlobalRanking() {
             {topThree[1] && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-col items-center">
                 <div className="relative mb-3">
-                  <div className="text-5xl">{getUserAvatar(topThree[1].userId)}</div>
+                  <img 
+                    src={getProfileImage(topThree[1].skinId)} 
+                    alt={topThree[1].nickname}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-gray-300"
+                  />
                   <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r from-gray-300 to-gray-400 flex items-center justify-center text-white shadow-lg">2</div>
                 </div>
-                <p className="text-gray-900 mb-1">{getUserName(topThree[1].userId)}</p>
+                <p className="text-gray-900 mb-1">{topThree[1].nickname}</p>
                 <Badge className="bg-gradient-to-r from-gray-300 to-gray-400 text-white border-0 mb-2">Level {calculateLevel(topThree[1].xp ?? 0)}</Badge>
                 <p className="text-sm text-gray-600">{(topThree[1].xp ?? 0).toLocaleString()} XP</p>
                 <div className="w-20 h-24 bg-gradient-to-t from-gray-300 to-gray-200 rounded-t-lg mt-3 flex items-center justify-center">
@@ -200,13 +202,17 @@ export function GlobalRanking() {
             {topThree[0] && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center">
                 <div className="relative mb-3">
-                  <div className="text-6xl">{getUserAvatar(topThree[0].userId)}</div>
+                  <img 
+                    src={getProfileImage(topThree[0].skinId)} 
+                    alt={topThree[0].nickname}
+                    className="w-20 h-20 rounded-full object-cover border-2 border-yellow-400"
+                  />
                   <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 flex items-center justify-center text-white shadow-lg">1</div>
                   <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -top-6 left-1/2 -translate-x-1/2">
                     <Crown className="w-8 h-8 text-yellow-500" />
                   </motion.div>
                 </div>
-                <p className="text-gray-900 mb-1">{getUserName(topThree[0].userId)}</p>
+                <p className="text-gray-900 mb-1">{topThree[0].nickname}</p>
                 <Badge className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white border-0 mb-2">Level {calculateLevel(topThree[0].xp ?? 0)}</Badge>
                 <p className="text-sm text-gray-600">{(topThree[0].xp ?? 0).toLocaleString()} XP</p>
                 <div className="w-20 h-32 bg-gradient-to-t from-yellow-400 to-yellow-300 rounded-t-lg mt-3 flex items-center justify-center">
@@ -218,10 +224,14 @@ export function GlobalRanking() {
             {topThree[2] && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex flex-col items-center">
                 <div className="relative mb-3">
-                  <div className="text-5xl">{getUserAvatar(topThree[2].userId)}</div>
+                  <img 
+                    src={getProfileImage(topThree[2].skinId)} 
+                    alt={topThree[2].nickname}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-orange-400"
+                  />
                   <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r from-orange-400 to-amber-600 flex items-center justify-center text-white shadow-lg">3</div>
                 </div>
-                <p className="text-gray-900 mb-1">{getUserName(topThree[2].userId)}</p>
+                <p className="text-gray-900 mb-1">{topThree[2].nickname}</p>
                 <Badge className="bg-gradient-to-r from-orange-400 to-amber-600 text-white border-0 mb-2">Level {calculateLevel(topThree[2].xp ?? 0)}</Badge>
                 <p className="text-sm text-gray-600">{(topThree[2].xp ?? 0).toLocaleString()} XP</p>
                 <div className="w-20 h-20 bg-gradient-to-t from-orange-400 to-orange-300 rounded-t-lg mt-3 flex items-center justify-center">
@@ -256,10 +266,14 @@ export function GlobalRanking() {
                   </div>
 
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="text-3xl">{getUserAvatar(user.userId)}</div>
+                    <img 
+                      src={getProfileImage(user.skinId)} 
+                      alt={user.nickname}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                    />
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-gray-900">{getUserName(user.userId)}</p>
+                        <p className="text-gray-900">{user.nickname}</p>
                         {user.isCurrentUser && <Badge className="bg-purple-500 text-white text-xs">나</Badge>}
                       </div>
                       <p className="text-sm text-gray-600">Level {calculateLevel(user.xp ?? 0)}</p>

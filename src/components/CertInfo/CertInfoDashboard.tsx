@@ -12,11 +12,13 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  User,
+  Briefcase
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { syncCertData, getExamSchedule, getQualificationInfo, getQualificationBasicInfo } from "../api/certInfoApi";
-import type { ExamSchedule, QualificationInfoItem, QualificationBasicInfo } from "../api/certInfoApi";
+import { syncCertData, getExamSchedule, getQualificationInfo, getQualificationBasicInfo, getRootTopics } from "../api/certInfoApi";
+import type { ExamSchedule, QualificationInfoItem, QualificationBasicInfo, Topic } from "../api/certInfoApi";
 
 // 시험 일정 변환 타입 (UI에서 사용)
 interface ScheduleItem {
@@ -57,6 +59,9 @@ export function CertInfoDashboard() {
   const [qualificationInfoItems, setQualificationInfoItems] = useState<QualificationInfoItem[]>([]);
   const [basicInfo, setBasicInfo] = useState<QualificationBasicInfo | null>(null);
   const [isLoadingBasicInfo, setIsLoadingBasicInfo] = useState(false);
+  const [rootTopics, setRootTopics] = useState<Topic[]>([]);
+  const [isLoadingRootTopics, setIsLoadingRootTopics] = useState(false);
+  const [selectedExamMode, setSelectedExamMode] = useState<"WRITTEN" | "PRACTICAL">("WRITTEN");
 
   // 날짜 포맷팅 헬퍼 함수
   const formatDateRange = useCallback((startDate: string, endDate: string): string => {
@@ -204,6 +209,20 @@ export function CertInfoDashboard() {
     }
   }, []);
 
+  // 출제 기준 루트 토픽 가져오기
+  const fetchRootTopics = useCallback(async (mode: "WRITTEN" | "PRACTICAL") => {
+    setIsLoadingRootTopics(true);
+    try {
+      const data = await getRootTopics(mode);
+      setRootTopics(data);
+    } catch (error) {
+      console.error("출제 기준 조회 오류:", error);
+      setRootTopics([]);
+    } finally {
+      setIsLoadingRootTopics(false);
+    }
+  }, []);
+
   // 시험 일정 데이터 가져오기
   const fetchExamSchedule = useCallback(async () => {
     setIsLoadingSchedule(true);
@@ -237,7 +256,14 @@ export function CertInfoDashboard() {
     fetchQualificationBasicInfo();
     // 시험 일정 가져오기
     fetchExamSchedule();
-  }, [fetchQualificationInfo, fetchQualificationBasicInfo, fetchExamSchedule]);
+    // 출제 기준 가져오기 (기본값: WRITTEN)
+    fetchRootTopics("WRITTEN");
+  }, [fetchQualificationInfo, fetchQualificationBasicInfo, fetchExamSchedule, fetchRootTopics]);
+
+  // 시험 모드 변경 시 출제 기준 다시 가져오기
+  useEffect(() => {
+    fetchRootTopics(selectedExamMode);
+  }, [selectedExamMode, fetchRootTopics]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -379,17 +405,17 @@ export function CertInfoDashboard() {
               <Calendar className="w-4 h-4 mr-2" />
               시험 일정
             </TabsTrigger>
-            <TabsTrigger value="trend">
-              <FileText className="w-4 h-4 mr-2" />
-              출제 경향
-            </TabsTrigger>
-            <TabsTrigger value="standard">
+            <TabsTrigger value="subjects">
               <BookOpen className="w-4 h-4 mr-2" />
-              출제 기준
+              시험 과목
             </TabsTrigger>
-            <TabsTrigger value="method">
+            <TabsTrigger value="benefits">
+              <User className="w-4 h-4 mr-2" />
+              취득 혜택
+            </TabsTrigger>
+            <TabsTrigger value="tips">
               <FileText className="w-4 h-4 mr-2" />
-              취득 방법
+              합격팁
             </TabsTrigger>
           </TabsList>
 
@@ -573,71 +599,123 @@ export function CertInfoDashboard() {
             </div>
           </TabsContent>
 
-          {/* 출제 경향 Tab */}
-          <TabsContent value="trend">
-            {isLoadingCertInfo ? (
-              <Card className="p-6 border-2 border-purple-200">
-                <div className="flex items-center justify-center gap-2 text-purple-600">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>출제 경향을 불러오는 중...</span>
+          {/* 시험 과목 Tab */}
+          <TabsContent value="subjects">
+            <Card className="p-6 border-2 border-purple-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-purple-900">시험 과목</h3>
+                <div className="flex gap-2">
+                  <Button
+                    variant={selectedExamMode === "WRITTEN" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedExamMode("WRITTEN")}
+                    className={selectedExamMode === "WRITTEN" ? "bg-purple-600 text-white" : ""}
+                  >
+                    필기
+                  </Button>
+                  <Button
+                    variant={selectedExamMode === "PRACTICAL" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedExamMode("PRACTICAL")}
+                    className={selectedExamMode === "PRACTICAL" ? "bg-purple-600 text-white" : ""}
+                  >
+                    실기
+                  </Button>
                 </div>
-              </Card>
-            ) : (
-              <Card className="p-6 border-2 border-purple-200">
-                <h3 className="text-purple-900 mb-4">출제 경향</h3>
-                {getInfoByType("출제경향") ? (
-                  <div className="text-gray-700 whitespace-pre-line">
-                    {cleanHtmlContent(getInfoByType("출제경향")!.contents)}</div>
-                ) : (
-                  <p className="text-gray-600">출제 경향 정보가 없습니다.</p>
-                )}
-              </Card>
-            )}
+              </div>
+              {isLoadingRootTopics ? (
+                <div className="flex items-center justify-center gap-2 text-purple-600 py-8">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>시험 과목을 불러오는 중...</span>
+                </div>
+              ) : rootTopics.length === 0 ? (
+                <p className="text-gray-600">시험 과목 정보가 없습니다.</p>
+              ) : (
+                <div className="space-y-3">
+                  {rootTopics.map((topic) => (
+                    <div key={topic.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-purple-100">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 text-purple-700 font-semibold">
+                        {topic.code}
+                      </div>
+                      <span className="text-gray-800 font-medium">{topic.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </TabsContent>
 
-          {/* 출제 기준 Tab */}
-          <TabsContent value="standard">
-            {isLoadingCertInfo ? (
-              <Card className="p-6 border-2 border-purple-200">
-                <div className="flex items-center justify-center gap-2 text-purple-600">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>출제 기준을 불러오는 중...</span>
-                </div>
-              </Card>
-            ) : (
-              <Card className="p-6 border-2 border-purple-200">
-                <h3 className="text-purple-900 mb-4">출제 기준</h3>
-                {getInfoByType("출제기준") ? (
-                  <div className="text-gray-700 whitespace-pre-line">
-                    {cleanHtmlContent(getInfoByType("출제기준")!.contents)}
+          {/* 취득 혜택 Tab */}
+          <TabsContent value="benefits">
+            <Card className="p-6 border-2 border-purple-200">
+              <h3 className="text-purple-900 mb-6 text-xl">자격증 취득 혜택</h3>
+              
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
+                  <span className="text-gray-800">소프트웨어 개발 및 설계 전문성 인증</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <span className="text-gray-800">공공기관 및 대기업 우대</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <span className="text-gray-800">승진 및 급여 인센티브</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <span className="text-gray-800">전산직 공무원 응시 자격</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <span className="text-gray-800">SW 마에스트로 등 정부 지원사업 가산점</span>
+                </div>
+              </div>
 
-                ) : (
-                  <p className="text-gray-600">출제 기준 정보가 없습니다.</p>
-                )}
-              </Card>
-            )}
+              <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Briefcase className="w-5 h-5 text-amber-800 flex-shrink-0 mt-1" />
+                  <div>
+                    <h4 className="text-gray-800 mb-2">취업 및 경력</h4>
+                    <p className="text-gray-700 leading-relaxed">
+                      정보처리기사는 IT 업계에서 가장 인정받는 자격증 중 하나입니다. 소프트웨어 개발, 시스템 구축, 데이터베이스 관리 등 다양한 분야에서 활용할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </TabsContent>
 
-          {/* 취득 방법 Tab */}
-          <TabsContent value="method">
+          {/* 합격팁 Tab */}
+          <TabsContent value="tips">
             {isLoadingCertInfo ? (
               <Card className="p-6 border-2 border-purple-200">
                 <div className="flex items-center justify-center gap-2 text-purple-600">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>취득 방법을 불러오는 중...</span>
+                  <span>합격팁을 불러오는 중...</span>
                 </div>
               </Card>
             ) : (
               <Card className="p-6 border-2 border-purple-200">
-                <h3 className="text-purple-900 mb-4">취득 방법</h3>
+                <h3 className="text-purple-900 mb-4">합격팁</h3>
                 {getInfoByType("취득방법") ? (
                   <div className="text-gray-700 whitespace-pre-line text-sm leading-relaxed">
                     {cleanHtmlContent(getInfoByType("취득방법")!.contents)}
                   </div>
 
                 ) : (
-                  <p className="text-gray-600">취득 방법 정보가 없습니다.</p>
+                  <p className="text-gray-600">합격팁 정보가 없습니다.</p>
                 )}
               </Card>
             )}
