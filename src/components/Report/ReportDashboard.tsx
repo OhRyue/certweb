@@ -7,22 +7,28 @@ import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog"
+import {
   BarChart3,
   TrendingUp,
   Clock,
   Target,
   Sparkles,
   FileText,
-  Code
+  Code,
+  Calendar,
+  Award,
+  TrendingDown,
+  CheckCircle2,
+  XCircle
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-
-const recentResults = [
-  { id: "r1", type: "Micro", topic: "데이터베이스 기초", date: "2025-10-22", score: 89, total: 9 },
-  { id: "r2", type: "Review", topic: "네트워크", date: "2025-10-21", score: 75, total: 20 },
-  { id: "r3", type: "카테고리", topic: "OOP 종합", date: "2025-10-20", score: 82, total: 20 },
-  { id: "r4", type: "Micro", topic: "객체지향", date: "2025-10-19", score: 67, total: 9 },
-]
+import { RecentActivity, ActivityDetail, ActivityDetailResponse } from "../../types"
 
 export function ReportDashboard() {
 
@@ -33,8 +39,11 @@ export function ReportDashboard() {
   const [loading, setLoading] = useState(true)
   const [overview, setOverview] = useState<any | null>(null)
   const [overviewLoading, setOverviewLoading] = useState(true)
-  const [recentRecords, setRecentRecords] = useState<any[]>([])
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
   const [recentLoading, setRecentLoading] = useState(true)
+  const [selectedActivity, setSelectedActivity] = useState<ActivityDetailResponse | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
   const navigate = useNavigate()
 
 
@@ -99,24 +108,76 @@ export function ReportDashboard() {
     }
   }
 
-  async function fetchRecentRecords() {
+  async function fetchRecentActivities() {
     try {
       setRecentLoading(true)
 
-      const res = await axios.get("/progress/report/recent-records", {
-        params: {
-          userId,
-          limit: 4
-        }
-      })
+      const res = await axios.get<RecentActivity[]>("/progress/activity/recent")
 
-      setRecentRecords(res.data.records || [])
+      setRecentActivities(res.data || [])
 
     } catch (err) {
       console.error(err)
-      setRecentRecords([])
+      setRecentActivities([])
     } finally {
       setRecentLoading(false)
+    }
+  }
+
+  async function fetchActivityDetail(activityId: number) {
+    try {
+      setDetailLoading(true)
+
+      const res = await axios.get<ActivityDetailResponse>(`/progress/activity/${activityId}`)
+      setSelectedActivity(res.data)
+
+    } catch (err) {
+      console.error(err)
+      setSelectedActivity(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const handleActivityClick = (activity: RecentActivity) => {
+    setModalOpen(true)
+    fetchActivityDetail(activity.activityId)
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    })
+  }
+
+  const getActivityGroupBadgeColor = (activityGroup: string) => {
+    switch (activityGroup) {
+      case "MAIN":
+        return "bg-purple-100 text-purple-700"
+      case "ASSIST":
+        return "bg-blue-100 text-blue-700"
+      case "BATTLE":
+        return "bg-green-100 text-green-700"
+      default:
+        return "bg-gray-100 text-gray-700"
+    }
+  }
+
+  const getActivityGroupDisplayName = (activityGroup: string) => {
+    switch (activityGroup) {
+      case "MAIN":
+        return "Main"
+      case "ASSIST":
+        return "Assist"
+      case "BATTLE":
+        return "Battle"
+      default:
+        return activityGroup
     }
   }
 
@@ -129,7 +190,7 @@ export function ReportDashboard() {
 
   useEffect(() => {
     fetchOverview()
-    fetchRecentRecords()
+    fetchRecentActivities()
   }, [])
 
   return (
@@ -342,49 +403,44 @@ export function ReportDashboard() {
               )}
 
               {/* No Data */}
-              {!recentLoading && recentRecords.length === 0 && (
+              {!recentLoading && recentActivities.length === 0 && (
                 <p className="text-gray-600 text-center">최근 학습 기록이 없습니다</p>
               )}
 
               {/* Records */}
-              {!recentLoading && recentRecords.length > 0 && (
+              {!recentLoading && recentActivities.length > 0 && (
                 <div className="space-y-4">
-                  {recentRecords.map((r, idx) => (
+                  {recentActivities.map((activity) => (
                     <div
-                      key={idx}
+                      key={activity.activityId}
+                      onClick={() => handleActivityClick(activity)}
                       className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <Badge
                           variant="secondary"
-                          className={
-                            r.type === "Micro"
-                              ? "bg-purple-100 text-purple-700"
-                              : r.type === "Review"
-                                ? "bg-blue-100 text-blue-700"
-                                : r.type === "Assist"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-gray-100 text-gray-700"
-                          }
+                          className={getActivityGroupBadgeColor(activity.activityGroup)}
                         >
-                          {r.type}
+                          {getActivityGroupDisplayName(activity.activityGroup)}
                         </Badge>
 
                         <span className="text-xs text-gray-500">
-                          {r.date}
+                          {formatDate(activity.startedAt)}
                         </span>
                       </div>
 
-                      <h4 className="text-gray-900 mb-2">{r.partTitle}</h4>
+                      <h4 className="text-gray-900 mb-2 text-sm">
+                        {activity.displayText}
+                      </h4>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          {r.accuracy}% 정답률
-                        </span>
-
-                        <span className="text-sm text-gray-600">
-                          {r.correct}/{r.total}
-                        </span>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <span>{activity.mode === "WRITTEN" ? "필기" : "실기"}</span>
+                        {activity.assistType && (
+                          <>
+                            <span>•</span>
+                            <span>{activity.assistType}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -398,6 +454,224 @@ export function ReportDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Activity Detail Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>학습 상세 정보</DialogTitle>
+            <DialogDescription>
+              학습 활동의 자세한 정보를 확인하세요
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailLoading ? (
+            <div className="py-8 text-center">
+              <p className="text-gray-600">정보를 불러오는 중...</p>
+            </div>
+          ) : selectedActivity ? (
+            <div className="space-y-6">
+              {/* 기본 정보 */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className={getActivityGroupBadgeColor(selectedActivity.header.activityGroup)}>
+                  {getActivityGroupDisplayName(selectedActivity.header.activityGroup)}
+                </Badge>
+                <Badge variant="outline" className="bg-gray-50">
+                  {selectedActivity.header.mainType}
+                </Badge>
+                {selectedActivity.header.assistType && (
+                  <Badge variant="outline" className="bg-gray-50">
+                    {selectedActivity.header.assistType}
+                  </Badge>
+                )}
+                <Badge
+                  variant="outline"
+                  className={selectedActivity.header.mode === "WRITTEN"
+                    ? "border-blue-300 text-blue-700 bg-blue-50"
+                    : "border-green-300 text-green-700 bg-green-50"
+                  }
+                >
+                  {selectedActivity.header.mode === "WRITTEN" ? (
+                    <>
+                      <FileText className="w-3 h-3 mr-1" />
+                      필기
+                    </>
+                  ) : (
+                    <>
+                      <Code className="w-3 h-3 mr-1" />
+                      실기
+                    </>
+                  )}
+                </Badge>
+              </div>
+
+              {/* 상세 정보 */}
+              {(selectedActivity.header.topicName || selectedActivity.header.weaknessTagName || selectedActivity.header.difficulty) && (
+                <Card className="p-4 border-2">
+                  <h3 className="font-semibold mb-3 text-gray-900">상세 정보</h3>
+                  <div className="space-y-2">
+                    {selectedActivity.header.topicName && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">주제</span>
+                        <span className="text-sm font-medium text-gray-900">{selectedActivity.header.topicName}</span>
+                      </div>
+                    )}
+                    {selectedActivity.header.weaknessTagName && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">약점 태그</span>
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                          {selectedActivity.header.weaknessTagName}
+                        </Badge>
+                      </div>
+                    )}
+                    {selectedActivity.header.difficulty && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">난이도</span>
+                        <Badge variant="outline">
+                          {selectedActivity.header.difficulty}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+
+              {/* 성과 정보 */}
+              <Card className="p-4 border-2">
+                <h3 className="font-semibold mb-3 text-gray-900">학습 성과</h3>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-600">정답률</span>
+                      <span className={`text-sm font-semibold ${
+                        selectedActivity.header.accuracyPct >= 90 ? "text-green-600" :
+                        selectedActivity.header.accuracyPct >= 70 ? "text-blue-600" :
+                        selectedActivity.header.accuracyPct >= 50 ? "text-orange-600" :
+                        "text-red-600"
+                      }`}>
+                        {selectedActivity.header.accuracyPct.toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={selectedActivity.header.accuracyPct} 
+                      className="h-2"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">정답 수</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {selectedActivity.header.correctCount} / {selectedActivity.header.questionCount}
+                    </span>
+                  </div>
+                  {selectedActivity.header.finalRank !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">최종 순위</span>
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-yellow-600" />
+                        <span className="text-sm font-semibold text-gray-900">
+                          {selectedActivity.header.finalRank}위
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedActivity.header.xpGained > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">획득 경험치</span>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-semibold text-purple-700">
+                          +{selectedActivity.header.xpGained} XP
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* 문제 목록 */}
+              {selectedActivity.questions && selectedActivity.questions.length > 0 && (
+                <Card className="p-4 border-2">
+                  <h3 className="font-semibold mb-3 text-gray-900">문제 내역</h3>
+                  <div className="space-y-4">
+                    {selectedActivity.questions.map((question) => (
+                      <div
+                        key={question.questionId}
+                        className={`p-4 rounded-lg border-2 ${
+                          question.isCorrect
+                            ? "bg-green-50 border-green-200"
+                            : "bg-red-50 border-red-200"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-600">
+                              {question.order}번
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {question.questionType}
+                            </Badge>
+                            {question.isCorrect ? (
+                              <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-600" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">
+                              {Math.round(question.timeTakenMs / 1000)}초
+                            </span>
+                            <Badge
+                              className={
+                                question.isCorrect
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }
+                            >
+                              {question.score}점
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-900 mb-2">{question.stem}</p>
+                        <div className="flex items-center gap-4 text-xs">
+                          <div>
+                            <span className="text-gray-600">내 답: </span>
+                            <span className={`font-medium ${
+                              question.isCorrect ? "text-green-700" : "text-red-700"
+                            }`}>
+                              {question.myAnswer}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">정답: </span>
+                            <span className="font-medium text-gray-900">
+                              {question.correctAnswer}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* 시간 정보 */}
+              <Card className="p-4 bg-gray-50 border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm text-gray-600">학습 시간</span>
+                </div>
+                <p className="text-sm font-medium text-gray-900 mt-1">
+                  {formatDate(selectedActivity.header.performedAt)}
+                </p>
+              </Card>
+            </div>
+          ) : (
+            <div className="py-8 text-center">
+              <p className="text-gray-600">정보를 불러올 수 없습니다</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
