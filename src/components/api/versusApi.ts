@@ -498,6 +498,7 @@ export interface CreateRoomParams {
   scopeJson: string; // JSON 문자열: {"examMode":"WRITTEN","difficulty":"NORMAL","topicScope":"ALL"}
   scheduledAt?: string; // ISO 8601 형식 (UTC 기준), 선택사항
   participants?: string[]; // 초대할 사용자 ID 리스트, 선택사항
+  skipCreatorJoin?: boolean; // 방 생성자를 참가자에 포함하지 않을지 여부 (골든벨 전용)
 }
 
 // 방 생성 응답
@@ -541,7 +542,8 @@ export async function createGoldenBellRoom(
   return createRoom({
     mode: "GOLDENBELL",
     scopeJson: scopeJson,
-    scheduledAt: scheduledAt
+    scheduledAt: scheduledAt,
+    skipCreatorJoin: true // 골든벨은 방 생성자를 참가자에 포함하지 않음
   });
 }
 
@@ -579,6 +581,7 @@ export interface ScheduledRoom {
   participantCount: number;
   createdAt: string;
   scheduledAt: string;
+  examMode?: "WRITTEN" | "PRACTICAL";
 }
 
 /**
@@ -641,7 +644,7 @@ export interface HeartbeatResponse {
 
 /**
  * Heartbeat 전송
- * 대기실에서 30초마다 호출하여 연결 상태 유지
+ * 대기실에서 15초마다 호출하여 연결 상태 유지
  * 1분 이상 heartbeat가 없으면 백엔드에서 자동 추방
  * @param roomId 방 ID
  * @returns Heartbeat 응답

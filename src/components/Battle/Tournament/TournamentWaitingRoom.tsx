@@ -30,7 +30,7 @@ export function TournamentWaitingRoom({
   const isHost = initialRoomDetail.participants.length > 0 && 
                  initialRoomDetail.participants[0].userId === myUserId
 
-  // Heartbeat 폴링 (30초마다)
+  // Heartbeat 폴링 (15초마다)
   useEffect(() => {
     // 게임이 시작되면 heartbeat 폴링하지 않음
     if (gameStarting) {
@@ -52,8 +52,8 @@ export function TournamentWaitingRoom({
     // 즉시 한 번 전송
     sendHeartbeatRequest()
     
-    // 30초마다 전송
-    heartbeatInterval = setInterval(sendHeartbeatRequest, 30000)
+    // 15초마다 전송
+    heartbeatInterval = setInterval(sendHeartbeatRequest, 15000)
 
     return () => {
       if (heartbeatInterval) {

@@ -10,6 +10,52 @@ import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
 import { submitAnswer, getScoreboard, getRoomState, getVersusQuestion, type CurrentQuestion } from "../../../api/versusApi";
 import axios from "../../../api/axiosConfig";
 
+// 프로필 이미지 import
+import girlBasicProfile from "../../../assets/profile/girl_basic_profile.png";
+import boyNerdProfile from "../../../assets/profile/boy_nerd_profile.png";
+import girlUniformProfile from "../../../assets/profile/girl_uniform_profile.jpg";
+import girlPajamaProfile from "../../../assets/profile/girl_pajama_profile.png";
+import girlMarriedProfile from "../../../assets/profile/girl_married_profile.png";
+import girlNerdProfile from "../../../assets/profile/girl_nerd_profile.png";
+import girlIdolProfile from "../../../assets/profile/girl_idol_profile.png";
+import girlGhostProfile from "../../../assets/profile/girl_ghost_profile.png";
+import girlCyberpunkProfile from "../../../assets/profile/girl_cyberpunk_profile.png";
+import girlChinaProfile from "../../../assets/profile/girl_china_profile.jpg";
+import girlCatProfile from "../../../assets/profile/girl_cat_profile.png";
+import boyWorkerProfile from "../../../assets/profile/boy_worker_profile.png";
+import boyPoliceofficerProfile from "../../../assets/profile/boy_policeofficer_profile.png";
+import boyHiphopProfile from "../../../assets/profile/boy_hiphop_profile.png";
+import boyDogProfile from "../../../assets/profile/boy_dog_profile.png";
+import boyBasicProfile from "../../../assets/profile/boy_basic_profile.png";
+import boyAgentProfile from "../../../assets/profile/boy_agent_profile.png";
+
+// skinId를 프로필 이미지로 매핑
+const PROFILE_IMAGE_MAP: Record<number, string> = {
+  1: girlBasicProfile,
+  2: boyNerdProfile,
+  3: girlUniformProfile,
+  4: girlPajamaProfile,
+  5: girlMarriedProfile,
+  6: girlNerdProfile,
+  7: girlIdolProfile,
+  8: girlGhostProfile,
+  9: girlCyberpunkProfile,
+  10: girlChinaProfile,
+  11: girlCatProfile,
+  12: boyWorkerProfile,
+  13: boyPoliceofficerProfile,
+  14: boyHiphopProfile,
+  15: boyDogProfile,
+  16: boyBasicProfile,
+  17: boyAgentProfile,
+};
+
+// skinId로 프로필 이미지 경로 가져오기
+function getProfileImage(skinId?: number): string {
+  if (!skinId) return PROFILE_IMAGE_MAP[1]; // 기본값: girl_basic_profile
+  return PROFILE_IMAGE_MAP[skinId] || PROFILE_IMAGE_MAP[1];
+}
+
 interface BattleGamePracticalProps {
   questions: Question[];
   setQuestions?: (questions: Question[]) => void; // 문제 업데이트용 (토너먼트 방식)
@@ -52,6 +98,10 @@ export function BattleGamePractical({
 
   // 오버레이 상태 추가
   const [opponentLeft, setOpponentLeft] = useState(false);
+  
+  // 프로필 이미지용 skinId 상태
+  const [mySkinId, setMySkinId] = useState<number>(1);
+  const [opponentSkinId, setOpponentSkinId] = useState<number>(1);
 
   // 1초 폴링으로 실시간 스코어보드 조회
   useEffect(() => {
@@ -67,9 +117,22 @@ export function BattleGamePractical({
         
         if (myItem) {
           setMyScore(myItem.score);
+          // skinId 업데이트
+          if (myItem.skinId) {
+            setMySkinId(myItem.skinId);
+          }
         }
         if (opponentItem) {
           setOpponentScore(opponentItem.score);
+          // 상대방 skinId 업데이트
+          if (opponentItem.skinId) {
+            setOpponentSkinId(opponentItem.skinId);
+          }
+        }
+
+        // 1:1 배틀에서 상대방 이탈 감지 (참가자가 1명만 남은 경우)
+        if (scoreboard.items.length === 1 && !opponentLeft) {
+          setOpponentLeft(true);
         }
 
         // currentQuestion 정보 업데이트
@@ -131,7 +194,7 @@ export function BattleGamePractical({
     const interval = setInterval(pollScoreboard, 1000);
 
     return () => clearInterval(interval);
-  }, [roomId, myUserId, currentQuestionIndex]);
+  }, [roomId, myUserId, currentQuestionIndex, opponentLeft]);
 
   // currentQuestion이 변경되면 문제를 하나씩 가져오기 (토너먼트 방식)
   useEffect(() => {
@@ -233,17 +296,6 @@ export function BattleGamePractical({
     }
   }, [gameStatus, myScore, opponentScore, onComplete]);
 
-  // 테스트: ESC 누르면 상대 나간 상황 테스트
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpponentLeft(true);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   // Timer - 백엔드 endTime 기반으로 계산하므로 프론트에서 직접 세지 않음
   // 스코어보드 폴링에서 timeLeft를 업데이트하므로 별도 타이머 불필요
   useEffect(() => {
@@ -343,7 +395,13 @@ export function BattleGamePractical({
                   )}
                   <p className="text-3xl text-purple-700">{myScore}점</p>
                 </div>
-                <div className="text-5xl">👨‍💻</div>
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-purple-400 to-pink-400">
+                  <img
+                    src={getProfileImage(mySkinId)}
+                    alt={myUserId || "나"}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-600">
                 <Target className="w-3 h-3" />
@@ -365,8 +423,12 @@ export function BattleGamePractical({
                   )}
                   <p className="text-3xl text-blue-700">{opponentScore}점</p>
                 </div>
-                <div className="text-5xl relative">
-                  🤖
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-blue-400 to-cyan-400 relative">
+                  <img
+                    src={getProfileImage(opponentSkinId)}
+                    alt={opponentUserId || opponentName}
+                    className="w-full h-full object-cover"
+                  />
                   {!isAnswered && (
                     <div className="absolute -top-2 -right-2">
                       <div className="w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
@@ -530,7 +592,7 @@ export function BattleGamePractical({
           opponentScore={opponentScore}
           onConfirm={() => {
             setOpponentLeft(false);
-            onExit(); // 홈으로 나가기
+            // status가 DONE이면 자동으로 결과 화면으로 이동
           }}
         />
       )}
