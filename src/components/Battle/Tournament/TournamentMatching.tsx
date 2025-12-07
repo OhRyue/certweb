@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "../../ui/card";
 import { motion } from "motion/react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { requestTournamentMatch, getMatchStatus, saveRoomId } from "../../api/versusApi";
 import axios from "../../api/axiosConfig";
 
 export function TournamentMatching() {
-  const [matchingProgress, setMatchingProgress] = useState(0);
   const [step, setStep] = useState<"matching" | "matched">("matching");
   const [waitingCount, setWaitingCount] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +18,6 @@ export function TournamentMatching() {
   };
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 시험 모드 변환 (프론트엔드 -> 백엔드)
   const convertExamMode = (mode: string): "WRITTEN" | "PRACTICAL" => {
@@ -47,15 +46,7 @@ export function TournamentMatching() {
         // 응답에서 초기 상태 설정
         setWaitingCount(matchResponse.waitingCount || 0);
 
-        // 3. 진행 상태 애니메이션 시작
-        progressIntervalRef.current = setInterval(() => {
-          setMatchingProgress(prev => {
-            if (prev >= 95) {
-              return 95; // 100%는 매칭 완료 시에만
-            }
-            return prev + Math.random() * 10 + 2;
-          });
-        }, 200);
+        // 3. 무한 프로그레스 바는 CSS 애니메이션으로 처리
 
         // 4. 폴링 시작 (2초마다)
         const pollInterval = 2000;
@@ -73,9 +64,6 @@ export function TournamentMatching() {
             // matching이 false가 되면 매칭이 완료된 것
             if (!statusResponse.matching) {
               // 폴링 중지
-              if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-              }
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
               }
@@ -85,7 +73,6 @@ export function TournamentMatching() {
                 // roomId 저장
                 saveRoomId(statusResponse.roomId);
                 
-                setMatchingProgress(100);
                 setStep("matched");
 
                 // 1.5초 후 자동으로 토너먼트 게임 시작
@@ -115,9 +102,6 @@ export function TournamentMatching() {
             const axiosError = err as { response?: { status?: number } };
             if (axiosError.response?.status === 404 || axiosError.response?.status === 400) {
               // 매칭이 취소되었거나 만료됨
-              if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-              }
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
               }
@@ -138,9 +122,6 @@ export function TournamentMatching() {
 
     return () => {
       isMounted = false;
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
@@ -192,28 +173,15 @@ export function TournamentMatching() {
                 </div>
               )}
 
-              {/* 프로그레스 바 */}
-              <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500"
-                  initial={{ width: "0%" }}
-                  animate={{ width: `${Math.min(matchingProgress, 100)}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-
-              {/* 매칭 상태 */}
-              <div className="space-y-2">
+              {/* 로딩 스피너 */}
+              <div className="flex flex-col items-center justify-center mb-4">
+                <Loader2 className="w-8 h-8 text-purple-500 animate-spin mb-3" />
                 <motion.p
                   animate={{ opacity: [0.5, 1, 0.5] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
                   className="text-sm text-gray-600"
                 >
-                  {matchingProgress < 30
-                    ? "상대를 탐색하는 중..."
-                    : matchingProgress < 70
-                      ? "비슷한 실력의 상대를 찾는 중..."
-                      : "거의 다 됐어요!"}
+                  매칭 중입니다.
                 </motion.p>
               </div>
 

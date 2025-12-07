@@ -1,11 +1,57 @@
 import { useState, useEffect, useRef } from "react";
 import { Card } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
-import { Users } from "lucide-react";
+import { Users, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { requestMatch, getMatchStatus, saveRoomId, getRoomState, type MatchRequestResponse, type MatchStatusResponse } from "../../../api/versusApi";
 import axios from "../../../api/axiosConfig";
+
+// 프로필 이미지 import
+import girlBasicProfile from "../../../assets/profile/girl_basic_profile.png";
+import boyNerdProfile from "../../../assets/profile/boy_nerd_profile.png";
+import girlUniformProfile from "../../../assets/profile/girl_uniform_profile.jpg";
+import girlPajamaProfile from "../../../assets/profile/girl_pajama_profile.png";
+import girlMarriedProfile from "../../../assets/profile/girl_married_profile.png";
+import girlNerdProfile from "../../../assets/profile/girl_nerd_profile.png";
+import girlIdolProfile from "../../../assets/profile/girl_idol_profile.png";
+import girlGhostProfile from "../../../assets/profile/girl_ghost_profile.png";
+import girlCyberpunkProfile from "../../../assets/profile/girl_cyberpunk_profile.png";
+import girlChinaProfile from "../../../assets/profile/girl_china_profile.jpg";
+import girlCatProfile from "../../../assets/profile/girl_cat_profile.png";
+import boyWorkerProfile from "../../../assets/profile/boy_worker_profile.png";
+import boyPoliceofficerProfile from "../../../assets/profile/boy_policeofficer_profile.png";
+import boyHiphopProfile from "../../../assets/profile/boy_hiphop_profile.png";
+import boyDogProfile from "../../../assets/profile/boy_dog_profile.png";
+import boyBasicProfile from "../../../assets/profile/boy_basic_profile.png";
+import boyAgentProfile from "../../../assets/profile/boy_agent_profile.png";
+
+// skinId를 프로필 이미지로 매핑
+const PROFILE_IMAGE_MAP: Record<number, string> = {
+  1: girlBasicProfile,
+  2: boyNerdProfile,
+  3: girlUniformProfile,
+  4: girlPajamaProfile,
+  5: girlMarriedProfile,
+  6: girlNerdProfile,
+  7: girlIdolProfile,
+  8: girlGhostProfile,
+  9: girlCyberpunkProfile,
+  10: girlChinaProfile,
+  11: girlCatProfile,
+  12: boyWorkerProfile,
+  13: boyPoliceofficerProfile,
+  14: boyHiphopProfile,
+  15: boyDogProfile,
+  16: boyBasicProfile,
+  17: boyAgentProfile,
+};
+
+// skinId로 프로필 이미지 경로 가져오기
+function getProfileImage(skinId?: number): string {
+  if (!skinId) return PROFILE_IMAGE_MAP[1]; // 기본값: girl_basic_profile
+  return PROFILE_IMAGE_MAP[skinId] || PROFILE_IMAGE_MAP[1];
+}
 
 interface ParticipantInfo {
   userId: string;
@@ -14,10 +60,10 @@ interface ParticipantInfo {
   level?: number;
   score?: number;
   rank?: number | null;
+  skinId?: number;
 }
 
 export function CategoryMatching() {
-  const [matchingProgress, setMatchingProgress] = useState(0);
   const [step, setStep] = useState<"matching" | "matched">("matching");
   const [matchedOpponent, setMatchedOpponent] = useState<ParticipantInfo | null>(null);
   const [myInfo, setMyInfo] = useState<ParticipantInfo | null>(null);
@@ -32,7 +78,6 @@ export function CategoryMatching() {
   };
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 난이도 변환 (프론트엔드 -> 백엔드)
   const convertDifficulty = (diff: string): "EASY" | "NORMAL" | "HARD" => {
@@ -77,15 +122,7 @@ export function CategoryMatching() {
 
         setMatchId(matchResponse.matchId);
 
-        // 3. 진행 상태 애니메이션 시작
-        progressIntervalRef.current = setInterval(() => {
-          setMatchingProgress(prev => {
-            if (prev >= 95) {
-              return 95; // 100%는 매칭 완료 시에만
-            }
-            return prev + Math.random() * 10 + 2;
-          });
-        }, 200);
+        // 3. 무한 프로그레스 바는 CSS 애니메이션으로 처리
 
         // 4. 폴링 시작 (대기 상태: 2~3초)
         const pollInterval = 2000; // 2초
@@ -97,9 +134,6 @@ export function CategoryMatching() {
 
             if (statusResponse.roomId !== null) {
               // 매칭 완료 → 방 정보 조회
-              if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-              }
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
               }
@@ -120,11 +154,16 @@ export function CategoryMatching() {
                 const myParticipant = roomDetail.participants.find(p => p.userId === myUserId);
                 const opponentParticipant = roomDetail.participants.find(p => p.userId !== myUserId);
                 
+                // 내 프로필 정보 가져오기
+                const myProfileRes = await axios.get("/account/profile");
+                const mySkinId = myProfileRes.data.skinId || 1;
+                
                 if (myParticipant) {
                   setMyInfo({
                     userId: myParticipant.userId,
                     score: myParticipant.finalScore ?? 0,
                     rank: myParticipant.rank,
+                    skinId: mySkinId,
                   });
                 }
                 
@@ -133,10 +172,10 @@ export function CategoryMatching() {
                     userId: opponentParticipant.userId,
                     score: opponentParticipant.finalScore ?? 0,
                     rank: opponentParticipant.rank,
+                    skinId: opponentParticipant.skinId || 1,
                   });
                 }
                 
-                setMatchingProgress(100);
                 setStep("matched");
 
                 // 1.5초 후 자동으로 게임 시작
@@ -159,7 +198,6 @@ export function CategoryMatching() {
               } catch (err: any) {
                 console.error("방 정보 조회 실패", err);
                 // 방 정보 조회 실패해도 기본 정보로 진행
-                setMatchingProgress(100);
                 setStep("matched");
                 
                 setTimeout(() => {
@@ -179,9 +217,6 @@ export function CategoryMatching() {
               }
             } else if (!statusResponse.matching) {
               // 매칭 없음 (취소/만료 등) → UI 정리
-              if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-              }
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
               }
@@ -192,9 +227,6 @@ export function CategoryMatching() {
             console.error("매칭 상태 조회 실패", err);
             if (err.response?.status === 404 || err.response?.status === 400) {
               // 매칭이 취소되었거나 만료됨
-              if (progressIntervalRef.current) {
-                clearInterval(progressIntervalRef.current);
-              }
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
               }
@@ -214,9 +246,6 @@ export function CategoryMatching() {
 
     return () => {
       isMounted = false;
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
@@ -264,28 +293,15 @@ export function CategoryMatching() {
                 </div>
               )}
 
-              {/* 프로그레스 바 */}
-              <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500"
-                  initial={{ width: "0%" }}
-                  animate={{ width: `${Math.min(matchingProgress, 100)}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-
-              {/* 매칭 상태 */}
-              <div className="space-y-2">
+              {/* 로딩 스피너 */}
+              <div className="flex flex-col items-center justify-center mb-4">
+                <Loader2 className="w-8 h-8 text-purple-500 animate-spin mb-3" />
                 <motion.p
                   animate={{ opacity: [0.5, 1, 0.5] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
                   className="text-sm text-gray-600"
                 >
-                  {matchingProgress < 30
-                    ? "상대를 탐색하는 중..."
-                    : matchingProgress < 70
-                      ? "비슷한 실력의 상대를 찾는 중..."
-                      : "거의 다 됐어요!"}
+                  매칭 중입니다.
                 </motion.p>
               </div>
 
@@ -323,8 +339,12 @@ export function CategoryMatching() {
                   transition={{ delay: 0.2 }}
                   className="text-center"
                 >
-                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-4xl mb-2">
-                    👨‍💻
+                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center mb-2 overflow-hidden border-2 border-white shadow-md">
+                    <img
+                      src={getProfileImage(myInfo?.skinId)}
+                      alt={myInfo?.userId || "나"}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <p className="text-sm font-semibold text-gray-900">
                     {myInfo?.userId || "나"}
@@ -352,8 +372,12 @@ export function CategoryMatching() {
                   transition={{ delay: 0.2 }}
                   className="text-center"
                 >
-                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-4xl mb-2">
-                    {matchedOpponent?.avatar || "👤"}
+                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center mb-2 overflow-hidden border-2 border-white shadow-md">
+                    <img
+                      src={getProfileImage(matchedOpponent?.skinId)}
+                      alt={matchedOpponent?.userId || "상대"}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <p className="text-sm font-semibold text-gray-900">
                     {matchedOpponent?.userId || "상대"}

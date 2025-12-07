@@ -641,7 +641,7 @@ export interface HeartbeatResponse {
 
 /**
  * Heartbeat 전송
- * 대기실에서 30초마다 호출하여 연결 상태 유지
+ * 대기실에서 15초마다 호출하여 연결 상태 유지
  * 1분 이상 heartbeat가 없으면 백엔드에서 자동 추방
  * @param roomId 방 ID
  * @returns Heartbeat 응답

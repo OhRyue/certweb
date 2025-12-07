@@ -8,6 +8,52 @@ import { OpponentLeftOverlay } from "../../OpponentLeftOverlay"; // ✅ 추가
 import { submitAnswer, getScoreboard, getRoomState, getVersusQuestion, type CurrentQuestion } from "../../../api/versusApi";
 import axios from "../../../api/axiosConfig";
 
+// 프로필 이미지 import
+import girlBasicProfile from "../../../assets/profile/girl_basic_profile.png";
+import boyNerdProfile from "../../../assets/profile/boy_nerd_profile.png";
+import girlUniformProfile from "../../../assets/profile/girl_uniform_profile.jpg";
+import girlPajamaProfile from "../../../assets/profile/girl_pajama_profile.png";
+import girlMarriedProfile from "../../../assets/profile/girl_married_profile.png";
+import girlNerdProfile from "../../../assets/profile/girl_nerd_profile.png";
+import girlIdolProfile from "../../../assets/profile/girl_idol_profile.png";
+import girlGhostProfile from "../../../assets/profile/girl_ghost_profile.png";
+import girlCyberpunkProfile from "../../../assets/profile/girl_cyberpunk_profile.png";
+import girlChinaProfile from "../../../assets/profile/girl_china_profile.jpg";
+import girlCatProfile from "../../../assets/profile/girl_cat_profile.png";
+import boyWorkerProfile from "../../../assets/profile/boy_worker_profile.png";
+import boyPoliceofficerProfile from "../../../assets/profile/boy_policeofficer_profile.png";
+import boyHiphopProfile from "../../../assets/profile/boy_hiphop_profile.png";
+import boyDogProfile from "../../../assets/profile/boy_dog_profile.png";
+import boyBasicProfile from "../../../assets/profile/boy_basic_profile.png";
+import boyAgentProfile from "../../../assets/profile/boy_agent_profile.png";
+
+// skinId를 프로필 이미지로 매핑
+const PROFILE_IMAGE_MAP: Record<number, string> = {
+  1: girlBasicProfile,
+  2: boyNerdProfile,
+  3: girlUniformProfile,
+  4: girlPajamaProfile,
+  5: girlMarriedProfile,
+  6: girlNerdProfile,
+  7: girlIdolProfile,
+  8: girlGhostProfile,
+  9: girlCyberpunkProfile,
+  10: girlChinaProfile,
+  11: girlCatProfile,
+  12: boyWorkerProfile,
+  13: boyPoliceofficerProfile,
+  14: boyHiphopProfile,
+  15: boyDogProfile,
+  16: boyBasicProfile,
+  17: boyAgentProfile,
+};
+
+// skinId로 프로필 이미지 경로 가져오기
+function getProfileImage(skinId?: number): string {
+  if (!skinId) return PROFILE_IMAGE_MAP[1]; // 기본값: girl_basic_profile
+  return PROFILE_IMAGE_MAP[skinId] || PROFILE_IMAGE_MAP[1];
+}
+
 interface BattleGameWrittenProps {
     questions: Question[];
     setQuestions?: (questions: Question[]) => void; // 문제 업데이트용 (토너먼트 방식)
@@ -48,9 +94,16 @@ export function BattleGameWritten({
     const [currentQuestionFromServer, setCurrentQuestionFromServer] = useState<CurrentQuestion | null>(null);
     const [questionLoading, setQuestionLoading] = useState(false);
     const currentQuestionIdRef = useRef<number | null>(null);
+    
+    // 답안 제출 중복 방지를 위한 ref
+    const isSubmittingRef = useRef(false);
 
     // 여기 추가: 상대 퇴장 여부
     const [opponentLeft, setOpponentLeft] = useState(false);
+    
+    // 프로필 이미지용 skinId 상태
+    const [mySkinId, setMySkinId] = useState<number>(1);
+    const [opponentSkinId, setOpponentSkinId] = useState<number>(1);
 
     // 1초 폴링으로 실시간 스코어보드 조회
     useEffect(() => {
@@ -77,9 +130,22 @@ export function BattleGameWritten({
                     if (myItem.score !== previousScore) {
                         setPreviousScore(myItem.score);
                     }
+                    // skinId 업데이트
+                    if (myItem.skinId) {
+                        setMySkinId(myItem.skinId);
+                    }
                 }
                 if (opponentItem) {
                     setOpponentScore(opponentItem.score);
+                    // 상대방 skinId 업데이트
+                    if (opponentItem.skinId) {
+                        setOpponentSkinId(opponentItem.skinId);
+                    }
+                }
+
+                // 1:1 배틀에서 상대방 이탈 감지 (참가자가 1명만 남은 경우)
+                if (scoreboard.items.length === 1 && !opponentLeft) {
+                    setOpponentLeft(true);
                 }
 
                 // currentQuestion 정보 업데이트
@@ -148,7 +214,7 @@ export function BattleGameWritten({
         const interval = setInterval(pollScoreboard, 1000);
 
         return () => clearInterval(interval);
-    }, [roomId, myUserId, previousScore, isAnswered, serverCorrect, currentQuestionIndex]);
+    }, [roomId, myUserId, previousScore, isAnswered, serverCorrect, currentQuestionIndex, opponentLeft]);
 
     // 게임 종료 처리
     useEffect(() => {
@@ -295,37 +361,11 @@ export function BattleGameWritten({
         setShowResult(false);
         setShowOpponentAnswer(false);
         setServerCorrect(null);
+        isSubmittingRef.current = false; // 제출 플래그도 리셋
     }, [currentQuestionIndex, currentQuestionNumber]);
-
-    // 테스트용: ESC 누르면 상대 나간 것처럼 오버레이 실행
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                setOpponentLeft(true);
-            }
-        };
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
 
     // Timer - 백엔드 endTime 기반으로 계산하므로 프론트에서 직접 세지 않음
     // 스코어보드 폴링에서 timeLeft를 업데이트하므로 별도 타이머 불필요
-    useEffect(() => {
-        if (timeLeft === 0 && !isAnswered && question) {
-            handleAnswer(null);
-        }
-    }, [timeLeft, isAnswered, question]);
-
-    // 게임이 종료되었을 때만 렌더링 중단 (모든 hook 호출 후)
-    if (gameStatus === "DONE") {
-        return (
-            <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-gray-600">게임이 종료되었습니다...</p>
-                </div>
-            </div>
-        );
-    }
 
     // 문제가 있는지 확인 (토너먼트 방식 참고)
     const hasQuestion = currentQuestionFromServer && questions && questions.length > 0 && !questionLoading;
@@ -333,7 +373,11 @@ export function BattleGameWritten({
 
     // Handle Answer - 답안 제출 (백엔드가 채점 및 점수 관리)
     const handleAnswer = async (answer: number | null) => {
-        // 선택한 답안을 먼저 설정 (UI에서 초록색으로 표시하기 위해)
+        // 이미 제출 중이거나 답변했으면 중복 호출 방지
+        if (isAnswered || isSubmittingRef.current) return;
+        
+        isSubmittingRef.current = true;
+        // 선택한 답안을 먼저 설정 (UI에서 노란색으로 표시하기 위해)
         setSelectedAnswer(answer);
         setIsAnswered(true);
         setShowOpponentAnswer(true);
@@ -399,6 +443,26 @@ export function BattleGameWritten({
         // 여기서는 별도 처리 없음 (상태 초기화는 currentQuestion 변경 시 처리됨)
     };
 
+    // 시간이 만료되었을 때 자동으로 빈 답안 제출
+    useEffect(() => {
+        if (!hasQuestion || !question || !roomId) return;
+        if (timeLeft === 0 && !isAnswered && !isSubmittingRef.current) {
+            handleAnswer(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [timeLeft, hasQuestion, isAnswered]);
+
+    // 게임이 종료되었을 때만 렌더링 중단 (모든 hook 호출 후)
+    if (gameStatus === "DONE") {
+        return (
+            <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-gray-600">게임이 종료되었습니다...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
             <div className="max-w-5xl mx-auto">
@@ -432,7 +496,13 @@ export function BattleGameWritten({
                                     )}
                                     <p className="text-3xl text-purple-700">{myScore}점</p>
                                 </div>
-                                <div className="text-5xl">👨‍💻</div>
+                                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-purple-400 to-pink-400">
+                                    <img
+                                        src={getProfileImage(mySkinId)}
+                                        alt={myUserId || "나"}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-gray-600">
                                 <Target className="w-3 h-3" />
@@ -450,8 +520,12 @@ export function BattleGameWritten({
                                     )}
                                     <p className="text-3xl text-blue-700">{opponentScore}점</p>
                                 </div>
-                                <div className="text-5xl relative">
-                                    🤖
+                                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-blue-400 to-cyan-400 relative">
+                                    <img
+                                        src={getProfileImage(opponentSkinId)}
+                                        alt={opponentUserId || opponentName}
+                                        className="w-full h-full object-cover"
+                                    />
                                     {!isAnswered && (
                                         <div className="absolute -top-2 -right-2">
                                             <div className="w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
@@ -469,7 +543,9 @@ export function BattleGameWritten({
                         <div className="flex items-center gap-3">
                             <Badge variant="secondary" className="bg-purple-100 text-purple-700">필기 모드 ✏️</Badge>
                              <span className="text-sm text-gray-600">
-                                {hasQuestion ? (currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1) : "대기 중"}
+                                {hasQuestion 
+                                    ? `${currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1} / 10`
+                                    : "대기 중"}
                              </span>
                         </div>
                         {hasQuestion && (
@@ -482,7 +558,7 @@ export function BattleGameWritten({
                             </div>
                         )}
                     </div>
-                     {hasQuestion && <Progress value={currentQuestionNumber !== null ? (currentQuestionNumber / 20) * 100 : 0} className="h-2.5" />}
+                     {hasQuestion && <Progress value={currentQuestionNumber !== null ? (currentQuestionNumber / 10) * 100 : 0} className="h-2.5" />}
                 </Card>
 
                 {/* Questions */}
@@ -492,7 +568,7 @@ export function BattleGameWritten({
                         <div className="space-y-3">
                             {question.options?.map((option, index) => {
                                 const isSelected = selectedAnswer === index;
-                                // 선택한 답은 항상 초록색으로 표시
+                                // 선택한 답은 항상 노란색으로 표시
                                 const isSelectedAnswer = isSelected && isAnswered;
 
                                 return (
@@ -502,7 +578,7 @@ export function BattleGameWritten({
                                         disabled={isAnswered}
                                         className={`w-full p-5 rounded-xl border-2 text-left transition-all ${
                                             isSelectedAnswer
-                                                ? "border-green-500 bg-green-50 scale-[1.02]"
+                                                ? "border-yellow-500 bg-yellow-50 scale-[1.02]"
                                                 : isAnswered
                                                     ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
                                                     : isSelected
@@ -513,7 +589,7 @@ export function BattleGameWritten({
                                         <div className="flex items-center gap-3">
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                                                 isSelectedAnswer
-                                                    ? "bg-green-500 text-white"
+                                                    ? "bg-yellow-500 text-white"
                                                     : isAnswered
                                                         ? "bg-gray-300 text-gray-500"
                                                         : isSelected
@@ -546,7 +622,7 @@ export function BattleGameWritten({
                         opponentScore={opponentScore}
                         onConfirm={() => {
                             setOpponentLeft(false);
-                            onExit();
+                            // status가 DONE이면 자동으로 결과 화면으로 이동
                         }}
                     />
                 )}
