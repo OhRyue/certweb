@@ -89,7 +89,7 @@ export function ReviewFlowPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, rootTopicId, finalLearningSessionId])
 
-  // 3. SUMMARY API 호출 (result 단계일 때만)
+  // 3. SUMMARY API 호출 및 advance API 호출 (result 단계일 때만)
   useEffect(() => {
     const loadSummary = async () => {
       if (step !== "result") return
@@ -121,6 +121,32 @@ export function ReviewFlowPage() {
         // 경험치를 획득했으면 레벨업 모달 표시
         if (payload.earnedXp && payload.earnedXp > 0) {
           setShowLevelUp(true)
+        }
+        
+        // SUMMARY 단계 완료: advance API 호출
+        // 세션이 있으면 advance API 호출
+        if (finalLearningSessionId) {
+          const sessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
+          const session = sessionRes.data
+          const currentStep = session.currentStep
+          
+          // SUMMARY 단계일 때만 advance 호출
+          if (currentStep === "SUMMARY") {
+            await axios.post("/study/session/advance", {
+              sessionId: finalLearningSessionId,
+              step: "SUMMARY",
+              score: null,
+              detailsJson: null
+            })
+            // advance 호출 후 세션 상태 확인 (movedTo === "END", status === "DONE")
+            const updatedSessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
+            const updatedSession = updatedSessionRes.data
+            if (updatedSession.status === "DONE") {
+              // 세션이 종료됨 - localStorage에서 삭제
+              console.log("세션이 종료되었습니다. status:", updatedSession.status)
+              localStorage.removeItem('reviewLearningSessionId')
+            }
+          }
         }
       } catch (err: any) {
         console.error("요약 불러오기 실패:", err)

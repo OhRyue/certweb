@@ -7,6 +7,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   Trophy,
   Target,
@@ -158,6 +159,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [progressData, setProgressData] = useState<ProgressCardResponse | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
+  const [selectedMode, setSelectedMode] = useState<"WRITTEN" | "PRACTICAL">("WRITTEN");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [dateSettingLoading, setDateSettingLoading] = useState(false);
@@ -269,7 +271,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     async function fetchProgress() {
       try {
         setProgressLoading(true);
-        const res = await axios.get("/progress/home/progress-card");
+        const res = await axios.get("/progress/home/progress-card", {
+          params: {
+            mode: selectedMode
+          }
+        });
         setProgressData(res.data);
       } catch (err) {
         console.error("학습 진행률 데이터 불러오기 실패", err);
@@ -280,7 +286,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     }
 
     fetchProgress();
-  }, []);
+  }, [selectedMode]);
 
   // Fetch notifications (최근 4개만)
   useEffect(() => {
@@ -505,9 +511,21 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
             >
               <Card className="bg-white/80 backdrop-blur border-0 shadow-lg h-full flex flex-col">
                 <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Target className="w-5 h-5 text-purple-600" />
-                    <h3 className="text-purple-800">학습 진행률 📈</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-5 h-5 text-purple-600" />
+                      <h3 className="text-purple-800">학습 진행률 📈</h3>
+                    </div>
+                    <Tabs value={selectedMode} onValueChange={(v) => setSelectedMode(v as "WRITTEN" | "PRACTICAL")}>
+                      <TabsList className="h-8">
+                        <TabsTrigger value="WRITTEN" className="text-xs px-3">
+                          📝 필기
+                        </TabsTrigger>
+                        <TabsTrigger value="PRACTICAL" className="text-xs px-3">
+                          ⌨️ 실기
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
 
                   <div className="flex-1 flex flex-col justify-between">
