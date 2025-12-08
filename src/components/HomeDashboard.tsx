@@ -29,9 +29,9 @@ const formatDate = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
-import type { UserProfile } from "../types";
 import axios from "./api/axiosConfig";
 import { CERT_MAP } from "../constants/certMap";
+import { getLevelProgress } from "./utils/leveling";
 
 // 프로필 이미지 경로
 const girlBasicProfile = "/assets/profile/girl_basic_profile.png"
@@ -78,10 +78,6 @@ function getProfileImage(skinId: number): string {
   return PROFILE_IMAGE_MAP[skinId] || PROFILE_IMAGE_MAP[1] // 기본값: girl_basic_profile
 }
 
-interface HomeDashboardProps {
-  userProfile: UserProfile;
-}
-
 interface QuickStats {
   solvedToday: number;
   minutesToday: number;
@@ -112,6 +108,7 @@ interface RankingUser {
   userId: string;
   nickname: string;
   avatarUrl: string;
+  skinId: number;
   level: number;
   score: number;
   xpTotal: number;
@@ -144,12 +141,12 @@ const CERT_ICON_MAP: Record<number, string> = {
 // 자격증 이름별 아이콘 매핑 (폴백용)
 const CERT_NAME_ICON_MAP: Record<string, string> = {
   "정보처리기사": "💻",
-  "SQLD": "🗄️",
-  "컴활 1급": "📊",
-  "리눅스마스터 2급": "🐧",
+  "컴퓨터활용능력": "🗄️",
+  "SQLD": "📊",
+  "리눅스마스터": "🐧",
 };
 
-export function HomeDashboard({ userProfile }: HomeDashboardProps) {
+export function HomeDashboard() {
   const [quickStats, setQuickStats] = useState<QuickStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
@@ -311,7 +308,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-white-50 via-white-50 to-white-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
 
@@ -361,18 +358,23 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                         <div className="mt-4 space-y-3">
                           {/* XP Bar */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-purple-700">경험치</span>
-                              <span className="text-purple-700">
-                                {overview.user.xpTotal} / {((overview.user.level) + 1) * 500} XP
-                              </span>
-                            </div>
-                            <Progress
-                              value={((overview.user.xpTotal) / (((overview.user.level) + 1) * 500)) * 100}
-                              className="h-3 bg-purple-200"
-                            />
-                          </div>
+                          {(() => {
+                            const levelProgress = getLevelProgress(overview.user.xpTotal, overview.user.level);
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-purple-700">경험치</span>
+                                  <span className="text-purple-700">
+                                    {levelProgress.currentLevelXP} / {levelProgress.requiredXP} XP    
+                                  </span>
+                                </div>
+                                <Progress
+                                  value={levelProgress.progress * 100}
+                                  className="h-3 bg-purple-200"
+                                />
+                              </div>
+                            );
+                          })()}
 
                           {/* Streak */}
                           <div className="flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
@@ -456,10 +458,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       <div className="bg-white/50 backdrop-blur rounded-xl p-6 mb-4">
                         <div className="text-center">
                           <div className="text-5xl mb-3">{targetCertIcon}</div>
-                          <p className="text-blue-900 mb-2 text-lg font-semibold">{targetCertName}</p>
-                          <p className="text-blue-600">
-                            {overview?.goal?.targetExamMode || "시험"}
-                          </p>
+                          <p className="text-blue-900 mb-2 text-lg">{targetCertName}</p>
                         </div>
                       </div>
 
@@ -469,7 +468,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             animate={{ scale: [1, 1.05, 1] }}
                             transition={{ duration: 1.5, repeat: Infinity }}
                           >
-                            <div className="text-6xl text-blue-600 mb-2 font-bold">D-{Math.abs(dDay)}</div>
+                            <div className="text-6xl text-blue-600 mb-2 font-semi-bold">D-{Math.abs(dDay)}</div>
                           </motion.div>
                           <p className="text-blue-700">
                             {dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
@@ -664,7 +663,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">📝</div>
                             <span className="text-green-800">문제 풀이</span>
                           </div>
-                          <span className="text-green-600 font-semibold">{quickStats.solvedToday}문제</span>
+                          <span className="text-green-600">{quickStats.solvedToday}문제</span>
                         </div>
 
                         <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
@@ -672,7 +671,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">⏱️</div>
                             <span className="text-green-800">학습 시간</span>
                           </div>
-                          <span className="text-green-600 font-semibold">{quickStats.minutesToday}분</span>
+                          <span className="text-green-600">{quickStats.minutesToday}분</span>
                         </div>
 
                         <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
@@ -680,7 +679,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">✅</div>
                             <span className="text-green-800">정답률</span>
                           </div>
-                          <span className="text-green-600 font-semibold">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
+                          <span className="text-green-600">{quickStats.accuracyToday.toFixed(1)}%</span>
                         </div>
 
                         <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
@@ -688,7 +687,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">⭐</div>
                             <span className="text-green-800">획득 XP</span>
                           </div>
-                          <span className="text-green-600 font-semibold">+{quickStats.xpToday.toLocaleString()} XP</span>
+                          <span className="text-green-600">+{quickStats.xpToday.toLocaleString()} XP</span>
                         </div>
                       </div>
 
@@ -702,7 +701,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                         {quickStats.accuracyDelta > 0 ? (
                           <>
                             <TrendingUp className="w-4 h-4 inline-block mr-1" />
-                            정답률이 어제보다 {(quickStats.accuracyDelta * 100).toFixed(0)}% 향상되었어요! 🎉
+                            정답률이 어제보다 {quickStats.accuracyToday.toFixed(1)}% 향상되었어요! 🎉
                           </>
                         ) : quickStats.accuracyDelta < 0 ? (
                           <>
@@ -776,10 +775,10 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                               )}
                             </div>
 
-                            <div className="text-2xl flex items-center justify-center w-8 h-8">
-                              {user.avatarUrl && !imageErrors.has(user.userId) ? (
+                            <div className="flex items-center justify-center w-8 h-8">
+                              {user.skinId && !imageErrors.has(user.userId) ? (
                                 <img 
-                                  src={user.avatarUrl} 
+                                  src={getProfileImage(user.skinId)} 
                                   alt={user.nickname}
                                   className="w-8 h-8 rounded-full object-cover"
                                   onError={() => {
@@ -787,7 +786,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                                   }}
                                 />
                               ) : (
-                                <span>👤</span>
+                                <span className="text-2xl">👤</span>
                               )}
                             </div>
 
@@ -819,7 +818,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                     asChild
                     className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white"
                   >
-                    <Link to="/community" className="flex items-center justify-center">
+                    <Link to="/rankBadge" className="flex items-center justify-center">
                       전체 랭킹 보기
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Link>

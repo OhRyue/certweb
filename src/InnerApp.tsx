@@ -260,7 +260,7 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50">
       <Navigation userProfile={userProfile} userPoints={userPoints} />
-      <main className="ml-64 flex-1">
+      <main className="lg:ml-64 flex-1">
         <Routes>
           {/* 메인 학습 */}
           <Route path="/" element={<HomeDashboard userProfile={userProfile} />} />
