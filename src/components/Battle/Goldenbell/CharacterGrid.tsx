@@ -1,24 +1,24 @@
 import { motion, AnimatePresence } from "motion/react";
 import type { GoldenBellCharacter } from "../../../types";
 
-// 캐릭터 이미지 import
-import girlBasicCharacter from "../../assets/characters/girl_basic_noBackGround.png";
-import boyNerdCharacter from "../../assets/characters/boy_nerd_noBackGround.png";
-import girlUniformCharacter from "../../assets/characters/girl_uniform_noBackGround.png";
-import girlPajamaCharacter from "../../assets/characters/girl_pajama_noBackGround.png";
-import girlMarriedCharacter from "../../assets/characters/girl_married_noBackGround.png";
-import girlNerdCharacter from "../../assets/characters/girl_nerd_noBackGround.png";
-import girlIdolCharacter from "../../assets/characters/girl_idol_noBackGround.png";
-import girlGhostCharacter from "../../assets/characters/girl_ghost._noBackGround.png";
-import girlCyberpunkCharacter from "../../assets/characters/girl_cyberpunk_noBackGround.png";
-import girlChinaCharacter from "../../assets/characters/girl_china_noBackGround.png";
-import girlCatCharacter from "../../assets/characters/girl_cat_noBackGround.png";
-import boyWorkerCharacter from "../../assets/characters/boy_worker_noBackGround.png";
-import boyPoliceofficerCharacter from "../../assets/characters/boy_policeofficer_noBackGround.png";
-import boyHiphopCharacter from "../../assets/characters/boy_hiphop_noBackGround.png";
-import boyDogCharacter from "../../assets/characters/boy_dog_noBackGround.png";
-import boyBasicCharacter from "../../assets/characters/boy_basic_noBackGround.png";
-import boyAgentCharacter from "../../assets/characters/boy_agent_noBackGround.png";
+// 캐릭터 이미지 경로
+const girlBasicCharacter = "/assets/characters/girl_basic_noBackGround.png";
+const boyNerdCharacter = "/assets/characters/boy_nerd_noBackGround.png";
+const girlUniformCharacter = "/assets/characters/girl_uniform_noBackGround.png";
+const girlPajamaCharacter = "/assets/characters/girl_pajama_noBackGround.png";
+const girlMarriedCharacter = "/assets/characters/girl_married_noBackGround.png";
+const girlNerdCharacter = "/assets/characters/girl_nerd_noBackGround.png";
+const girlIdolCharacter = "/assets/characters/girl_idol_noBackGround.png";
+const girlGhostCharacter = "/assets/characters/girl_ghost._noBackGround.png";
+const girlCyberpunkCharacter = "/assets/characters/girl_cyberpunk_noBackGround.png";
+const girlChinaCharacter = "/assets/characters/girl_china_noBackGround.png";
+const girlCatCharacter = "/assets/characters/girl_cat_noBackGround.png";
+const boyWorkerCharacter = "/assets/characters/boy_worker_noBackGround.png";
+const boyPoliceofficerCharacter = "/assets/characters/boy_policeofficer_noBackGround.png";
+const boyHiphopCharacter = "/assets/characters/boy_hiphop_noBackGround.png";
+const boyDogCharacter = "/assets/characters/boy_dog_noBackGround.png";
+const boyBasicCharacter = "/assets/characters/boy_basic_noBackGround.png";
+const boyAgentCharacter = "/assets/characters/boy_agent_noBackGround.png";
 
 // skinId를 캐릭터 이미지로 매핑
 const CHARACTER_IMAGE_MAP: Record<number, string> = {
