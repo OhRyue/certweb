@@ -5,10 +5,13 @@ import { Badge } from "../../ui/badge"
 import { Star, Sparkles, Medal, Crown } from "lucide-react"
 import { getRankColor } from "../hooks/useRankingData"
 import { getRankings } from "../../api/rankingApi"
+import { getProfileImage } from "../../../utils/profileUtils"
 
 interface HallOfFameUser {
   rank: number
   userId: string
+  nickname: string
+  skinId: number
   xp: number
   score: number
   streak: number
@@ -35,6 +38,8 @@ export function HallOfFame() {
       const top3 = response.top.slice(0, 3).map((user) => ({
         rank: user.rank ?? 0,
         userId: user.userId ?? "",
+        nickname: user.nickname ?? "",
+        skinId: user.skinId ?? 1,
         xp: user.xp ?? 0,
         score: user.score ?? 0,
         streak: user.streak ?? 0,
@@ -48,17 +53,6 @@ export function HallOfFame() {
     }
   }
 
-  // 사용자 아바타 생성 함수 (userId 기반)
-  const getUserAvatar = (userId: string) => {
-    const avatars = ["🦸‍♂️", "🧙‍♀️", "🦊", "🐻", "🐱", "🎓", "💪", "🐝", "🎯", "😊"]
-    const hash = userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return avatars[hash % avatars.length]
-  }
-
-  // 사용자 이름 생성 함수 (userId 기반)
-  const getUserName = (userId: string) => {
-    return userId.length > 10 ? `${userId.substring(0, 8)}...` : userId
-  }
 
   // 레벨 계산 함수 (XP 기반)
   const calculateLevel = (xp: number) => {
@@ -108,8 +102,12 @@ export function HallOfFame() {
 
                 <div className="relative z-10 flex flex-col items-center text-center">
                   <div className="mb-6 relative">
-                    <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 3, repeat: Infinity }} className="text-8xl">
-                      {getUserAvatar(legend.userId)}
+                    <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 3, repeat: Infinity }} className="flex items-center justify-center">
+                      <img 
+                        src={getProfileImage(legend.skinId)} 
+                        alt={legend.nickname}
+                        className="w-32 h-32 rounded-full object-cover border-4 border-yellow-400"
+                      />
                     </motion.div>
                     {legend.rank === 1 && (
                       <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -top-12 left-1/2 -translate-x-1/2">
@@ -118,7 +116,7 @@ export function HallOfFame() {
                     )}
                   </div>
 
-                  <h3 className="text-amber-900 mb-4">{getUserName(legend.userId)}</h3>
+                  <h3 className="text-amber-900 mb-4">{legend.nickname}</h3>
 
                   <div className="w-full space-y-3 mb-6">
                     <div className="bg-white/60 backdrop-blur rounded-lg p-3">

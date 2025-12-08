@@ -5,10 +5,13 @@ import { Badge } from "../../ui/badge"
 import { TrendingUp } from "lucide-react"
 import { getRankColor, getRankIcon } from "../hooks/useRankingData"
 import { getRankings } from "../../api/rankingApi"
+import { getProfileImage } from "../../../utils/profileUtils"
 
 interface RankingDisplayUser {
   rank: number
   userId: string
+  nickname: string
+  skinId: number
   xp: number
   score: number
   streak: number
@@ -39,6 +42,8 @@ export function WeeklyRanking() {
       const allData = response.top.map((user) => ({
         rank: user.rank ?? 0,
         userId: user.userId ?? "",
+        nickname: user.nickname ?? "",
+        skinId: user.skinId ?? 1,
         xp: user.xp ?? 0,
         score: user.score ?? 0,
         streak: user.streak ?? 0,
@@ -54,17 +59,6 @@ export function WeeklyRanking() {
     }
   }
 
-  // 사용자 아바타 생성 함수 (userId 기반)
-  const getUserAvatar = (userId: string) => {
-    const avatars = ["🦸‍♂️", "🧙‍♀️", "🦊", "🐻", "🐱", "🎓", "💪", "🐝", "🎯", "😊"]
-    const hash = userId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    return avatars[hash % avatars.length]
-  }
-
-  // 사용자 이름 생성 함수 (userId 기반)
-  const getUserName = (userId: string) => {
-    return userId.length > 10 ? `${userId.substring(0, 8)}...` : userId
-  }
 
   // 레벨 계산 함수 (XP 기반)
   const calculateLevel = (xp: number) => {
@@ -158,10 +152,14 @@ export function WeeklyRanking() {
                 </div>
 
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="text-3xl">{getUserAvatar(user.userId)}</div>
+                  <img 
+                    src={getProfileImage(user.skinId)} 
+                    alt={user.nickname}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                  />
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="text-gray-900">{getUserName(user.userId)}</p>
+                      <p className="text-gray-900">{user.nickname}</p>
                       {user.isCurrentUser && <Badge className="bg-purple-500 text-white text-xs">나</Badge>}
                     </div>
                       <p className="text-sm text-gray-600">Level {calculateLevel(user.xp ?? 0)}</p>

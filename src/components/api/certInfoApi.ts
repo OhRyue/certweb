@@ -186,3 +186,35 @@ export async function getQualificationBasicInfo(
   return response.data;
 }
 
+// 출제 기준 토픽 타입
+export interface Topic {
+  id: number;
+  certId: number;
+  parentId: number | null;
+  code: string;
+  title: string;
+  emoji: string;
+  examMode: string;
+  orderNo: number;
+}
+
+// 출제 기준 응답 타입
+export interface RootTopicsResponse {
+  topics: Topic[];
+}
+
+/**
+ * 출제 기준 루트 토픽을 조회합니다.
+ * @param mode 시험 모드 (WRITTEN 또는 PRACTICAL)
+ * @returns 루트 토픽 배열
+ */
+export async function getRootTopics(
+  mode: "WRITTEN" | "PRACTICAL"
+): Promise<Topic[]> {
+  const response = await axios.get<RootTopicsResponse>(
+    `/cert/topics/root/${mode}`
+  );
+
+  return response.data.topics;
+}
+

@@ -63,7 +63,7 @@ export interface Question {
   timeLimitSec?: number // 문제별 시간 제한 (초)
   roomQuestionId?: number // 방 문제 ID (답안 제출용)
   roundNo?: number // 라운드 번호 (답안 제출용)
-  phase?: "MAIN" // 단계 (답안 제출용)
+  phase?: "MAIN" | "REVIVAL" // 단계 (답안 제출용)
 }
 
 export interface Concept {
