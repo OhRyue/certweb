@@ -85,4 +85,8 @@ export function getStartXP(level: number): number {
     }
   }
   
-  
+  // totalXP를 레벨 내 경험치로 변환
+  export function getLevelInternalXP(totalXP: number, level: number) {
+    const startXP = getStartXP(level)
+    return totalXP - startXP
+  }

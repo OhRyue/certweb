@@ -722,7 +722,27 @@ export function MicroFlowPage() {
           mcqTotal={summaryData?.mcqTotal}
           aiSummary={summaryData?.summary || summaryData?.aiSummary}
           loadingSummary={loadingSummary}
-          onRetry={() => setStep("concept")}
+          onRetry={async () => {
+            // 새로운 세션을 시작하여 처음부터 다시 학습
+            try {
+              const res = await axios.post("/study/session/start", {
+                topicId: subTopicId,
+                mode: "MICRO",
+                examMode: "PRACTICAL",
+                resume: false
+              })
+              
+              // 응답으로 받은 sessionId를 포함해서 페이지를 완전히 리로드
+              const newSessionId = res.data.sessionId
+              localStorage.setItem('learningSessionId', newSessionId.toString())
+              // window.location.href를 사용하여 페이지를 완전히 새로고침
+              window.location.href = `/learning/micro?subTopicId=${subTopicId}&type=practical&sessionId=${newSessionId}`
+            } catch (err) {
+              console.error("세션 시작 실패:", err)
+              // 에러 발생 시에도 기존 방식으로 fallback
+              window.location.href = `/learning/micro?subTopicId=${subTopicId}&type=practical`
+            }
+          }}
           // 메인 학습 대시보드로 이동
           onBackToDashboard={() => navigate("/learning")}
         />
@@ -731,19 +751,8 @@ export function MicroFlowPage() {
         {showLevelUp && summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
             earnedExp={summaryData.earnedXp}
-            currentExp={(() => {
-              // totalXp: 획득 후의 현재 총 경험치
-              // xpToNextLevel: 다음 레벨까지 필요한 남은 경험치
-              // 레벨당 필요 경험치 = totalXp + xpToNextLevel
-              // 현재 레벨 내 경험치 = totalXp % (totalXp + xpToNextLevel)
-              if (summaryData.totalXp !== undefined && summaryData.xpToNextLevel !== undefined) {
-                const totalExpForLevel = summaryData.totalXp + summaryData.xpToNextLevel
-                return summaryData.totalXp % totalExpForLevel
-              }
-              return 0
-            })()}
+            totalXP={summaryData.totalXp || 0}
             currentLevel={summaryData.level || 1}
-            expToNextLevel={summaryData.xpToNextLevel || 100}
             isLevelUp={summaryData.leveledUp || false}
             earnedPoints={summaryData.levelUpRewardPoints || 0}
             onComplete={() => setShowLevelUp(false)}

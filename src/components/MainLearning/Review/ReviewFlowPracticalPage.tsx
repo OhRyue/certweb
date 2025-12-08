@@ -366,19 +366,8 @@ export function ReviewFlowPracticalPage() {
         {showLevelUp && summaryData?.earnedXp !== undefined && summaryData.earnedXp > 0 && (
           <LevelUpScreen
             earnedExp={summaryData.earnedXp}
-            currentExp={(() => {
-              // totalXp: 획득 후의 현재 총 경험치
-              // xpToNextLevel: 다음 레벨까지 필요한 남은 경험치
-              // 레벨당 필요 경험치 = totalXp + xpToNextLevel
-              // 현재 레벨 내 경험치 = totalXp % (totalXp + xpToNextLevel)
-              if (summaryData.totalXp !== undefined && summaryData.xpToNextLevel !== undefined) {
-                const totalExpForLevel = summaryData.totalXp + summaryData.xpToNextLevel
-                return summaryData.totalXp % totalExpForLevel
-              }
-              return 0
-            })()}
+            totalXP={summaryData.totalXp || 0}
             currentLevel={summaryData.level || 1}
-            expToNextLevel={summaryData.xpToNextLevel || 100}
             isLevelUp={summaryData.leveledUp || false}
             earnedPoints={summaryData.levelUpRewardPoints || 0}
             onComplete={() => setShowLevelUp(false)}

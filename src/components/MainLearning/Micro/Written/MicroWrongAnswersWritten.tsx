@@ -274,19 +274,6 @@ export function MicroWrongAnswersWritten({
               <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
-                  <Badge 
-                    variant="secondary"
-                    className={
-                      currentQuestion.difficulty === "easy" 
-                        ? "bg-green-100 text-green-700"
-                        : currentQuestion.difficulty === "medium"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-red-100 text-red-700"
-                    }
-                  >
-                    {currentQuestion.difficulty === "easy" ? "쉬움" : 
-                     currentQuestion.difficulty === "medium" ? "보통" : "어려움"}
-                  </Badge>
                   {currentQuestion.tags.map((tag) => (
                     <Badge key={tag} variant="outline">
                       #{tag}

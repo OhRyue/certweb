@@ -6,6 +6,7 @@ import { BattleResult } from "./BattleResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
 import { getSavedRoomId, getRoomState } from "../../../api/versusApi"
 import axios from "../../../api/axiosConfig"
+import { getStartXP } from "../../../utils/leveling"
 import type { Question } from "../../../../types"
 
 type ExamType = "written" | "practical"
@@ -90,7 +91,6 @@ export function BattleFlow() {
 
   const [currentLevel, setCurrentLevel] = useState(5)
   const [currentExp, setCurrentExp] = useState(50)
-  const expPerLevel = 100
   const earnedExp = myScore * 7
 
   if (step === "game") {
@@ -117,21 +117,30 @@ export function BattleFlow() {
     )
   }
   if (step === "levelUp") {
+    // totalXP 계산: 현재 레벨 시작 경험치 + 현재 레벨 내 경험치 + 획득 경험치
+    const beforeTotalXP = getStartXP(currentLevel) + currentExp
+    const afterTotalXP = beforeTotalXP + earnedExp
+    
+    // 레벨업 후 레벨 계산
+    let newLevel = currentLevel
+    let remainingXP = afterTotalXP
+    while (remainingXP >= getStartXP(newLevel + 1)) {
+      newLevel++
+    }
+    const isLevelUp = newLevel > currentLevel
+    
     return (
       <LevelUpScreen
-        currentLevel={currentLevel}
-        currentExp={currentExp}
         earnedExp={earnedExp}
-        expPerLevel={expPerLevel}
+        totalXP={afterTotalXP}
+        currentLevel={newLevel}
+        isLevelUp={isLevelUp}
+        earnedPoints={0}
         onComplete={() => {
           // 경험치, 레벨 반영
-          setCurrentExp(prev => {
-            const total = prev + earnedExp
-            const newLevel = currentLevel + Math.floor(total / expPerLevel)
-            const newExpInLevel = total % expPerLevel
-            setCurrentLevel(newLevel)
-            return newExpInLevel
-          })
+          setCurrentLevel(newLevel)
+          const newStartXP = getStartXP(newLevel)
+          setCurrentExp(afterTotalXP - newStartXP)
           // 레벨업 모달 닫으면 -> 결과 화면
           setStep("result")
         }}

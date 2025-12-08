@@ -120,7 +120,7 @@ export function ReviewProblemSolving({
             <Sparkles className="w-8 h-8 text-blue-600" />
             <h1 className="text-blue-900">Review 문제풀이</h1>
           </div>
-          <p className="text-gray-600 mt-2">실전 문제를 풀어 실력을 향상합시다!</p>
+          <p className="text-gray-600 mt-2">실전 문제로 실력을 다져보세요.</p>
         </div>
 
         {/* Progress */}
@@ -154,7 +154,7 @@ export function ReviewProblemSolving({
               </div>
             )}
 
-            <h2 className="text-blue-900 mb-6 text-lg">
+            <h2 className="text-blue-900 mb-6">
               {currentQuestion.stem || "문제를 불러오는 중..."}
             </h2>
 
@@ -167,9 +167,14 @@ export function ReviewProblemSolving({
 
                 if (!showResult && !isGrading) {
                   buttonClass += " hover:border-blue-400 hover:bg-white/60 cursor-pointer"
-                } else if (isCorrectAnswer) {
+                } else if (isGrading && isSelected) {
+                  // 제출 중일 때는 로딩 상태 표시 (보라색)
+                  buttonClass += " border-purple-300 bg-purple-50"
+                } else if (showResult && isCorrectAnswer) {
+                  // 정답인 경우 초록색 표시 (showResult가 true일 때만)
                   buttonClass += " border-green-400 bg-green-50"
-                } else if (isSelected && !isCorrect) {
+                } else if (showResult && isSelected && !isCorrect) {
+                  // 오답인 경우 빨간색 표시 (showResult가 true일 때만)
                   buttonClass += " border-red-400 bg-red-50"
                 } else {
                   buttonClass += " opacity-50"
@@ -193,7 +198,7 @@ export function ReviewProblemSolving({
                       </div>
                       {showResult && isCorrectAnswer && <CheckCircle2 className="w-5 h-5 text-green-600" />}
                       {showResult && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-600" />}
-                      {isGrading && isSelected && <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />}
+                      {isGrading && isSelected && <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />}
                     </div>
                   </motion.button>
                 )

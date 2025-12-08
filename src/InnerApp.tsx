@@ -121,6 +121,7 @@ import { ShopDashboard } from "./components/Shop/ShopDashboard"
 //etc
 import { LevelUpScreen } from "./components/LevelUpScreen"
 import { LevelUpScreenDemo } from "./components/LevelUpScreenDemo"
+import { getStartXP } from "./components/utils/leveling"
 import { useSearchParams } from "react-router-dom"
 
 interface InnerAppProps {
@@ -369,10 +370,11 @@ export default function InnerApp({ onLogout }: InnerAppProps) {
             path="/levelUp"
             element={
               <LevelUpScreen
-                currentLevel={1}
-                currentExp={50}
                 earnedExp={30}
-                expPerLevel={100}
+                totalXP={getStartXP(1) + 50 + 30}
+                currentLevel={1}
+                isLevelUp={false}
+                earnedPoints={0}
                 onComplete={() => console.log("레벨업 완료")}
               />
             }
