@@ -476,13 +476,10 @@ export function ShopDashboard({ onPurchase }: ShopDashboardProps) {
                           {/* Item Info */}
                           <div className="space-y-2">
                             <div>
-                              <h3 className="text-gray-900 mb-1">{itemName}</h3>
+                              <h4 className="text-gray-900 mb-1">{itemName}</h4>
                               {itemDescription && (
                                 <p className="text-sm text-gray-600">{itemDescription}</p>
                               )}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              구매일: {new Date(inventoryItem.ownedAt).toLocaleDateString('ko-KR')}
                             </div>
                             {!isEquipped && (
                               <Button
@@ -522,16 +519,7 @@ export function ShopDashboard({ onPurchase }: ShopDashboardProps) {
               <h3 className="text-blue-900 mb-2">💡 포인트 획득 방법</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-700">
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="bg-white/60">Micro 학습</Badge>
-                  <span>100P</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="bg-white/60">Review 완료</Badge>
-                  <span>200P</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="bg-white/60">대전 승리</Badge>
-                  <span>150P</span>
+                  <span>레벨업 보상으로 포인트를 획득하세요!</span>
                 </div>
               </div>
             </div>

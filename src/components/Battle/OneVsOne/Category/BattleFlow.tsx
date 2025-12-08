@@ -4,9 +4,9 @@ import { BattleGameWritten } from "./BattleGameWritten"
 import { BattleGamePractical } from "./BattleGamePractical"
 import { BattleResult } from "./BattleResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
-import { getSavedRoomId, getRoomState } from "../../../api/versusApi"
+import { getSavedRoomId, getScoreboard } from "../../../api/versusApi"
+import { getLevelFromTotalXp, getStartXP } from "../../../utils/leveling"
 import axios from "../../../api/axiosConfig"
-import { getStartXP } from "../../../utils/leveling"
 import type { Question } from "../../../../types"
 
 type ExamType = "written" | "practical"
@@ -31,49 +31,84 @@ export function BattleFlow() {
   const [myRank, setMyRank] = useState<number | null>(null)
   const [opponentRank, setOpponentRank] = useState<number | null>(null)
   const [questions, setQuestions] = useState<Question[]>([]) // 빈 배열로 시작, 문제는 하나씩 가져옴
+  
+  // 결과 화면용 참가자 정보
+  const [myNickname, setMyNickname] = useState<string | null>(null)
+  const [mySkinId, setMySkinId] = useState<number | null>(null)
+  const [opponentNickname, setOpponentNickname] = useState<string | null>(null)
+  const [opponentSkinId, setOpponentSkinId] = useState<number | null>(null)
 
   const opponentName = opponentUserId || state?.opponentName || "상대"
   const topicKey = state?.topicId ?? state?.topicName ?? "db-basic"
   const examType: ExamType = state?.examType ?? "written"
   const roomId = state?.roomId || getSavedRoomId()
 
-  // 방 정보 조회하여 참가자 정보 가져오기
+  // 현재 사용자 정보 가져오기 (한 번만)
   useEffect(() => {
-    const fetchRoomInfo = async () => {
-      if (!roomId) return
-
-      try {
-        const roomState = await getRoomState(roomId)
-        const roomDetail = roomState.detail
-        
-        // 현재 사용자 정보 가져오기
-        if (!myUserId) {
+    const fetchMyUserId = async () => {
+      if (!myUserId) {
+        try {
           const profileRes = await axios.get("/account/profile")
           const currentUserId = profileRes.data.userId || profileRes.data.id
           setMyUserId(currentUserId)
+        } catch (err) {
+          console.error("프로필 조회 실패", err)
         }
+      }
+    }
+    fetchMyUserId()
+  }, [myUserId])
 
+  // scoreboard 폴링하여 참가자 정보 가져오기
+  useEffect(() => {
+    if (!roomId) return
+
+    let intervalId: NodeJS.Timeout | null = null
+
+    const pollScoreboardForParticipants = async () => {
+      try {
+        const scoreboard = await getScoreboard(roomId)
+        
+        // status가 DONE이면 폴링 중지
+        if (scoreboard.status === "DONE") {
+          if (intervalId) {
+            clearInterval(intervalId)
+            intervalId = null
+          }
+          return
+        }
+        
         const currentUserId = myUserId || state?.myUserId
         if (!currentUserId) return
 
-        // 참가자 목록에서 자신과 상대 구분
-        const myParticipant = roomDetail.participants.find(p => p.userId === currentUserId)
-        const opponentParticipant = roomDetail.participants.find(p => p.userId !== currentUserId)
+        // scoreboard.items에서 참가자 정보 가져오기
+        const myItem = scoreboard.items.find(item => item.userId === currentUserId)
+        const opponentItem = scoreboard.items.find(item => item.userId !== currentUserId)
 
-        if (myParticipant) {
-          setMyRank(myParticipant.rank)
+        if (myItem) {
+          setMyRank(myItem.rank)
         }
 
-        if (opponentParticipant) {
-          setOpponentUserId(opponentParticipant.userId)
-          setOpponentRank(opponentParticipant.rank)
+        if (opponentItem) {
+          setOpponentUserId(opponentItem.userId)
+          setOpponentRank(opponentItem.rank)
         }
       } catch (err) {
-        console.error("방 정보 조회 실패", err)
+        console.error("스코어보드 조회 실패", err)
       }
     }
 
-    fetchRoomInfo()
+    // 즉시 한 번 조회
+    pollScoreboardForParticipants()
+    
+    // 2초마다 폴링 (참가자 정보가 아직 없을 수 있으므로)
+    intervalId = setInterval(pollScoreboardForParticipants, 2000)
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
+    }
   }, [roomId, myUserId, state?.myUserId])
 
   useEffect(() => {
@@ -89,9 +124,91 @@ export function BattleFlow() {
   const [myScore, setMyScore] = useState(0)
   const [opponentScore, setOpponentScore] = useState(0)
 
-  const [currentLevel, setCurrentLevel] = useState(5)
-  const [currentExp, setCurrentExp] = useState(50)
-  const earnedExp = myScore * 7
+  // xpResults 관련 상태
+  const [xpResultData, setXpResultData] = useState<{
+    earnedExp: number;
+    totalXP: number;
+    currentLevel: number;
+    isLevelUp: boolean;
+  } | null>(null);
+
+  // scoreboard 폴링하여 xpResults 확인
+  useEffect(() => {
+    if (step !== "game" || !roomId || !myUserId) return;
+
+    let intervalId: NodeJS.Timeout | null = null
+
+    const pollScoreboard = async () => {
+      try {
+        const scoreboard = await getScoreboard(roomId);
+        
+        // status가 DONE이면 폴링 중지
+        if (scoreboard.status === "DONE") {
+          // 참가자 정보 저장 (결과 화면용)
+          const currentUserId = myUserId || state?.myUserId
+          if (currentUserId) {
+            const myItem = scoreboard.items.find(item => item.userId === currentUserId)
+            const opponentItem = scoreboard.items.find(item => item.userId !== currentUserId)
+            
+            if (myItem) {
+              setMyNickname(myItem.nickname)
+              setMySkinId(myItem.skinId)
+            }
+            
+            if (opponentItem) {
+              setOpponentNickname(opponentItem.nickname)
+              setOpponentSkinId(opponentItem.skinId)
+            }
+          }
+          
+          // 게임 종료 확인 및 xpResults 처리
+          if (scoreboard.xpResults && scoreboard.xpResults.length > 0) {
+            const myXpResult = scoreboard.xpResults.find(result => result.userId === myUserId);
+            if (myXpResult) {
+              const earnedExp = myXpResult.xpDelta;
+              const totalXP = myXpResult.totalXp;
+              const isLevelUp = myXpResult.leveledUp;
+              const currentLevel = getLevelFromTotalXp(totalXP);
+
+              setXpResultData({
+                earnedExp,
+                totalXP,
+                currentLevel,
+                isLevelUp
+              });
+              
+              // 게임 완료 후 레벨업 화면으로 이동
+              setStep("levelUp");
+            } else {
+              // xpResults가 있지만 내 결과가 없으면 바로 결과 화면으로
+              setStep("result");
+            }
+          } else {
+            // xpResults가 없으면 바로 결과 화면으로
+            setStep("result");
+          }
+          
+          // 폴링 중지
+          if (intervalId) {
+            clearInterval(intervalId)
+            intervalId = null
+          }
+          return;
+        }
+      } catch (error) {
+        console.error("스코어보드 조회 실패:", error);
+      }
+    };
+
+    // 2초마다 폴링
+    intervalId = setInterval(pollScoreboard, 2000);
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
+    };
+  }, [step, roomId, myUserId, state?.myUserId]);
 
   if (step === "game") {
     const GameComponent =
@@ -110,42 +227,50 @@ export function BattleFlow() {
         onComplete={(me, opp) => {
           setMyScore(me)
           setOpponentScore(opp)
-          setStep("levelUp")    // 게임 끝남녀 레벨업으로
+          // xpResults는 scoreboard 폴링에서 처리되므로 여기서는 step 변경하지 않음
+          // xpResults가 없으면 바로 결과 화면으로 이동
         }}
         onExit={() => navigate("/battle")}
       />
     )
   }
   if (step === "levelUp") {
-    // totalXP 계산: 현재 레벨 시작 경험치 + 현재 레벨 내 경험치 + 획득 경험치
-    const beforeTotalXP = getStartXP(currentLevel) + currentExp
-    const afterTotalXP = beforeTotalXP + earnedExp
-    
-    // 레벨업 후 레벨 계산
-    let newLevel = currentLevel
-    let remainingXP = afterTotalXP
-    while (remainingXP >= getStartXP(newLevel + 1)) {
-      newLevel++
+    // xpResults가 있으면 사용, 없으면 기존 방식 사용 (fallback)
+    if (xpResultData) {
+      return (
+        <LevelUpScreen
+          earnedExp={xpResultData.earnedExp}
+          totalXP={xpResultData.totalXP}
+          currentLevel={xpResultData.currentLevel}
+          isLevelUp={xpResultData.isLevelUp}
+          earnedPoints={xpResultData.isLevelUp ? 10 : 0}
+          onComplete={() => {
+            // 레벨업 모달 닫으면 -> 결과 화면
+            setStep("result")
+          }}
+        />
+      )
+    } else {
+      // xpResults가 없는 경우 fallback (기존 로직)
+      const beforeTotalXP = getStartXP(5) + 50
+      const afterTotalXP = beforeTotalXP + (myScore * 7)
+      const newLevel = getLevelFromTotalXp(afterTotalXP)
+      const isLevelUp = newLevel > 5
+      
+      return (
+        <LevelUpScreen
+          earnedExp={myScore * 7}
+          totalXP={afterTotalXP}
+          currentLevel={newLevel}
+          isLevelUp={isLevelUp}
+          earnedPoints={0}
+          onComplete={() => {
+            // 레벨업 모달 닫으면 -> 결과 화면
+            setStep("result")
+          }}
+        />
+      )
     }
-    const isLevelUp = newLevel > currentLevel
-    
-    return (
-      <LevelUpScreen
-        earnedExp={earnedExp}
-        totalXP={afterTotalXP}
-        currentLevel={newLevel}
-        isLevelUp={isLevelUp}
-        earnedPoints={0}
-        onComplete={() => {
-          // 경험치, 레벨 반영
-          setCurrentLevel(newLevel)
-          const newStartXP = getStartXP(newLevel)
-          setCurrentExp(afterTotalXP - newStartXP)
-          // 레벨업 모달 닫으면 -> 결과 화면
-          setStep("result")
-        }}
-      />
-    )
   }
 
   // 결과 화면
@@ -154,10 +279,16 @@ export function BattleFlow() {
       <BattleResult
         myScore={myScore}
         opponentScore={opponentScore}
-        opponentName={opponentName}
+        myNickname={myNickname}
+        myUserId={myUserId || ""}
+        mySkinId={mySkinId}
+        opponentNickname={opponentNickname}
+        opponentUserId={opponentUserId || ""}
+        opponentSkinId={opponentSkinId}
         onRematch={() => navigate("/battle/onevsone/matching")}
         onBackToDashboard={() => navigate("/battle")}
       />
     )
   }
 }
+

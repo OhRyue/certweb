@@ -2,16 +2,43 @@ import { Card } from "../../../ui/card";
 import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
 import { Trophy, TrendingUp, Award, RotateCcw, Home } from "lucide-react";
+import { getProfileImage } from "../../../../utils/profileUtils";
+
+interface BattleResultProps {
+  myScore: number;
+  opponentScore: number;
+  myNickname: string | null;
+  myUserId: string;
+  mySkinId: number | null;
+  opponentNickname: string | null;
+  opponentUserId: string;
+  opponentSkinId: number | null;
+  onRematch: () => void;
+  onBackToDashboard: () => void;
+}
 
 export function BattleResult({
   myScore,
   opponentScore,
-  opponentName,
+  myNickname,
+  myUserId,
+  mySkinId,
+  opponentNickname,
+  opponentUserId,
+  opponentSkinId,
   onRematch,
   onBackToDashboard
-}) {
+}: BattleResultProps) {
   const isWin = myScore > opponentScore;
   const isDraw = myScore === opponentScore;
+  
+  // 닉네임이 null이면 userId 표시
+  const myDisplayName = myNickname || myUserId || "나";
+  const opponentDisplayName = opponentNickname || opponentUserId || "상대";
+  
+  // skinId 기반 프로필 이미지
+  const myProfileImage = mySkinId ? getProfileImage(mySkinId) : "/assets/profile/girl_basic_profile.png";
+  const opponentProfileImage = opponentSkinId ? getProfileImage(opponentSkinId) : "/assets/profile/girl_basic_profile.png";
 
   return (
     <div className="p-8">
@@ -40,8 +67,14 @@ export function BattleResult({
           <div className="grid grid-cols-2 gap-8 mb-6">
             {/* My Score */}
             <div className="text-center">
-              <div className="text-4xl mb-3">👨‍💻</div>
-              <p className="text-sm text-gray-600 mb-2">나</p>
+              <div className="mb-3 flex justify-center">
+                <img 
+                  src={myProfileImage} 
+                  alt={myDisplayName}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              </div>
+              <p className="text-sm text-gray-600 mb-2">{myDisplayName}</p>
               <div className={`text-4xl mb-2 ${isWin ? "text-green-600" : "text-gray-800"
                 }`}>
                 {myScore}
@@ -56,8 +89,14 @@ export function BattleResult({
 
             {/* Opponent Score */}
             <div className="text-center">
-              <div className="text-4xl mb-3">🤖</div>
-              <p className="text-sm text-gray-600 mb-2">{opponentName}</p>
+              <div className="mb-3 flex justify-center">
+                <img 
+                  src={opponentProfileImage} 
+                  alt={opponentDisplayName}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              </div>
+              <p className="text-sm text-gray-600 mb-2">{opponentDisplayName}</p>
               <div className={`text-4xl mb-2 ${!isWin && !isDraw ? "text-red-600" : "text-gray-800"
                 }`}>
                 {opponentScore}

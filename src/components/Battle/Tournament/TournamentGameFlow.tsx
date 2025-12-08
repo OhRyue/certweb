@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BattleGameWritten } from "./BattleGameWritten";
 import { BattleGamePractical } from "./BattleGamePractical";
+import { LevelUpScreen } from "../../LevelUpScreen";
+import { getLevelFromTotalXp } from "../../utils/leveling";
 import { getSavedRoomId, getRoomState, getScoreboard, getVersusQuestion } from "../../api/versusApi";
 import axios from "../../api/axiosConfig";
 import type { Question } from "../../../types";
@@ -31,6 +33,16 @@ export function TournamentGameFlow() {
   const currentQuestionIdRef = useRef<number | null>(null);
   const [gameStatus, setGameStatus] = useState<string>(""); // 게임 상태 (WAIT, IN_PROGRESS, DONE 등)
   const [finalScoreboard, setFinalScoreboard] = useState<any>(null); // 최종 스코어보드
+  
+  // LevelUpScreen 관련 상태
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState<{
+    earnedExp: number;
+    totalXP: number;
+    currentLevel: number;
+    isLevelUp: boolean;
+    earnedPoints: number;
+  } | null>(null);
 
   const currentRoomId = roomId || getSavedRoomId();
   const currentExamType: ExamType = examType || "written";
@@ -216,6 +228,27 @@ export function TournamentGameFlow() {
         // 게임이 종료되었는지 확인
         if (scoreboard.status === "DONE") {
           setFinalScoreboard(scoreboard);
+          
+          // xpResults 처리
+          if (scoreboard.xpResults && scoreboard.xpResults.length > 0 && myUserId) {
+            const myXpResult = scoreboard.xpResults.find(result => result.userId === myUserId);
+            if (myXpResult) {
+              const earnedExp = myXpResult.xpDelta;
+              const totalXP = myXpResult.totalXp;
+              const isLevelUp = myXpResult.leveledUp;
+              const currentLevel = getLevelFromTotalXp(totalXP);
+
+              setLevelUpData({
+                earnedExp,
+                totalXP,
+                currentLevel,
+                isLevelUp,
+                earnedPoints: isLevelUp ? 10 : 0
+              });
+              setShowLevelUp(true);
+            }
+          }
+          
           // 폴링은 useEffect cleanup에서 중지됨
           return;
         }
@@ -284,6 +317,22 @@ export function TournamentGameFlow() {
     );
   }
 
+  // LevelUpScreen이 표시되는 경우
+  if (showLevelUp && levelUpData) {
+    return (
+      <LevelUpScreen
+        earnedExp={levelUpData.earnedExp}
+        totalXP={levelUpData.totalXP}
+        currentLevel={levelUpData.currentLevel}
+        isLevelUp={levelUpData.isLevelUp}
+        earnedPoints={levelUpData.earnedPoints}
+        onComplete={() => {
+          setShowLevelUp(false);
+        }}
+      />
+    );
+  }
+
   // 게임 종료 시 결과 화면 표시
   if (gameStatus === "DONE" && finalScoreboard) {
     const myItem = finalScoreboard.items.find((item: any) => item.userId === myUserId);
@@ -303,7 +352,7 @@ export function TournamentGameFlow() {
               <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-4 bg-gradient-to-br from-purple-400 to-pink-400">
                 <span className="text-5xl">🏆</span>
               </div>
-              <h1 className="text-3xl font-bold text-purple-900 mb-2">토너먼트 종료!</h1>
+              <h1 className="text-3xl text-purple-900 mb-2">토너먼트 종료!</h1>
               <p className="text-gray-600">게임이 완료되었습니다</p>
             </div>
 
@@ -311,7 +360,7 @@ export function TournamentGameFlow() {
             <Card className="p-6 mb-6 border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50">
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-2">나의 최종 결과</p>
-                <div className="text-4xl font-bold text-purple-700 mb-2">{myScore}점</div>
+                <div className="text-4xl text-purple-700 mb-2">{myScore}점</div>
                 {myRank !== null && (
                   <Badge className="bg-purple-500 text-white text-lg px-4 py-2">
                     {myRank}위
@@ -322,7 +371,7 @@ export function TournamentGameFlow() {
 
             {/* 최종 순위표 */}
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">최종 순위</h2>
+              <h2 className="text-xl text-gray-800 mb-4">최종 순위</h2>
               <div className="space-y-2">
                 {sortedParticipants.map((participant: any, index: number) => {
                   const isMe = participant.userId === myUserId;
@@ -349,7 +398,7 @@ export function TournamentGameFlow() {
                             {participant.rank}
                           </div>
                           <div>
-                            <p className={`font-semibold ${isMe ? "text-purple-700" : "text-gray-800"}`}>
+                            <p className={`${isMe ? "text-purple-700" : "text-gray-800"}`}>
                               {participant.nickname || participant.userId}
                               {isMe && " (나)"}
                             </p>
@@ -359,7 +408,7 @@ export function TournamentGameFlow() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-purple-600">{participant.score}점</p>
+                          <p className="text-2xl text-purple-600">{participant.score}점</p>
                         </div>
                       </div>
                     </Card>

@@ -63,7 +63,7 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
 
   return (
     <div className="absolute inset-0 z-20 flex items-end justify-center pb-8 px-4">
-      <div className="grid grid-cols-8 gap-2 md:gap-3 lg:gap-4 w-full max-w-6xl">
+      <div className="grid grid-cols-10 gap-2 md:gap-3 lg:gap-4 w-full max-w-6xl">
         <AnimatePresence mode="popLayout">
           {sortedCharacters.map((character) => {
             const isEliminated = character.status === "eliminated";
@@ -109,22 +109,6 @@ export function CharacterGrid({ characters, onCharacterClick }: CharacterGridPro
                     </motion.div>
                   )}
                 </AnimatePresence>
-
-                {/* User Arrow Indicator */}
-                {character.id === 1 && !isEliminated && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3, type: "spring" }}
-                    className="absolute -top-24 left-1/2 -translate-x-1/2 z-5"
-                  >
-                    <img
-                      src="/assets/ui/arrow.png"
-                      alt="You"
-                      className="w-12 h-12 object-contain"
-                    />
-                  </motion.div>
-                )}
 
                 {/* Character Image */}
                 <motion.div

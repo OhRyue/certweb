@@ -447,7 +447,7 @@ export function ReportDashboard() {
                 </div>
               )}
 
-              <Button variant="outline" className="w-full mt-4" onClick={()=> navigate(`/report/history`)}>
+              <Button variant="outline" className="w-full mt-4" onClick={() => navigate(`/report/history`)}>
                 전체 기록 보기
               </Button>
             </Card>
@@ -457,7 +457,9 @@ export function ReportDashboard() {
 
       {/* Activity Detail Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+  className="w-[70vw] max-w-[90vw] !sm:max-w-[90vw] !max-w-[90vw] max-h-[90vh] overflow-y-auto"
+>
           <DialogHeader>
             <DialogTitle>학습 상세 정보</DialogTitle>
             <DialogDescription>
@@ -543,17 +545,16 @@ export function ReportDashboard() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-gray-600">정답률</span>
-                      <span className={`text-sm font-semibold ${
-                        selectedActivity.header.accuracyPct >= 90 ? "text-green-600" :
-                        selectedActivity.header.accuracyPct >= 70 ? "text-blue-600" :
-                        selectedActivity.header.accuracyPct >= 50 ? "text-orange-600" :
-                        "text-red-600"
-                      }`}>
+                      <span className={`text-sm font-semibold ${selectedActivity.header.accuracyPct >= 90 ? "text-green-600" :
+                          selectedActivity.header.accuracyPct >= 70 ? "text-blue-600" :
+                            selectedActivity.header.accuracyPct >= 50 ? "text-orange-600" :
+                              "text-red-600"
+                        }`}>
                         {selectedActivity.header.accuracyPct.toFixed(1)}%
                       </span>
                     </div>
-                    <Progress 
-                      value={selectedActivity.header.accuracyPct} 
+                    <Progress
+                      value={selectedActivity.header.accuracyPct}
                       className="h-2"
                     />
                   </div>
@@ -596,11 +597,10 @@ export function ReportDashboard() {
                     {selectedActivity.questions.map((question) => (
                       <div
                         key={question.questionId}
-                        className={`p-4 rounded-lg border-2 ${
-                          question.isCorrect
+                        className={`p-4 rounded-lg border-2 ${question.isCorrect
                             ? "bg-green-50 border-green-200"
                             : "bg-red-50 border-red-200"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -635,9 +635,8 @@ export function ReportDashboard() {
                         <div className="flex items-center gap-4 text-xs">
                           <div>
                             <span className="text-gray-600">내 답: </span>
-                            <span className={`font-medium ${
-                              question.isCorrect ? "text-green-700" : "text-red-700"
-                            }`}>
+                            <span className={`font-medium ${question.isCorrect ? "text-green-700" : "text-red-700"
+                              }`}>
                               {question.myAnswer}
                             </span>
                           </div>

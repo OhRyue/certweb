@@ -243,7 +243,7 @@ export function PostListSection({
                 setCurrentPage(1)
               }}
               className={`px-4 py-2 rounded-lg transition-all ${activeTab === "all"
-                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                ? "bg-gradient-to-r from-purple-500 to-purple-500 text-white shadow-md"
                 : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                 }`}
             >
@@ -258,7 +258,7 @@ export function PostListSection({
                   setCurrentPage(1)
                 }}
                 className={`px-4 py-2 rounded-lg transition-all ${activeTab === cat.code
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                  ? "bg-gradient-to-r from-purple-500 to-purple-500 text-white shadow-md"
                   : "bg-gray-100 hover:bg-gray-200 text-gray-700"
                   }`}
               >
@@ -269,7 +269,7 @@ export function PostListSection({
 
           <Button
             onClick={() => setShowWritePost(true)}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg whitespace-nowrap"
+            className="bg-gradient-to-r from-purple-500 to-purple-500 hover:from-purple-600 hover:to-purple-600 text-white shadow-lg whitespace-nowrap"
           >
             글쓰기
           </Button>
@@ -300,7 +300,7 @@ export function PostListSection({
           </div>
           <Button
             onClick={handleSearch}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white whitespace-nowrap"
+            className="bg-gradient-to-r from-purple-500 to-purple-500 hover:from-purple-600 hover:to-purple-600 text-white whitespace-nowrap"
           >
             <Search className="w-4 h-4 mr-2" />
             검색
@@ -333,8 +333,8 @@ export function PostListSection({
                     </span>
                   </div>
                   <div className="flex items-center gap-1 text-gray-500 flex-shrink-0">
-                    <Eye className="w-4 h-4" />
-                    <span>{post.viewCount}</span>
+                    <Heart className="w-4 h-4" />
+                    <span>{post.likeCount}</span>
                   </div>
                 </div>
               </button>

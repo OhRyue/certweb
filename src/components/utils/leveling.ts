@@ -90,3 +90,16 @@ export function getStartXP(level: number): number {
     const startXP = getStartXP(level)
     return totalXP - startXP
   }
+
+  export function getLevelFromTotalXp(totalXp: number): number {
+    let level = 1
+  
+    while (true) {
+      const required = getRequiredXP(level)    // 300 + level * 50
+      const startXP = getStartXP(level)        // 이 레벨 시작점
+      const endXP = startXP + required         // 이 레벨 끝점
+  
+      if (totalXp < endXP) return level
+      level++
+    }
+  }
