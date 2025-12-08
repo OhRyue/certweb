@@ -396,7 +396,7 @@ export function CertInfoDashboard() {
         ) : null}
 
         <Tabs defaultValue="info" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="info">
               <Award className="w-4 h-4 mr-2" />
               시험 정보
@@ -412,10 +412,6 @@ export function CertInfoDashboard() {
             <TabsTrigger value="benefits">
               <User className="w-4 h-4 mr-2" />
               취득 혜택
-            </TabsTrigger>
-            <TabsTrigger value="tips">
-              <FileText className="w-4 h-4 mr-2" />
-              합격팁
             </TabsTrigger>
           </TabsList>
 
@@ -483,6 +479,23 @@ export function CertInfoDashboard() {
                   <h3 className="text-purple-900 mb-4">연혁</h3>
                   <p className="text-gray-700 leading-relaxed">{basicInfo.hist}</p>
                 </Card>
+
+                {/* 자격증 정보 */}
+                {isLoadingCertInfo ? (
+                  <Card className="p-6 border-2 border-purple-200">
+                    <div className="flex items-center justify-center gap-2 text-purple-600">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>자격증 정보를 불러오는 중...</span>
+                    </div>
+                  </Card>
+                ) : getInfoByType("취득방법") ? (
+                  <Card className="p-6 border-2 border-purple-200">
+                    <h3 className="text-purple-900 mb-4">자격증 정보</h3>
+                    <div className="text-gray-700 leading-relaxed">
+                      {cleanHtmlContent(getInfoByType("취득방법")!.contents)}
+                    </div>
+                  </Card>
+                ) : null}
               </div>
             ) : (
               <Card className="p-6 border-2 border-purple-200">
@@ -695,30 +708,6 @@ export function CertInfoDashboard() {
                 </div>
               </div>
             </Card>
-          </TabsContent>
-
-          {/* 합격팁 Tab */}
-          <TabsContent value="tips">
-            {isLoadingCertInfo ? (
-              <Card className="p-6 border-2 border-purple-200">
-                <div className="flex items-center justify-center gap-2 text-purple-600">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>합격팁을 불러오는 중...</span>
-                </div>
-              </Card>
-            ) : (
-              <Card className="p-6 border-2 border-purple-200">
-                <h3 className="text-purple-900 mb-4">합격팁</h3>
-                {getInfoByType("취득방법") ? (
-                  <div className="text-gray-700 whitespace-pre-line text-sm leading-relaxed">
-                    {cleanHtmlContent(getInfoByType("취득방법")!.contents)}
-                  </div>
-
-                ) : (
-                  <p className="text-gray-600">합격팁 정보가 없습니다.</p>
-                )}
-              </Card>
-            )}
           </TabsContent>
         </Tabs>
 

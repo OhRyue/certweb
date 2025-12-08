@@ -47,7 +47,7 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
           className="text-center mb-8"
         >
           <div className="text-6xl mb-4">🔔</div>
-          <h1 className="text-4xl font-bold text-purple-900 mb-2">골든벨 게임 종료</h1>
+          <h1 className="text-4xl text-purple-900 mb-2">골든벨 게임 종료</h1>
           <p className="text-gray-600">게임 결과를 확인하세요</p>
         </motion.div>
 
@@ -74,7 +74,7 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
                 <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full ${getRankBadgeColor(myRank)} mb-4 shadow-lg`}>
                   <span className="text-5xl">{getRankIcon(myRank)}</span>
                 </div>
-                <h2 className={`text-3xl font-bold mb-2 ${
+                <h2 className={`text-3xl mb-2 ${
                   isWinner ? "text-yellow-700" : "text-purple-900"
                 }`}>
                   {isWinner ? "우승!" : `${myRank}위`}
@@ -84,15 +84,15 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
               {/* Stats Grid */}
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="bg-white/80 rounded-lg p-4 border-2 border-purple-100">
-                  <div className="text-2xl font-bold text-purple-600 mb-1">{myScore}</div>
+                  <div className="text-2xl text-purple-600 mb-1">{myScore}</div>
                   <div className="text-sm text-gray-600">점수</div>
                 </div>
                 <div className="bg-white/80 rounded-lg p-4 border-2 border-purple-100">
-                  <div className="text-2xl font-bold text-blue-600 mb-1">{myCorrectCount}/{myTotalCount}</div>
+                  <div className="text-2xl text-blue-600 mb-1">{myCorrectCount}/{myTotalCount}</div>
                   <div className="text-sm text-gray-600">정답 수</div>
                 </div>
                 <div className="bg-white/80 rounded-lg p-4 border-2 border-purple-100">
-                  <div className="text-2xl font-bold text-green-600 mb-1">{accuracy}%</div>
+                  <div className="text-2xl text-green-600 mb-1">{accuracy}%</div>
                   <div className="text-sm text-gray-600">정답률</div>
                 </div>
               </div>
@@ -107,7 +107,7 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
                 >
                   <div className="flex items-center justify-center gap-2">
                     <Trophy className="w-6 h-6" />
-                    <span className="text-lg font-bold">골든벨을 울리셨습니다!</span>
+                    <span className="text-lg">골든벨을 울리셨습니다!</span>
                   </div>
                 </motion.div>
               )}
@@ -125,7 +125,7 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
           <Card className="p-6 border-2 border-purple-200 bg-white">
             <div className="flex items-center gap-2 mb-6">
               <Users className="w-6 h-6 text-purple-600" />
-              <h2 className="text-2xl font-bold text-purple-900">전체 순위</h2>
+              <h2 className="text-2xl text-purple-900">전체 순위</h2>
             </div>
             
             <div className="space-y-3">
@@ -165,7 +165,7 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
                         {/* User Info */}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`font-semibold ${
+                            <span className={`${
                               isMe ? "text-purple-700" : "text-gray-800"
                             }`}>
                               {isMe ? "나" : (item.nickname || item.userId)}
@@ -181,9 +181,9 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
                             )}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span>점수: <span className="font-semibold text-purple-600">{item.score}</span></span>
-                            <span>정답: <span className="font-semibold text-blue-600">{item.correctCount}/{item.totalCount}</span></span>
-                            <span>정답률: <span className="font-semibold text-green-600">{itemAccuracy}%</span></span>
+                            <span>점수: <span className="text-purple-600">{item.score}</span></span>
+                            <span>정답: <span className="text-blue-600">{item.correctCount}/{item.totalCount}</span></span>
+                            <span>정답률: <span className="text-green-600">{itemAccuracy}%</span></span>
                           </div>
                         </div>
                       </div>
@@ -212,16 +212,9 @@ export function GoldenBellResult({ scoreboard, myUserId, onBackToDashboard, onRe
           className="flex gap-4 justify-center"
         >
           <Button
-            onClick={onRetry}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-6 text-lg"
-          >
-            <RotateCcw className="w-5 h-5 mr-2" />
-            다시 도전
-          </Button>
-          <Button
             onClick={onBackToDashboard}
             variant="outline"
-            className="border-purple-300 text-purple-700 hover:bg-purple-50 px-8 py-6 text-lg"
+            className="border-purple-300 text-purple-700 hover:bg-purple-50 px-8 py-6"
           >
             <Home className="w-5 h-5 mr-2" />
             대시보드로

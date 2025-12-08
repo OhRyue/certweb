@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
-import { Dumbbell, Tag, BarChart2 } from "lucide-react";
+import { Tag, BarChart2, Swords } from "lucide-react";
 
 export function OneVsOneDashboard(){
   const navigate = useNavigate()
@@ -12,10 +12,10 @@ export function OneVsOneDashboard(){
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <Dumbbell className="w-8 h-8 text-purple-600" />
-            <h1 className="text-purple-900">보조 학습 (혼자풀기)</h1>
+          <Swords className="w-8 h-8 text-purple-600" />
+            <h1 className="text-purple-900">1:1 배틀</h1>
           </div>
-          <p className="text-gray-600">내 방식대로 자유롭게 학습하세요!</p>
+          <p className="text-gray-600">친구들과 실력을 겨루어 보세요!</p>
         </div>
 
         {/* Quiz Modes */}

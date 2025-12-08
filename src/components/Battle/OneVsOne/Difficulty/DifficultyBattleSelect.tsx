@@ -49,9 +49,7 @@ export function DifficultyBattleSelect() {
   }
 
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto">
-
+      <div>
         {/* Header */}
         <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
           <div className="max-w-6xl mx-auto">
@@ -189,6 +187,5 @@ export function DifficultyBattleSelect() {
           </div>
         </div>
       </div>
-    </div>
   )
 }

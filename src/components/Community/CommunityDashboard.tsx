@@ -87,10 +87,10 @@ export function CommunityDashboard() {
         {/* 게시판 & 내활동 탭 */}
         <Tabs value={mainTab} onValueChange={v => setMainTab(v as any)} className="mb-6">
           <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur border-2 border-purple-200">
-            <TabsTrigger value="board" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+            <TabsTrigger value="board" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-500 data-[state=active]:text-white">
               📋 게시판
             </TabsTrigger>
-            <TabsTrigger value="myActivity" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+            <TabsTrigger value="myActivity" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-500 data-[state=active]:text-white">
               ✍️ 내 활동
             </TabsTrigger>
           </TabsList>
