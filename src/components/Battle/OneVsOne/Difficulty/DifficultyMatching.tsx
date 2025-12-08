@@ -7,24 +7,24 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { requestMatch, getMatchStatus, saveRoomId, getRoomState, type MatchRequestResponse, type MatchStatusResponse } from "../../../api/versusApi";
 import axios from "../../../api/axiosConfig";
 
-// 프로필 이미지 import
-import girlBasicProfile from "../../../assets/profile/girl_basic_profile.png";
-import boyNerdProfile from "../../../assets/profile/boy_nerd_profile.png";
-import girlUniformProfile from "../../../assets/profile/girl_uniform_profile.jpg";
-import girlPajamaProfile from "../../../assets/profile/girl_pajama_profile.png";
-import girlMarriedProfile from "../../../assets/profile/girl_married_profile.png";
-import girlNerdProfile from "../../../assets/profile/girl_nerd_profile.png";
-import girlIdolProfile from "../../../assets/profile/girl_idol_profile.png";
-import girlGhostProfile from "../../../assets/profile/girl_ghost_profile.png";
-import girlCyberpunkProfile from "../../../assets/profile/girl_cyberpunk_profile.png";
-import girlChinaProfile from "../../../assets/profile/girl_china_profile.jpg";
-import girlCatProfile from "../../../assets/profile/girl_cat_profile.png";
-import boyWorkerProfile from "../../../assets/profile/boy_worker_profile.png";
-import boyPoliceofficerProfile from "../../../assets/profile/boy_policeofficer_profile.png";
-import boyHiphopProfile from "../../../assets/profile/boy_hiphop_profile.png";
-import boyDogProfile from "../../../assets/profile/boy_dog_profile.png";
-import boyBasicProfile from "../../../assets/profile/boy_basic_profile.png";
-import boyAgentProfile from "../../../assets/profile/boy_agent_profile.png";
+// 프로필 이미지 경로
+const girlBasicProfile = "/assets/profile/girl_basic_profile.png";
+const boyNerdProfile = "/assets/profile/boy_nerd_profile.png";
+const girlUniformProfile = "/assets/profile/girl_uniform_profile.jpg";
+const girlPajamaProfile = "/assets/profile/girl_pajama_profile.png";
+const girlMarriedProfile = "/assets/profile/girl_married_profile.png";
+const girlNerdProfile = "/assets/profile/girl_nerd_profile.png";
+const girlIdolProfile = "/assets/profile/girl_idol_profile.png";
+const girlGhostProfile = "/assets/profile/girl_ghost_profile.png";
+const girlCyberpunkProfile = "/assets/profile/girl_cyberpunk_profile.png";
+const girlChinaProfile = "/assets/profile/girl_china_profile.jpg";
+const girlCatProfile = "/assets/profile/girl_cat_profile.png";
+const boyWorkerProfile = "/assets/profile/boy_worker_profile.png";
+const boyPoliceofficerProfile = "/assets/profile/boy_policeofficer_profile.png";
+const boyHiphopProfile = "/assets/profile/boy_hiphop_profile.png";
+const boyDogProfile = "/assets/profile/boy_dog_profile.png";
+const boyBasicProfile = "/assets/profile/boy_basic_profile.png";
+const boyAgentProfile = "/assets/profile/boy_agent_profile.png";
 
 // skinId를 프로필 이미지로 매핑
 const PROFILE_IMAGE_MAP: Record<number, string> = {
