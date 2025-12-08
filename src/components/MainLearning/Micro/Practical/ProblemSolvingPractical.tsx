@@ -204,13 +204,6 @@ export function ProblemSolvingPractical({
           transition={{ duration: 0.3 }}
         >
           <Card className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-6">
-            <div className="flex items-start gap-3 mb-6">
-              {currentQuestion.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  #{tag}
-                </Badge>
-              ))}
-            </div>
 
             <h2 className="text-purple-900 mb-6">{currentQuestion.question}</h2>
 

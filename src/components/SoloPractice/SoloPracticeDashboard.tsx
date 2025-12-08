@@ -1,10 +1,46 @@
 import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import axios from "../api/axiosConfig"
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Dumbbell, Tag, BarChart2, Heart } from "lucide-react";
 
 export function SoloPracticeDashboard(){
   const navigate = useNavigate()
+  
+  // API 데이터 상태
+  const [solvedToday, setSolvedToday] = useState<number>(0)
+  const [problemsThisWeek, setProblemsThisWeek] = useState<number>(0)
+  const [avgAccuracy, setAvgAccuracy] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+
+  // API 데이터 가져오기
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        setLoading(true)
+        
+        // 오늘 푼 문제 수 가져오기
+        const quickStatsRes = await axios.get("/progress/home/quick-stats")
+        const solvedTodayValue = quickStatsRes.data.solvedToday || 0
+        // 50을 넘으면 50으로 제한
+        setSolvedToday(solvedTodayValue > 50 ? 50 : solvedTodayValue)
+        
+        // 이번주 푼 문제 수와 평균 정답률 가져오기
+        const overviewRes = await axios.get("/progress/report/overview")
+        setProblemsThisWeek(overviewRes.data.problemsThisWeek || 0)
+        setAvgAccuracy(overviewRes.data.avgAccuracy || 0)
+        
+      } catch (err) {
+        console.error("대시보드 데이터 불러오기 실패", err)
+        // 에러 발생 시 기본값 유지
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
 
   return (
     <div className="p-8">
@@ -133,16 +169,21 @@ export function SoloPracticeDashboard(){
             <p className="text-gray-600 mb-2">50문제 풀기</p>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-2 bg-purple-200 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: "60%" }} />
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500" 
+                  style={{ width: `${loading ? 0 : Math.min((solvedToday / 50) * 100, 100)}%` }} 
+                />
               </div>
-              <span className="text-sm text-purple-600">30/50</span>
+              <span className="text-sm text-purple-600">
+                {loading ? "0" : solvedToday}/50
+              </span>
             </div>
           </Card>
 
           <Card className="p-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200">
             <h3 className="text-blue-900 mb-2">이번 주 학습</h3>
             <div className="text-blue-600">
-              <span className="text-3xl">245</span>
+              <span className="text-3xl">{loading ? "0" : problemsThisWeek}</span>
               <span className="text-sm ml-2">문제</span>
             </div>
           </Card>
@@ -150,7 +191,9 @@ export function SoloPracticeDashboard(){
           <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
             <h3 className="text-green-900 mb-2">평균 정답률</h3>
             <div className="text-green-600">
-              <span className="text-3xl">78</span>
+              <span className="text-3xl">
+                {loading ? "0" : Math.round(avgAccuracy)}
+              </span>
               <span className="text-sm ml-2">%</span>
             </div>
           </Card>

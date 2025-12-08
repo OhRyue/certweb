@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { ProblemSolvingPractical } from "../MainLearning/Micro/Practical/ProblemSolvingPractical"
-import { ProblemSolvingWritten } from "../MainLearning/Micro/Written/ProblemSolvingWritten"
+import { ProblemPractical } from "./ProblemPractical"
+import { ProblemSolving } from "./ProblemSolving"
 import { ReviewWrongAnswersWritten } from "../MainLearning/Review/ReviewWrongAnswersWritten"
 import { ReviewWrongAnswersPractical } from "../MainLearning/Review/ReviewWrongAnswersPractical"
 import { ReviewResult } from "./SoloResult"
@@ -223,11 +223,12 @@ export function QuizFlowPage() {
         }
         
         return (
-          <ProblemSolvingWritten
+          <ProblemSolving
             questions={relatedQuestions}
             topicName={quizTitle}
             topicId={topicId || 0}
             userId={userId}
+            quizType={quizType || null}
             onSubmitOne={async ({ questionId, label }) => {
               // 카테고리/난이도/약점 보완 퀴즈 필기 채점 API
               const res = await axios.post(
@@ -308,7 +309,7 @@ export function QuizFlowPage() {
           : "카테고리 퀴즈"
         
         return (
-          <ProblemSolvingPractical
+          <ProblemPractical
             questions={relatedQuestions}
             topicName={quizTitle}
             topicId={topicId || 0}
