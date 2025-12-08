@@ -132,9 +132,6 @@ export function ReviewResult({
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-blue-900">AI 학습 요약</h3>
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
-                      Beta
-                    </Badge>
                   </div>
                   {loadingSummary ? (
                     <div className="flex items-center gap-2 text-gray-600">

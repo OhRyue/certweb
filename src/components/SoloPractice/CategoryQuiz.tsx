@@ -290,7 +290,7 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
               <div className="space-y-2 mb-4">
                 {/* 제목 + 토글 */}
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl text-purple-900">학습 주제 선택</h2>
+                  <h2 className="text-purple-900">학습 주제 선택</h2>
 
                   <Tabs value={selectedExamType} onValueChange={v => toggleExamType(v as "written" | "practical")}>
                     <TabsList className="bg-gradient-to-r from-purple-100 to-pink-100 p-1">

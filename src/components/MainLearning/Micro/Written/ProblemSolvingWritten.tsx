@@ -144,26 +144,6 @@ export function ProblemSolvingWritten({
           transition={{ duration: 0.3 }}
         >
           <Card className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-6">
-            <div className="flex items-start gap-3 mb-6">
-              <Badge 
-                variant="secondary"
-                className={
-                  currentQuestion.difficulty === "easy" 
-                    ? "bg-green-100 text-green-700"
-                    : currentQuestion.difficulty === "medium"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-red-100 text-red-700"
-                }
-              >
-                {currentQuestion.difficulty === "easy" ? "쉬움" : 
-                 currentQuestion.difficulty === "medium" ? "보통" : "어려움"}
-              </Badge>
-              {currentQuestion.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  #{tag}
-                </Badge>
-              ))}
-            </div>
 
             <h2 className="text-purple-900 mb-6">{currentQuestion.question}</h2>
 
@@ -179,9 +159,14 @@ export function ProblemSolvingWritten({
 
                 if (!showResult && !isSubmitting) {
                   buttonClass += " hover:border-purple-400 hover:bg-white/60 cursor-pointer";
-                } else if (isCorrectAnswer) {
+                } else if (isSubmitting && isSelected) {
+                  // 제출 중일 때는 로딩 상태 표시 (색상 없이)
+                  buttonClass += " border-purple-300 bg-purple-50";
+                } else if (showResult && isCorrectAnswer) {
+                  // 정답인 경우 초록색 표시 (showResult가 true일 때만)
                   buttonClass += " border-green-400 bg-green-50";
-                } else if (isSelected && !isCorrect) {
+                } else if (showResult && isSelected && !isCorrect) {
+                  // 오답인 경우 빨간색 표시 (showResult가 true일 때만)
                   buttonClass += " border-red-400 bg-red-50";
                 } else {
                   buttonClass += " opacity-50";

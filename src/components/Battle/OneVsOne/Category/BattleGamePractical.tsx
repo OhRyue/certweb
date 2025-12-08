@@ -7,7 +7,7 @@ import { Input } from "../../../ui/input";
 import { Swords, Clock, Zap, Sparkles, Target } from "lucide-react";
 import type { Question } from "../../../../types";
 import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
-import { submitAnswer, getScoreboard, getRoomState, getVersusQuestion, type CurrentQuestion } from "../../../api/versusApi";
+import { submitAnswer, getScoreboard, getVersusQuestion, sendHeartbeat, type CurrentQuestion } from "../../../api/versusApi";
 import axios from "../../../api/axiosConfig";
 
 // 프로필 이미지 경로
@@ -103,6 +103,10 @@ export function BattleGamePractical({
   // 프로필 이미지용 skinId 상태
   const [mySkinId, setMySkinId] = useState<number>(1);
   const [opponentSkinId, setOpponentSkinId] = useState<number>(1);
+  
+  // nickname 상태
+  const [myNickname, setMyNickname] = useState<string | null>(null);
+  const [opponentNickname, setOpponentNickname] = useState<string | null>(null);
 
   // 1초 폴링으로 실시간 스코어보드 조회
   useEffect(() => {
@@ -122,6 +126,8 @@ export function BattleGamePractical({
           if (myItem.skinId) {
             setMySkinId(myItem.skinId);
           }
+          // nickname 업데이트
+          setMyNickname(myItem.nickname);
         }
         if (opponentItem) {
           setOpponentScore(opponentItem.score);
@@ -129,6 +135,8 @@ export function BattleGamePractical({
           if (opponentItem.skinId) {
             setOpponentSkinId(opponentItem.skinId);
           }
+          // 상대방 nickname 업데이트
+          setOpponentNickname(opponentItem.nickname);
         }
 
         // 1:1 배틀에서 상대방 이탈 감지 (참가자가 1명만 남은 경우)
@@ -172,14 +180,6 @@ export function BattleGamePractical({
         // status가 "DONE"이면 게임 종료
         if (scoreboard.status === "DONE") {
           setGameStatus("DONE");
-          // 게임 종료 시 state 조회하여 결과 확인
-          try {
-            const roomState = await getRoomState(roomId);
-            // 결과는 roomState에서 확인 가능
-            console.log("게임 종료 - 최종 결과:", roomState);
-          } catch (error) {
-            console.error("게임 종료 후 상태 조회 실패:", error);
-          }
         } else {
           setGameStatus(scoreboard.status);
         }
@@ -191,11 +191,37 @@ export function BattleGamePractical({
     // 즉시 한 번 조회
     pollScoreboard();
 
-    // 1초마다 폴링
-    const interval = setInterval(pollScoreboard, 1000);
+    // 2초마다 폴링
+    const interval = setInterval(pollScoreboard, 2000);
 
     return () => clearInterval(interval);
   }, [roomId, myUserId, currentQuestionIndex, opponentLeft]);
+
+  // 하트비트 전송 (15초마다)
+  useEffect(() => {
+    if (!roomId || gameStatus === "DONE") return;
+
+    const sendHeartbeatRequest = async () => {
+      try {
+        await sendHeartbeat(roomId);
+      } catch (error) {
+        console.error("Heartbeat 전송 실패:", error);
+        // heartbeat 실패는 자동 추방으로 이어지므로 에러 표시하지 않음
+      }
+    };
+
+    // 즉시 한 번 전송
+    sendHeartbeatRequest();
+
+    // 15초마다 전송
+    const heartbeatInterval = setInterval(sendHeartbeatRequest, 15000);
+
+    return () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+    };
+  }, [roomId, gameStatus]);
 
   // currentQuestion이 변경되면 문제를 하나씩 가져오기 (토너먼트 방식)
   useEffect(() => {
@@ -394,12 +420,9 @@ export function BattleGamePractical({
                 ? "bg-gradient-to-br from-green-100 to-emerald-100 border-green-400 shadow-lg scale-105"
                 : "bg-gradient-to-br from-purple-100 to-pink-100 border-purple-300"
             }`}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-700 font-semibold">{myUserId || "나"}</p>
-                  {myRank !== null && myRank !== undefined && (
-                    <p className="text-xs text-purple-600">순위: {myRank}위</p>
-                  )}
+                  <p className="text-sm text-gray-700">{myNickname || myUserId || "나"}</p>
                   <p className="text-3xl text-purple-700">{myScore}점</p>
                 </div>
                 <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-purple-400 to-pink-400">
@@ -410,10 +433,6 @@ export function BattleGamePractical({
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <Target className="w-3 h-3" />
-                <span>문제 {currentQuestionNumber !== null ? currentQuestionNumber : currentQuestionIndex + 1}</span>
-              </div>
             </Card>
 
             {/* 상대 */}
@@ -422,12 +441,9 @@ export function BattleGamePractical({
                 ? "bg-gradient-to-br from-blue-100 to-cyan-100 border-blue-400 shadow-lg scale-105"
                 : "bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-300"
             }`}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-700 mb-1 font-semibold">{opponentUserId || opponentName}</p>
-                  {opponentRank !== null && opponentRank !== undefined && (
-                    <p className="text-xs text-blue-600">순위: {opponentRank}위</p>
-                  )}
+                  <p className="text-sm text-gray-700 mb-1">{opponentNickname || opponentUserId || opponentName}</p>
                   <p className="text-3xl text-blue-700">{opponentScore}점</p>
                 </div>
                 <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md bg-gradient-to-br from-blue-400 to-cyan-400 relative">

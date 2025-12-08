@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from "motion/react";
 import type { GoldenBellCharacter, CanvasEffect } from "../../../types";
 import { CharacterGrid } from "./CharacterGrid";
 import { EffectCanvas } from "./EffectCanvas";
+import { LevelUpScreen } from "../../LevelUpScreen";
+import { getLevelFromTotalXp } from "../../utils/leveling";
 import { 
   getScoreboard, 
   getRoomState,
@@ -49,6 +51,7 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
   const [answerStartTime, setAnswerStartTime] = useState<number | null>(null);
   const [submittedQuestionId, setSubmittedQuestionId] = useState<number | null>(null);
   const autoSubmittedRef = useRef<number | null>(null); // 자동 제출한 questionId 추적
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null); // 폴링 interval 추적
   
   // 관전자 모드 및 부활 관련 상태
   const [isSpectator, setIsSpectator] = useState(false);
@@ -59,6 +62,16 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
   const [myRevived, setMyRevived] = useState<boolean | null>(null); // 사용자의 부활 상태
   const [prevPhase, setPrevPhase] = useState<string | null>(null); // 이전 phase 추적
   const [noRevivalNoticeShown, setNoRevivalNoticeShown] = useState(false); // 부활 자격 없음 알림을 이미 표시했는지 추적
+  
+  // LevelUpScreen 관련 상태
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState<{
+    earnedExp: number;
+    totalXP: number;
+    currentLevel: number;
+    isLevelUp: boolean;
+    earnedPoints: number;
+  } | null>(null);
 
   // 생존자 수는 반드시 scoreboard에서 확인
   const survivorsCount = scoreboard?.items?.filter(item => item.alive).length || 0;
@@ -112,11 +125,29 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
   // 스코어보드 폴링 (1초마다)
   useEffect(() => {
     if (!roomId || isNaN(roomId)) return;
+    // status가 "DONE"이면 폴링 중지
+    if (scoreboard?.status === "DONE") {
+      // 기존 interval 정리
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
 
     const pollScoreboard = async () => {
       try {
         const scoreboardData = await getScoreboard(roomId);
         setScoreboard(scoreboardData);
+        
+        // status가 "DONE"이면 폴링 중지
+        if (scoreboardData.status === "DONE") {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          return;
+        }
         
         // myUserId 설정 (prop에서 받은 값 우선 사용, 없으면 scoreboard에서 찾기)
         const currentMyUserId = propMyUserId || myUserId;
@@ -215,9 +246,15 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
 
     // 1초마다 폴링
     const interval = setInterval(pollScoreboard, 1000);
+    pollingIntervalRef.current = interval;
 
-    return () => clearInterval(interval);
-  }, [roomId, propMyUserId, myUserId, prevAlive]);
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [roomId, propMyUserId, myUserId, prevAlive, scoreboard?.status]);
 
   // currentQuestion이 변경되면 문제 상세 정보 조회 (초기 로딩 이후)
   useEffect(() => {
@@ -251,10 +288,10 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
     const newCharacters: GoldenBellCharacter[] = [];
     
     allParticipants.forEach((participant, index) => {
-      const row = Math.floor(index / 8);
-      const col = index % 8;
+      const row = Math.floor(index / 10);
+      const col = index % 10;
       
-      if (row < 2 && col < 8) {
+      if (row < 2 && col < 10) {
         const userIdToUse = propMyUserId || myUserId;
         const isUser = participant.userId === userIdToUse;
         // API의 alive 필드만 사용
@@ -279,9 +316,9 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
     // 빈 자리 채우기 (20명 미만인 경우)
     while (newCharacters.length < 20) {
       const index = newCharacters.length;
-      const row = Math.floor(index / 8);
-      const col = index % 8;
-      if (row < 2 && col < 8) {
+      const row = Math.floor(index / 10);
+      const col = index % 10;
+      if (row < 2 && col < 10) {
         newCharacters.push({
           id: index + 1,
           name: `참가자 ${index + 1}`,
@@ -441,6 +478,27 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
     }
   };
 
+  // xpResults 처리 함수
+  const handleXpResult = (result: { userId: string; xpDelta: number; reason: string; totalXp: number; leveledUp: boolean }) => {
+    const earnedExp = result.xpDelta;
+    const totalXP = result.totalXp;
+    const isLevelUp = result.leveledUp;
+
+    // totalXP로 현재 레벨 계산
+    const currentLevel = getLevelFromTotalXp(totalXP);
+
+    // LevelUpScreen 열기 위한 상태 설정
+    setLevelUpData({
+      earnedExp,
+      totalXP,
+      currentLevel,
+      isLevelUp,
+      earnedPoints: isLevelUp ? 10 : 0 // 포인트는 예시
+    });
+
+    setShowLevelUp(true);
+  };
+
   // 스코어보드 업데이트로 결과 확인 (API 데이터만 사용)
   useEffect(() => {
     const userIdToUse = propMyUserId || myUserId;
@@ -450,6 +508,15 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
     if (scoreboard.status === "DONE") {
       const myItem = scoreboard.items.find(item => item.userId === userIdToUse);
       if (!myItem) return;
+
+      // xpResults 처리
+      if (scoreboard.xpResults && scoreboard.xpResults.length > 0) {
+        const myXpResult = scoreboard.xpResults.find(result => result.userId === userIdToUse);
+        if (myXpResult) {
+          handleXpResult(myXpResult);
+          return; // LevelUpScreen이 표시되는 동안은 결과 화면으로 이동하지 않음
+        }
+      }
 
       // 승자는 scoreboard.items[0].userId (점수 순서대로 정렬됨)
       const winnerUserId = scoreboard.items[0]?.userId;
@@ -490,10 +557,10 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
     const { row, col } = character.gridPosition;
     const containerRect = containerRef.current.getBoundingClientRect();
     
-    // Calculate character position (approximate) for 8x2 grid at bottom
+    // Calculate character position (approximate) for 10x2 grid at bottom
     const gridWidth = containerRect.width * 0.9;
     const gridHeight = containerRect.height * 0.25; // Smaller height for 2 rows
-    const cellWidth = gridWidth / 8;
+    const cellWidth = gridWidth / 10;
     const cellHeight = gridHeight / 2;
     
     const x = (containerRect.width - gridWidth) / 2 + col * cellWidth + cellWidth / 2;
@@ -548,6 +615,38 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
   const handleShortAnswer = () => {
     handleAnswer(userAnswer);
   };
+
+  // LevelUpScreen이 표시되는 경우
+  if (showLevelUp && levelUpData) {
+    return (
+      <LevelUpScreen
+        earnedExp={levelUpData.earnedExp}
+        totalXP={levelUpData.totalXP}
+        currentLevel={levelUpData.currentLevel}
+        isLevelUp={levelUpData.isLevelUp}
+        earnedPoints={levelUpData.earnedPoints}
+        onComplete={() => {
+          setShowLevelUp(false);
+          // LevelUpScreen 닫은 후 결과 화면으로 이동
+          const userIdToUse = propMyUserId || myUserId;
+          if (scoreboard && userIdToUse) {
+            const winnerUserId = scoreboard.items[0]?.userId;
+            const isWinner = winnerUserId === userIdToUse;
+            const myRank = scoreboard.items.findIndex(item => item.userId === userIdToUse) + 1;
+
+            if (isWinner) {
+              showWinnerScreen();
+            } else {
+              setGameStage("result");
+              setTimeout(() => {
+                onComplete(false, myRank);
+              }, 1500);
+            }
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">

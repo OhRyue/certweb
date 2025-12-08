@@ -35,11 +35,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import axios from "../api/axiosConfig"
-import { ActivityDetail, ActivityListResponse, ActivityDetailResponse } from "../../types"
+import type { ActivityDetail, ActivityListResponse, ActivityDetailResponse } from "../../types"
+import { useNavigate } from "react-router-dom"
 
 const ITEMS_PER_PAGE = 10;
 
 export function FullHistoryView() {
+  const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(0); // API는 0부터 시작
   const [historyData, setHistoryData] = useState<ActivityDetail[]>([])
   const [loading, setLoading] = useState(true)
@@ -205,6 +207,7 @@ export function FullHistoryView() {
           <Button
             variant="ghost"
             className="mb-4 -ml-2"
+            onClick={() => navigate("/report")}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             뒤로 가기
@@ -254,57 +257,57 @@ export function FullHistoryView() {
               const percentage = item.accuracyPct;
               const isPassed = percentage !== undefined && percentage >= 60;
 
-            return (
-              <Card
+              return (
+                <Card
                   key={item.activityId}
                   onClick={() => handleActivityClick(item)}
                   className="p-6 border-2 hover:border-purple-300 transition-all hover:shadow-lg cursor-pointer"
-              >
-                <div className="flex items-start justify-between gap-6">
-                  {/* Left: Main Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
+                >
+                  <div className="flex items-start justify-between gap-6">
+                    {/* Left: Main Info */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
                         <Badge className={`${getActivityGroupBadgeColor(item.activityGroup)} border`}>
                           {getActivityGroupDisplayName(item.activityGroup)}
-                      </Badge>
-                      <Badge
-                        variant="outline"
+                        </Badge>
+                        <Badge
+                          variant="outline"
                           className={item.mode === "WRITTEN"
-                          ? "border-blue-300 text-blue-700 bg-blue-50"
-                          : "border-green-300 text-green-700 bg-green-50"
-                        }
-                      >
+                            ? "border-blue-300 text-blue-700 bg-blue-50"
+                            : "border-green-300 text-green-700 bg-green-50"
+                          }
+                        >
                           {item.mode === "WRITTEN" ? (
-                          <>
-                            <FileText className="w-3 h-3 mr-1" />
-                            필기
-                          </>
-                        ) : (
-                          <>
-                            <Code className="w-3 h-3 mr-1" />
-                            실기
-                          </>
-                        )}
-                      </Badge>
+                            <>
+                              <FileText className="w-3 h-3 mr-1" />
+                              필기
+                            </>
+                          ) : (
+                            <>
+                              <Code className="w-3 h-3 mr-1" />
+                              실기
+                            </>
+                          )}
+                        </Badge>
                         {item.assistType && (
                           <Badge variant="outline" className="bg-gray-50">
                             {item.assistType}
-                        </Badge>
-                      )}
-                    </div>
+                          </Badge>
+                        )}
+                      </div>
 
                       <h3 className="text-gray-900 mb-2">
                         {item.topicName || item.weaknessTagName || "학습 활동"}
                       </h3>
 
                       <div className="flex items-center gap-4 text-sm text-gray-600 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
                           {formatDate(item.performedAt)}
-                      </div>
+                        </div>
                         {item.difficulty && (
-                      <div className="flex items-center gap-1">
-                        <Target className="w-4 h-4" />
+                          <div className="flex items-center gap-1">
+                            <Target className="w-4 h-4" />
                             난이도: {item.difficulty}
                           </div>
                         )}
@@ -313,18 +316,18 @@ export function FullHistoryView() {
                             약점: {item.weaknessTagName}
                           </Badge>
                         )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Right: Score Display */}
-                  <div className="flex flex-col items-end gap-2">
+                    {/* Right: Score Display */}
+                    <div className="flex flex-col items-end gap-2">
                       {percentage !== undefined ? (
-                    <div className={`flex items-center gap-2 ${getPerformanceColor(percentage)}`}>
-                      {isPassed ? (
-                        <CheckCircle2 className="w-5 h-5" />
-                      ) : (
-                        <XCircle className="w-5 h-5" />
-                      )}
+                        <div className={`flex items-center gap-2 ${getPerformanceColor(percentage)}`}>
+                          {isPassed ? (
+                            <CheckCircle2 className="w-5 h-5" />
+                          ) : (
+                            <XCircle className="w-5 h-5" />
+                          )}
                           <span className="text-3xl">{percentage.toFixed(1)}%</span>
                         </div>
                       ) : (
@@ -340,12 +343,12 @@ export function FullHistoryView() {
                         <div className="flex items-center gap-1 text-sm text-purple-600">
                           <Sparkles className="w-4 h-4" />
                           +{item.xpGained} XP
-                    </div>
+                        </div>
                       )}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            );
+                </Card>
+              );
             })
           )}
         </div>
@@ -392,7 +395,9 @@ export function FullHistoryView() {
 
       {/* Activity Detail Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="w-[70vw] max-w-[90vw] !sm:max-w-[90vw] !max-w-[90vw] max-h-[90vh] overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle>학습 상세 정보</DialogTitle>
             <DialogDescription>
@@ -478,17 +483,16 @@ export function FullHistoryView() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-gray-600">정답률</span>
-                      <span className={`text-sm font-semibold ${
-                        selectedActivity.header.accuracyPct >= 90 ? "text-green-600" :
-                        selectedActivity.header.accuracyPct >= 70 ? "text-blue-600" :
-                        selectedActivity.header.accuracyPct >= 50 ? "text-orange-600" :
-                        "text-red-600"
-                      }`}>
+                      <span className={`text-sm font-semibold ${selectedActivity.header.accuracyPct >= 90 ? "text-green-600" :
+                          selectedActivity.header.accuracyPct >= 70 ? "text-blue-600" :
+                            selectedActivity.header.accuracyPct >= 50 ? "text-orange-600" :
+                              "text-red-600"
+                        }`}>
                         {selectedActivity.header.accuracyPct.toFixed(1)}%
                       </span>
                     </div>
-                    <Progress 
-                      value={selectedActivity.header.accuracyPct} 
+                    <Progress
+                      value={selectedActivity.header.accuracyPct}
                       className="h-2"
                     />
                   </div>
@@ -531,11 +535,10 @@ export function FullHistoryView() {
                     {selectedActivity.questions.map((question) => (
                       <div
                         key={question.questionId}
-                        className={`p-4 rounded-lg border-2 ${
-                          question.isCorrect
+                        className={`p-4 rounded-lg border-2 ${question.isCorrect
                             ? "bg-green-50 border-green-200"
                             : "bg-red-50 border-red-200"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -570,9 +573,8 @@ export function FullHistoryView() {
                         <div className="flex items-center gap-4 text-xs">
                           <div>
                             <span className="text-gray-600">내 답: </span>
-                            <span className={`font-medium ${
-                              question.isCorrect ? "text-green-700" : "text-red-700"
-                            }`}>
+                            <span className={`font-medium ${question.isCorrect ? "text-green-700" : "text-red-700"
+                              }`}>
                               {question.myAnswer}
                             </span>
                           </div>
@@ -597,14 +599,14 @@ export function FullHistoryView() {
                 </div>
                 <p className="text-sm font-medium text-gray-900 mt-1">
                   {formatDate(selectedActivity.header.performedAt)}
-            </p>
-          </Card>
+                </p>
+              </Card>
             </div>
           ) : (
             <div className="py-8 text-center">
               <p className="text-gray-600">정보를 불러올 수 없습니다</p>
             </div>
-        )}
+          )}
         </DialogContent>
       </Dialog>
     </div>

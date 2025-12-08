@@ -167,6 +167,15 @@ export interface ScoreboardItem {
   revived: boolean;
 }
 
+// XP 결과 항목
+export interface XpResult {
+  userId: string;
+  xpDelta: number;
+  reason: string;
+  totalXp: number;
+  leveledUp: boolean;
+}
+
 // 스코어보드
 export interface CurrentQuestion {
   questionId: number;
@@ -193,6 +202,7 @@ export interface Scoreboard {
   items: ScoreboardItem[];
   currentQuestion?: CurrentQuestion;
   intermission?: Intermission;
+  xpResults?: XpResult[]; // 게임 종료 시 (status === "DONE") 제공됨
 }
 
 // 방 정보

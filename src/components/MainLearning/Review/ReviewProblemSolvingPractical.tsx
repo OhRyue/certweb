@@ -126,7 +126,7 @@ export function ReviewProblemSolvingPractical({
             <Sparkles className="w-8 h-8 text-orange-600" />
             <h1 className="text-orange-900">Review 실기 문제풀이</h1>
           </div>
-          <p className="text-gray-600 mt-2">OX 이후 단계의 주관식 문제입니다!</p>
+          <p className="text-gray-600 mt-2">실전 문제로 실력을 다져보세요!</p>
         </div>
 
         {/* Progress */}

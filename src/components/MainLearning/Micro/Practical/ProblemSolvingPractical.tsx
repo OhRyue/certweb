@@ -204,26 +204,6 @@ export function ProblemSolvingPractical({
           transition={{ duration: 0.3 }}
         >
           <Card className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-6">
-            <div className="flex items-start gap-3 mb-6">
-              <Badge 
-                variant="secondary"
-                className={
-                  currentQuestion.difficulty === "easy" 
-                    ? "bg-green-100 text-green-700"
-                    : currentQuestion.difficulty === "medium"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-red-100 text-red-700"
-                }
-              >
-                {currentQuestion.difficulty === "easy" ? "쉬움" : 
-                 currentQuestion.difficulty === "medium" ? "보통" : "어려움"}
-              </Badge>
-              {currentQuestion.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  #{tag}
-                </Badge>
-              ))}
-            </div>
 
             <h2 className="text-purple-900 mb-6">{currentQuestion.question}</h2>
 

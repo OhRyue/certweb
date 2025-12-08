@@ -799,7 +799,7 @@ export function HomeDashboard() {
                                   <Badge className="bg-purple-500 text-white text-xs">나</Badge>
                                 )}
                               </div>
-                              <p className="text-purple-600 text-xs">Lv.{user.level} · {user.score.toLocaleString()}점</p>
+                              <p className="text-purple-600 text-xs">Lv.{user.level} · {user.score.toLocaleString()} exp</p>
                             </div>
                           </div>
                         </motion.div>

@@ -7,7 +7,7 @@ import { Input } from "../../../ui/input";
 import { Swords, Clock, Zap, Sparkles, Target } from "lucide-react";
 import type { Question } from "../../../../types";
 import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
-import { submitAnswer, getScoreboard, getRoomState, getVersusQuestion, type CurrentQuestion } from "../../../api/versusApi";
+import { submitAnswer, getScoreboard, getVersusQuestion, sendHeartbeat, type CurrentQuestion } from "../../../api/versusApi";
 import axios from "../../../api/axiosConfig";
 
 // 프로필 이미지 경로
@@ -172,14 +172,6 @@ export function BattleGamePractical({
         // status가 "DONE"이면 게임 종료
         if (scoreboard.status === "DONE") {
           setGameStatus("DONE");
-          // 게임 종료 시 state 조회하여 결과 확인
-          try {
-            const roomState = await getRoomState(roomId);
-            // 결과는 roomState에서 확인 가능
-            console.log("게임 종료 - 최종 결과:", roomState);
-          } catch (error) {
-            console.error("게임 종료 후 상태 조회 실패:", error);
-          }
         } else {
           setGameStatus(scoreboard.status);
         }
@@ -191,11 +183,37 @@ export function BattleGamePractical({
     // 즉시 한 번 조회
     pollScoreboard();
 
-    // 1초마다 폴링
-    const interval = setInterval(pollScoreboard, 1000);
+    // 2초마다 폴링
+    const interval = setInterval(pollScoreboard, 2000);
 
     return () => clearInterval(interval);
   }, [roomId, myUserId, currentQuestionIndex, opponentLeft]);
+
+  // 하트비트 전송 (15초마다)
+  useEffect(() => {
+    if (!roomId || gameStatus === "DONE") return;
+
+    const sendHeartbeatRequest = async () => {
+      try {
+        await sendHeartbeat(roomId);
+      } catch (error) {
+        console.error("Heartbeat 전송 실패:", error);
+        // heartbeat 실패는 자동 추방으로 이어지므로 에러 표시하지 않음
+      }
+    };
+
+    // 즉시 한 번 전송
+    sendHeartbeatRequest();
+
+    // 15초마다 전송
+    const heartbeatInterval = setInterval(sendHeartbeatRequest, 15000);
+
+    return () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+    };
+  }, [roomId, gameStatus]);
 
   // currentQuestion이 변경되면 문제를 하나씩 가져오기 (토너먼트 방식)
   useEffect(() => {
