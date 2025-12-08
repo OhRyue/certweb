@@ -79,18 +79,18 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-                <Button onClick={() => navigate("/login")} variant="ghost" className="mb-4 text-gray-600 hover:text-purple-600">
+                <Button onClick={() => navigate("/login")} variant="ghost" className="mb-4 text-gray-600 hover:text-blue-600">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     로그인으로 돌아가기
                 </Button>
 
-                <Card className="p-8 bg-white/80 backdrop-blur border-2 border-purple-200 shadow-xl">
+                <Card className="p-8 bg-white/80 backdrop-blur border-2 border-blue-200 shadow-xl">
                     {/* STEP 1: 아이디 입력 */}
                     {step === "email" && (
                         <form onSubmit={handleSendEmail}>
-                            <h2 className="text-purple-900 mb-4 text-center text-lg">비밀번호 찾기</h2>
+                            <h2 className="text-blue-900 mb-4 text-center text-lg">비밀번호 찾기</h2>
                             <label className="text-sm text-gray-700 mb-2 block">아이디</label>
                             <Input
                                 type="text"
@@ -100,7 +100,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
                                 className="mb-4"
                                 required
                             />
-                            <Button type="submit" className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-6">
+                            <Button type="submit" className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white py-6">
                                 <Mail className="w-4 h-4 mr-2" />
                                 인증 코드 보내기
                             </Button>

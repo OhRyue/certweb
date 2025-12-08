@@ -8,10 +8,16 @@ import { Input } from "./ui/input"
 import { Progress } from "./ui/progress"
 import { ArrowLeft, ArrowRight, CheckCircle2, Mail, Lock, User, Sparkles, Shield } from "lucide-react"
 
+// 아이디 유효성 정규식 (영문+숫자, 8~20자)
+const idRegex = /^[A-Za-z0-9]{8,20}$/;
+// 비밀번호 정규식: 영문 + 숫자 + 특수문자 최소 1개씩 포함, 8자 이상
+const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+
 export function SignUpScreen() {
     const navigate = useNavigate()
     const [step, setStep] = useState(1)
     const [isVerificationSent, setIsVerificationSent] = useState(false)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [loading, setLoading] = useState(false)
     const [isCheckingId, setIsCheckingId] = useState(false)
     const [idAvailable, setIdAvailable] = useState<boolean | null>(null)        // 중복 여부
@@ -22,19 +28,15 @@ export function SignUpScreen() {
     const [isVerifiedDone, setIsVerifiedDone] = useState(false)
     const [isCheckingNickname, setIsCheckingNickname] = useState(false);      // 닉네임 중복 확인 중
     const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null);      // 닉네임 중복 여부
+    const [countdown, setCountdown] = useState(0)      // 이메일 발송 카운트다운 (초 단위)
 
     // 예시: Step2 자격증 선택용 mock 데이터
     const categories = [
         { certId: 1, name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
-        { certId: 2, name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
+        { certId: 2, name: "컴퓨터활용능력", icon: "📊", color: "from-green-400 to-teal-400" },
         { certId: 3, name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
-        { certId: 4, name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
+        { certId: 4, name: "리눅스 마스터", icon: "🐧", color: "from-gray-400 to-slate-400" },
     ]
-
-    // 아이디 유효성 정규식 (영문+숫자, 8~20자)
-    const idRegex = /^[A-Za-z0-9]{8,20}$/;
-    // 비밀번호 정규식: 영문 + 숫자 + 특수문자 최소 1개씩 포함, 8자 이상
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
 
 
     const [formData, setFormData] = useState({
@@ -95,6 +97,16 @@ export function SignUpScreen() {
         return () => clearTimeout(delay);
     }, [formData.userId]);
 
+    // 카운트다운 타이머
+    useEffect(() => {
+        if (countdown > 0) {
+            const timer = setTimeout(() => {
+                setCountdown(countdown - 1)
+            }, 1000)
+            return () => clearTimeout(timer)
+        }
+    }, [countdown])
+
     // 1) 이메일 인증 전송 (회원가입 단계)
     const handleSendVerification = async () => {
         if (!formData.userId || !formData.password || !formData.email) {
@@ -117,8 +129,11 @@ export function SignUpScreen() {
 
             alert("인증코드가 이메일로 전송되었습니다.")
             setIsVerificationSent(true)
-        } catch (error: any) {
-            const errorData = error.response?.data
+            // 10분(600초) 카운트다운 시작
+            setCountdown(600)
+        } catch (error: unknown) {
+            const errorResponse = error as { response?: { data?: { errors?: Array<{ field: string; message: string }>; message?: string } } }
+            const errorData = errorResponse?.response?.data
             
             // errors 배열이 있으면 각 필드별로 에러 처리
             if (errorData?.errors && Array.isArray(errorData.errors)) {
@@ -163,8 +178,9 @@ export function SignUpScreen() {
             alert("회원가입이 완료되었습니다")
 
             setIsVerifiedDone(true)   // 인증 완료 처리
-        } catch (err: any) {
-            alert(err.response?.data?.message || "인증 실패. 인증번호를 확인해주세요")
+        } catch (err: unknown) {
+            const errorData = (err as { response?: { data?: { message?: string } } })?.response?.data
+            alert(errorData?.message || "인증 실패. 인증번호를 확인해주세요")
             console.error(err)
         }
     }
@@ -219,16 +235,17 @@ export function SignUpScreen() {
 
             alert("프로필 설정 완료")
             navigate("/")
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const errorResponse = err as { response?: { status?: number; data?: { message?: string; error_description?: string }; headers?: { [key: string]: string } } }
             console.error("프로필 설정 오류:", err)
-            console.error("응답 데이터:", err.response?.data)
-            console.error("응답 헤더:", err.response?.headers)
+            console.error("응답 데이터:", errorResponse?.response?.data)
+            console.error("응답 헤더:", errorResponse?.response?.headers)
 
             // 인터셉터가 이미 토큰 갱신을 시도했지만 실패한 경우
             // 또는 토큰 갱신 후에도 여전히 401이 반환되는 경우
-            if (err.response?.status === 401) {
+            if (errorResponse?.response?.status === 401) {
                 // 백엔드에서 반환한 상세 오류 메시지 확인
-                const errorDesc = err.response?.headers?.['www-authenticate'] || err.response?.data?.error_description || "토큰 검증 실패"
+                const errorDesc = errorResponse?.response?.headers?.['www-authenticate'] || errorResponse?.response?.data?.error_description || "토큰 검증 실패"
                 console.error("인증 오류 상세:", errorDesc)
                 console.error("⚠️ 백엔드 문제 가능성: refresh로 받은 새 토큰도 검증에 실패했습니다.")
                 console.error("백엔드에서 확인 필요: JWT Secret Key 일치 여부, 토큰 검증 로직")
@@ -238,7 +255,7 @@ export function SignUpScreen() {
                 localStorage.clear()
                 navigate("/login")
             } else {
-                alert(err.response?.data?.message || "설정 실패")
+                alert(errorResponse?.response?.data?.message || "설정 실패")
             }
         }
     }
@@ -270,9 +287,10 @@ export function SignUpScreen() {
             } else {
                 alert("이미 사용 중인 닉네임입니다.");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const errorData = (err as { response?: { data?: { message?: string } } })?.response?.data
             console.error("닉네임 중복 확인 오류:", err);
-            alert(err.response?.data?.message || "닉네임 확인 중 오류가 발생했습니다.");
+            alert(errorData?.message || "닉네임 확인 중 오류가 발생했습니다.");
             setNicknameAvailable(null);
         } finally {
             setIsCheckingNickname(false);
@@ -292,16 +310,16 @@ export function SignUpScreen() {
 
     // 이 아래부터는 UI 완전 동일
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 overflow-auto">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 overflow-auto">
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-purple-100">
+            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-blue-100">
                 <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Button
                             onClick={handleBack}
                             variant="ghost"
                             size="sm"
-                            className="text-gray-600 hover:text-purple-700"
+                            className="text-gray-600 hover:text-blue-700"
                         >
                             <ArrowLeft className="w-4 h-4 mr-2" />
                             돌아가기
@@ -310,7 +328,7 @@ export function SignUpScreen() {
                     <div className="flex items-center gap-2">
                         <div className="text-3xl">📖</div>
                         <div>
-                            <h1 className="text-purple-900">CertMaster</h1>
+                            <h1 className="text-blue-900">CertMaster</h1>
                             <p className="text-xs text-gray-600">회원가입</p>
                         </div>
                     </div>
@@ -326,9 +344,9 @@ export function SignUpScreen() {
                     className="mb-8"
                 >
                     <div className="flex items-center justify-center gap-4 mb-4">
-                        <div className={`flex items-center gap-2 ${step >= 1 ? 'text-purple-600' : 'text-gray-400'}`}>
+                        <div className={`flex items-center gap-2 ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${step >= 1
-                                ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg'
+                                ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg'
                                 : 'bg-gray-200 text-gray-500'
                                 }`}>
                                 {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : "1"}
@@ -336,12 +354,12 @@ export function SignUpScreen() {
                             <span className="hidden sm:inline">계정 정보</span>
                         </div>
 
-                        <div className={`h-1 w-16 sm:w-24 rounded-full transition-all ${step >= 2 ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-gray-200'
+                        <div className={`h-1 w-16 sm:w-24 rounded-full transition-all ${step >= 2 ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 'bg-gray-200'
                             }`} />
 
-                        <div className={`flex items-center gap-2 ${step >= 2 ? 'text-purple-600' : 'text-gray-400'}`}>
+                        <div className={`flex items-center gap-2 ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${step >= 2
-                                ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg'
+                                ? 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg'
                                 : 'bg-gray-200 text-gray-500'
                                 }`}>
                                 2
@@ -363,14 +381,14 @@ export function SignUpScreen() {
                             exit={{ opacity: 0, x: -20 }}
                             transition={{ duration: 0.3 }}
                         >
-                            <Card className="p-8 bg-white/80 backdrop-blur border-2 border-purple-200 shadow-xl">
+                            <Card className="p-8 bg-white/80 backdrop-blur border-2 border-blue-200 shadow-xl">
                                 <div className="text-center mb-8">
                                     <div className="text-5xl mb-4">🎓</div>
-                                    <h2 className="text-purple-900 mb-2">
+                                    <h2 className="text-blue-900 mb-2">
                                         계정 정보 입력
                                     </h2>
                                     <p className="text-gray-600">
-                                        CertMaster에 오신 것을 환영합니다! ✨
+                                        CertPilot에 오신 것을 환영합니다! ✨
                                     </p>
                                 </div>
 
@@ -379,7 +397,7 @@ export function SignUpScreen() {
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
                                             <label className="text-sm text-gray-700 flex items-center gap-2">
-                                                <User className="w-4 h-4 text-purple-600" />
+                                                <User className="w-4 h-4 text-blue-600" />
                                                 아이디
                                             </label>
 
@@ -403,9 +421,9 @@ export function SignUpScreen() {
                                             disabled={isVerificationSent}
                                             onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                                             onBlur={handleIdBlur} // ← 포커스 해제 시 유효성 검사
-                                            className={`bg-white focus:border-purple-400 transition-all ${isIdInvalid || idAvailable === false
+                                            className={`bg-white focus:border-blue-400 transition-all ${isIdInvalid || idAvailable === false
                                                 ? "border-red-400 text-red-700 placeholder-red-300"
-                                                : "border-purple-200"
+                                                : "border-blue-200"
                                                 }`}
                                         />
 
@@ -420,7 +438,7 @@ export function SignUpScreen() {
                                     {/* 비밀번호 */}
                                     <div>
                                         <label className="text-sm text-gray-700 mb-2 block flex items-center gap-2">
-                                            <Lock className="w-4 h-4 text-purple-600" />
+                                            <Lock className="w-4 h-4 text-blue-600" />
                                             비밀번호
                                         </label>
                                         <Input
@@ -430,7 +448,7 @@ export function SignUpScreen() {
                                             disabled={isVerificationSent}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                             onBlur={handlePasswordBlur}
-                                            className={`bg-white focus:border-purple-400 transition-all ${isPasswordInvalid ? "border-red-400 text-red-700 placeholder-red-300" : "border-purple-200"
+                                            className={`bg-white focus:border-blue-400 transition-all ${isPasswordInvalid ? "border-red-400 text-red-700 placeholder-red-300" : "border-blue-200"
                                                 }`}
                                         />
                                         <p
@@ -445,7 +463,7 @@ export function SignUpScreen() {
                                     {/* 비밀번호 확인 */}
                                     <div>
                                         <label className="text-sm text-gray-700 mb-2 block flex items-center gap-2">
-                                            <Lock className="w-4 h-4 text-purple-600" />
+                                            <Lock className="w-4 h-4 text-blue-600" />
                                             비밀번호 확인
                                         </label>
                                         <Input
@@ -454,7 +472,7 @@ export function SignUpScreen() {
                                             value={formData.passwordConfirm}
                                             disabled={isVerificationSent}
                                             onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
-                                            className="bg-white border-purple-200 focus:border-purple-400"
+                                            className="bg-white border-blue-200 focus:border-blue-400"
                                         />
                                         {formData.passwordConfirm && (
                                             <p className={`text-xs mt-1 flex items-center gap-1 ${formData.password === formData.passwordConfirm
@@ -472,7 +490,7 @@ export function SignUpScreen() {
                                     {/* 이메일 & 인증번호 */}
                                     <div>
                                         <label className="text-sm text-gray-700 mb-2 block flex items-center gap-2">
-                                            <Mail className="w-4 h-4 text-purple-600" />
+                                            <Mail className="w-4 h-4 text-blue-600" />
                                             이메일
                                         </label>
                                         <div className="flex gap-2">
@@ -480,7 +498,6 @@ export function SignUpScreen() {
                                                 type="email"
                                                 placeholder="your@email.com"
                                                 value={formData.email}
-                                                disabled={isVerificationSent}
                                                 onChange={(e) => {
                                                     setFormData({ ...formData, email: e.target.value })
                                                     // 입력 시 에러 상태 초기화
@@ -489,39 +506,42 @@ export function SignUpScreen() {
                                                         setEmailErrorMessage("")
                                                     }
                                                 }}
-                                                className={`flex-1 bg-white focus:border-purple-400 transition-all ${isEmailInvalid
+                                                className={`flex-1 bg-white focus:border-blue-400 transition-all ${isEmailInvalid
                                                     ? "border-red-400 text-red-700 placeholder-red-300"
-                                                    : "border-purple-200"
+                                                    : "border-blue-200"
                                                     }`}
                                             />
-                                            <Button
-                                                type="button"
-                                                onClick={handleSendVerification}
-                                                disabled={
-                                                    !formData.email ||                  // 이메일 없으면 X
-                                                    isVerificationSent ||               // 이미 발송됐으면 X
-                                                    !idAvailable ||                     // 아이디 중복이면 X
-                                                    isIdInvalid ||                      // 아이디 형식 틀리면 X
-                                                    isPasswordInvalid ||                // 비밀번호 형식 틀리면 X
-                                                    formData.password !== formData.passwordConfirm // 비밀번호 확인 불일치면 X
-                                                }
-                                                className={`whitespace-nowrap ${isVerificationSent
-                                                    ? 'bg-green-500 hover:bg-green-600'
-                                                    : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-                                                    } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-                                            >
-                                                {isVerificationSent ? (
-                                                    <>
-                                                        <CheckCircle2 className="w-4 h-4 mr-1" />
-                                                        발송완료
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Mail className="w-4 h-4 mr-1" />
-                                                        인증발송
-                                                    </>
+                                            <div className="relative">
+                                                {countdown > 0 && (
+                                                    <div className="absolute -top-5 right-0 text-sm font-mono text-blue-600">
+                                                        {String(Math.floor(countdown / 60)).padStart(2, '0')}:{String(countdown % 60).padStart(2, '0')}
+                                                    </div>
                                                 )}
-                                            </Button>
+                                                <Button
+                                                    type="button"
+                                                    onClick={handleSendVerification}
+                                                    disabled={
+                                                        !formData.email ||                  // 이메일 없으면 X
+                                                        !idAvailable ||                     // 아이디 중복이면 X
+                                                        isIdInvalid ||                      // 아이디 형식 틀리면 X
+                                                        isPasswordInvalid ||                // 비밀번호 형식 틀리면 X
+                                                        formData.password !== formData.passwordConfirm // 비밀번호 확인 불일치면 X
+                                                    }
+                                                    className="whitespace-nowrap bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isVerificationSent ? (
+                                                        <>
+                                                            <Mail className="w-4 h-4 mr-1" />
+                                                            재발송
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Mail className="w-4 h-4 mr-1" />
+                                                            인증발송
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </div>
                                         </div>
                                         {isEmailInvalid && emailErrorMessage && (
                                             <p className="text-xs mt-1 text-red-500">
@@ -538,7 +558,7 @@ export function SignUpScreen() {
                                             transition={{ duration: 0.3 }}
                                         >
                                             <label className="text-sm text-gray-700 mb-2 block flex items-center gap-2">
-                                                <Shield className="w-4 h-4 text-purple-600" />
+                                                <Shield className="w-4 h-4 text-blue-600" />
                                                 인증번호
                                             </label>
                                             <div className="flex gap-2">
@@ -550,7 +570,7 @@ export function SignUpScreen() {
                                                         setFormData({ ...formData, verificationCode: e.target.value })
                                                     }
                                                     maxLength={6}
-                                                    className="flex-1 bg-white border-purple-200 focus:border-purple-400"
+                                                    className="flex-1 bg-white border-blue-200 focus:border-blue-400"
                                                 />
                                                 <Button
                                                     type="button"
@@ -585,7 +605,7 @@ export function SignUpScreen() {
                                     disabled={!isVerifiedDone}
                                     className={`w-full mt-6 text-white py-6 
                                         ${isVerifiedDone
-                                            ? "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                                            ? "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                                             : "bg-gray-300 cursor-not-allowed"
                                         }`}
                                 >
@@ -603,10 +623,10 @@ export function SignUpScreen() {
                             exit={{ opacity: 0, x: -20 }}
                             transition={{ duration: 0.3 }}
                         >
-                            <Card className="p-8 bg-white/80 backdrop-blur border-2 border-purple-200 shadow-xl">
+                            <Card className="p-8 bg-white/80 backdrop-blur border-2 border-blue-200 shadow-xl">
                                 <div className="text-center mb-8">
                                     <div className="text-5xl mb-4">✨</div>
-                                    <h2 className="text-purple-900 mb-2">
+                                    <h2 className="text-blue-900 mb-2">
                                         프로필 설정
                                     </h2>
                                     <p className="text-gray-600">
@@ -619,7 +639,7 @@ export function SignUpScreen() {
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
                                             <label className="text-sm text-gray-700 flex items-center gap-2">
-                                                <Sparkles className="w-4 h-4 text-purple-600" />
+                                                <Sparkles className="w-4 h-4 text-blue-600" />
                                                 닉네임
                                             </label>
                                             {formData.nickname && (
@@ -646,16 +666,16 @@ export function SignUpScreen() {
                                                         setNicknameAvailable(null)
                                                     }
                                                 }}
-                                                className={`flex-1 bg-white focus:border-purple-400 transition-all ${nicknameAvailable === false
+                                                className={`flex-1 bg-white focus:border-blue-400 transition-all ${nicknameAvailable === false
                                                     ? "border-red-400 text-red-700 placeholder-red-300"
-                                                    : "border-purple-200"
+                                                    : "border-blue-200"
                                                     }`}
                                             />
                                             <Button
                                                 type="button"
                                                 onClick={handleCheckNickname}
                                                 disabled={!formData.nickname.trim() || isCheckingNickname}
-                                                className="whitespace-nowrap bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="whitespace-nowrap bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {isCheckingNickname ? (
                                                     <>⏳ 확인 중</>
@@ -679,8 +699,8 @@ export function SignUpScreen() {
                                                     key={category.certId}
                                                     onClick={() => setFormData({ ...formData, targetCertification: category.certId })}
                                                     className={`p-5 rounded-xl border-2 transition-all transform hover:scale-105 ${formData.targetCertification === category.certId
-                                                        ? `border-purple-500 bg-gradient-to-br ${category.color} shadow-lg`
-                                                        : 'border-gray-200 bg-white hover:border-purple-300'
+                                                        ? `border-blue-500 bg-gradient-to-br ${category.color} shadow-lg`
+                                                        : 'border-gray-200 bg-white hover:border-blue-300'
                                                         }`}
                                                 >
                                                     <div className="flex flex-col items-center gap-2">
@@ -722,7 +742,7 @@ export function SignUpScreen() {
                                     <Button
                                         onClick={handleCompleteProfile}
                                         disabled={!isStep2Valid}
-                                        className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-6 disabled:opacity-50"
+                                        className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white py-6 disabled:opacity-50"
                                     >
                                         <Sparkles className="w-4 h-4 mr-2" />
                                         회원가입 완료
@@ -741,8 +761,8 @@ export function SignUpScreen() {
                     className="mt-6 text-center text-sm text-gray-600"
                 >
                     회원가입 시{" "}
-                    <button className="text-purple-600 hover:underline">이용약관</button> 및{" "}
-                    <button className="text-purple-600 hover:underline">개인정보처리방침</button>에 동의하게 됩니다
+                    <button className="text-blue-600 hover:underline">이용약관</button> 및{" "}
+                    <button className="text-blue-600 hover:underline">개인정보처리방침</button>에 동의하게 됩니다
                 </motion.div>
             </div>
         </div>

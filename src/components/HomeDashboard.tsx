@@ -7,6 +7,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import {
   Trophy,
   Target,
@@ -28,28 +29,28 @@ const formatDate = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
-import type { UserProfile } from "../types";
 import axios from "./api/axiosConfig";
 import { CERT_MAP } from "../constants/certMap";
+import { getLevelProgress } from "./utils/leveling";
 
-// 프로필 이미지 import
-import girlBasicProfile from "./assets/profile/girl_basic_profile.png"
-import boyNerdProfile from "./assets/profile/boy_nerd_profile.png"
-import girlUniformProfile from "./assets/profile/girl_uniform_profile.jpg"
-import girlPajamaProfile from "./assets/profile/girl_pajama_profile.png"
-import girlMarriedProfile from "./assets/profile/girl_married_profile.png"
-import girlNerdProfile from "./assets/profile/girl_nerd_profile.png"
-import girlIdolProfile from "./assets/profile/girl_idol_profile.png"
-import girlGhostProfile from "./assets/profile/girl_ghost_profile.png"
-import girlCyberpunkProfile from "./assets/profile/girl_cyberpunk_profile.png"
-import girlChinaProfile from "./assets/profile/girl_china_profile.jpg"
-import girlCatProfile from "./assets/profile/girl_cat_profile.png"
-import boyWorkerProfile from "./assets/profile/boy_worker_profile.png"
-import boyPoliceofficerProfile from "./assets/profile/boy_policeofficer_profile.png"
-import boyHiphopProfile from "./assets/profile/boy_hiphop_profile.png"
-import boyDogProfile from "./assets/profile/boy_dog_profile.png"
-import boyBasicProfile from "./assets/profile/boy_basic_profile.png"
-import boyAgentProfile from "./assets/profile/boy_agent_profile.png"
+// 프로필 이미지 경로
+const girlBasicProfile = "/assets/profile/girl_basic_profile.png"
+const boyNerdProfile = "/assets/profile/boy_nerd_profile.png"
+const girlUniformProfile = "/assets/profile/girl_uniform_profile.jpg"
+const girlPajamaProfile = "/assets/profile/girl_pajama_profile.png"
+const girlMarriedProfile = "/assets/profile/girl_married_profile.png"
+const girlNerdProfile = "/assets/profile/girl_nerd_profile.png"
+const girlIdolProfile = "/assets/profile/girl_idol_profile.png"
+const girlGhostProfile = "/assets/profile/girl_ghost_profile.png"
+const girlCyberpunkProfile = "/assets/profile/girl_cyberpunk_profile.png"
+const girlChinaProfile = "/assets/profile/girl_china_profile.jpg"
+const girlCatProfile = "/assets/profile/girl_cat_profile.png"
+const boyWorkerProfile = "/assets/profile/boy_worker_profile.png"
+const boyPoliceofficerProfile = "/assets/profile/boy_policeofficer_profile.png"
+const boyHiphopProfile = "/assets/profile/boy_hiphop_profile.png"
+const boyDogProfile = "/assets/profile/boy_dog_profile.png"
+const boyBasicProfile = "/assets/profile/boy_basic_profile.png"
+const boyAgentProfile = "/assets/profile/boy_agent_profile.png"
 
 // skinId를 프로필 이미지로 매핑
 const PROFILE_IMAGE_MAP: Record<number, string> = {
@@ -75,10 +76,6 @@ const PROFILE_IMAGE_MAP: Record<number, string> = {
 // skinId로 프로필 이미지 경로 가져오기
 function getProfileImage(skinId: number): string {
   return PROFILE_IMAGE_MAP[skinId] || PROFILE_IMAGE_MAP[1] // 기본값: girl_basic_profile
-}
-
-interface HomeDashboardProps {
-  userProfile: UserProfile;
 }
 
 interface QuickStats {
@@ -111,6 +108,7 @@ interface RankingUser {
   userId: string;
   nickname: string;
   avatarUrl: string;
+  skinId: number;
   level: number;
   score: number;
   xpTotal: number;
@@ -143,12 +141,12 @@ const CERT_ICON_MAP: Record<number, string> = {
 // 자격증 이름별 아이콘 매핑 (폴백용)
 const CERT_NAME_ICON_MAP: Record<string, string> = {
   "정보처리기사": "💻",
-  "SQLD": "🗄️",
-  "컴활 1급": "📊",
-  "리눅스마스터 2급": "🐧",
+  "컴퓨터활용능력": "🗄️",
+  "SQLD": "📊",
+  "리눅스마스터": "🐧",
 };
 
-export function HomeDashboard({ userProfile }: HomeDashboardProps) {
+export function HomeDashboard() {
   const [quickStats, setQuickStats] = useState<QuickStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
@@ -158,6 +156,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [progressData, setProgressData] = useState<ProgressCardResponse | null>(null);
   const [progressLoading, setProgressLoading] = useState(true);
+  const [selectedMode, setSelectedMode] = useState<"WRITTEN" | "PRACTICAL">("WRITTEN");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [dateSettingLoading, setDateSettingLoading] = useState(false);
@@ -269,7 +268,11 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     async function fetchProgress() {
       try {
         setProgressLoading(true);
-        const res = await axios.get("/progress/home/progress-card");
+        const res = await axios.get("/progress/home/progress-card", {
+          params: {
+            mode: selectedMode
+          }
+        });
         setProgressData(res.data);
       } catch (err) {
         console.error("학습 진행률 데이터 불러오기 실패", err);
@@ -280,7 +283,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
     }
 
     fetchProgress();
-  }, []);
+  }, [selectedMode]);
 
   // Fetch notifications (최근 4개만)
   useEffect(() => {
@@ -305,7 +308,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-white-50 via-white-50 to-white-50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
 
@@ -355,18 +358,23 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
 
                         <div className="mt-4 space-y-3">
                           {/* XP Bar */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-purple-700">경험치</span>
-                              <span className="text-purple-700">
-                                {overview.user.xpTotal} / {((overview.user.level) + 1) * 500} XP
-                              </span>
-                            </div>
-                            <Progress
-                              value={((overview.user.xpTotal) / (((overview.user.level) + 1) * 500)) * 100}
-                              className="h-3 bg-purple-200"
-                            />
-                          </div>
+                          {(() => {
+                            const levelProgress = getLevelProgress(overview.user.xpTotal, overview.user.level);
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-purple-700">경험치</span>
+                                  <span className="text-purple-700">
+                                    {levelProgress.currentLevelXP} / {levelProgress.requiredXP} XP    
+                                  </span>
+                                </div>
+                                <Progress
+                                  value={levelProgress.progress * 100}
+                                  className="h-3 bg-purple-200"
+                                />
+                              </div>
+                            );
+                          })()}
 
                           {/* Streak */}
                           <div className="flex items-center justify-center gap-2 bg-orange-100 rounded-lg p-3">
@@ -450,10 +458,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                       <div className="bg-white/50 backdrop-blur rounded-xl p-6 mb-4">
                         <div className="text-center">
                           <div className="text-5xl mb-3">{targetCertIcon}</div>
-                          <p className="text-blue-900 mb-2 text-lg font-semibold">{targetCertName}</p>
-                          <p className="text-blue-600">
-                            {overview?.goal?.targetExamMode || "시험"}
-                          </p>
+                          <p className="text-blue-900 mb-2 text-lg">{targetCertName}</p>
                         </div>
                       </div>
 
@@ -463,7 +468,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             animate={{ scale: [1, 1.05, 1] }}
                             transition={{ duration: 1.5, repeat: Infinity }}
                           >
-                            <div className="text-6xl text-blue-600 mb-2 font-bold">D-{Math.abs(dDay)}</div>
+                            <div className="text-6xl text-blue-600 mb-2 font-semi-bold">D-{Math.abs(dDay)}</div>
                           </motion.div>
                           <p className="text-blue-700">
                             {dDay <= 30 ? "열심히 준비해요! 💪" : "시간이 충분해요! 😊"}
@@ -505,9 +510,21 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
             >
               <Card className="bg-white/80 backdrop-blur border-0 shadow-lg h-full flex flex-col">
                 <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Target className="w-5 h-5 text-purple-600" />
-                    <h3 className="text-purple-800">학습 진행률 📈</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-5 h-5 text-purple-600" />
+                      <h3 className="text-purple-800">학습 진행률 📈</h3>
+                    </div>
+                    <Tabs value={selectedMode} onValueChange={(v) => setSelectedMode(v as "WRITTEN" | "PRACTICAL")}>
+                      <TabsList className="h-8">
+                        <TabsTrigger value="WRITTEN" className="text-xs px-3">
+                          📝 필기
+                        </TabsTrigger>
+                        <TabsTrigger value="PRACTICAL" className="text-xs px-3">
+                          ⌨️ 실기
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
 
                   <div className="flex-1 flex flex-col justify-between">
@@ -646,7 +663,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">📝</div>
                             <span className="text-green-800">문제 풀이</span>
                           </div>
-                          <span className="text-green-600 font-semibold">{quickStats.solvedToday}문제</span>
+                          <span className="text-green-600">{quickStats.solvedToday}문제</span>
                         </div>
 
                         <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
@@ -654,7 +671,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">⏱️</div>
                             <span className="text-green-800">학습 시간</span>
                           </div>
-                          <span className="text-green-600 font-semibold">{quickStats.minutesToday}분</span>
+                          <span className="text-green-600">{quickStats.minutesToday}분</span>
                         </div>
 
                         <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
@@ -662,7 +679,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">✅</div>
                             <span className="text-green-800">정답률</span>
                           </div>
-                          <span className="text-green-600 font-semibold">{(quickStats.accuracyToday * 100).toFixed(0)}%</span>
+                          <span className="text-green-600">{quickStats.accuracyToday.toFixed(1)}%</span>
                         </div>
 
                         <div className="bg-white/50 backdrop-blur rounded-lg p-4 flex items-center justify-between">
@@ -670,7 +687,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                             <div className="text-2xl">⭐</div>
                             <span className="text-green-800">획득 XP</span>
                           </div>
-                          <span className="text-green-600 font-semibold">+{quickStats.xpToday.toLocaleString()} XP</span>
+                          <span className="text-green-600">+{quickStats.xpToday.toLocaleString()} XP</span>
                         </div>
                       </div>
 
@@ -684,7 +701,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                         {quickStats.accuracyDelta > 0 ? (
                           <>
                             <TrendingUp className="w-4 h-4 inline-block mr-1" />
-                            정답률이 어제보다 {(quickStats.accuracyDelta * 100).toFixed(0)}% 향상되었어요! 🎉
+                            정답률이 어제보다 {quickStats.accuracyToday.toFixed(1)}% 향상되었어요! 🎉
                           </>
                         ) : quickStats.accuracyDelta < 0 ? (
                           <>
@@ -758,10 +775,10 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                               )}
                             </div>
 
-                            <div className="text-2xl flex items-center justify-center w-8 h-8">
-                              {user.avatarUrl && !imageErrors.has(user.userId) ? (
+                            <div className="flex items-center justify-center w-8 h-8">
+                              {user.skinId && !imageErrors.has(user.userId) ? (
                                 <img 
-                                  src={user.avatarUrl} 
+                                  src={getProfileImage(user.skinId)} 
                                   alt={user.nickname}
                                   className="w-8 h-8 rounded-full object-cover"
                                   onError={() => {
@@ -769,7 +786,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                                   }}
                                 />
                               ) : (
-                                <span>👤</span>
+                                <span className="text-2xl">👤</span>
                               )}
                             </div>
 
@@ -801,7 +818,7 @@ export function HomeDashboard({ userProfile }: HomeDashboardProps) {
                     asChild
                     className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white"
                   >
-                    <Link to="/community" className="flex items-center justify-center">
+                    <Link to="/rankBadge" className="flex items-center justify-center">
                       전체 랭킹 보기
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Link>

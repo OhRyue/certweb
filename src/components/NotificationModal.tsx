@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import {
   Dialog,
@@ -55,7 +54,6 @@ export function NotificationModal({
   open,
   onOpenChange,
 }: NotificationModalProps) {
-  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
@@ -146,34 +144,10 @@ export function NotificationModal({
 
   // 알림 클릭 시 액션
   const handleNotificationClick = async (notification: Notification) => {
-    // 읽지 않은 알림이면 읽음 처리
+    // 읽지 않은 알림이면 읽음 처리만 수행
     if (!notification.isRead) {
       await handleMarkAsRead(notification.id);
     }
-
-    // 타입별 라우팅
-    const payload = notification.payload as any;
-    switch (notification.type) {
-      case "BADGE_EARNED":
-        // 배지 페이지로 이동 (배지 페이지가 있다면)
-        navigate("/shop"); // 임시로 상점 페이지로
-        break;
-      case "POST_LIKED":
-      case "POST_COMMENTED":
-      case "COMMENT_REPLIED":
-        if (payload?.postId) {
-          navigate(`/community/posts/${payload.postId}`);
-        }
-        break;
-      case "DAILY_REMINDER":
-        navigate("/learning");
-        break;
-      case "WEEKLY_REPORT":
-        navigate("/report");
-        break;
-    }
-
-    onOpenChange(false);
   };
 
   // 읽지 않은 알림 개수

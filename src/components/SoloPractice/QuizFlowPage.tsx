@@ -59,7 +59,7 @@ export function QuizFlowPage() {
     ? Math.round((summaryData.mcqCorrect || 0) / summaryData.mcqTotal * 100)
     : 0
 
-  // 결과 화면에서 summary API 호출
+  // 결과 화면에서 summary API 호출 및 advance API 호출
   useEffect(() => {
     const loadSummary = async () => {
       if (step === "result" && learningSessionId && !summaryData) {
@@ -114,6 +114,51 @@ export function QuizFlowPage() {
               aiSummary: payload.aiSummary || ""
             })
           }
+          
+          // SUMMARY 단계 완료: advance API 호출
+          // 세션이 있으면 advance API 호출
+          if (learningSessionId) {
+            const sessionRes = await axios.get(`/study/session/${learningSessionId}`)
+            const session = sessionRes.data
+            const currentStep = session.currentStep
+            
+            // SUMMARY 단계인지 확인 (quizType에 따라 다른 SUMMARY 단계 타입 사용)
+            const summaryStep = quizType === "weakness"
+              ? (examType === "written"
+                ? (currentStep === "ASSIST_WRITTEN_WEAKNESS_SUMMARY" || currentStep === "SUMMARY")
+                : (currentStep === "ASSIST_PRACTICAL_WEAKNESS_SUMMARY" || currentStep === "SUMMARY"))
+              : quizType === "difficulty"
+              ? (examType === "written"
+                ? (currentStep === "ASSIST_WRITTEN_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY")
+                : (currentStep === "ASSIST_PRACTICAL_DIFFICULTY_SUMMARY" || currentStep === "SUMMARY"))
+              : (examType === "written"
+                ? (currentStep === "ASSIST_WRITTEN_CATEGORY_SUMMARY" || currentStep === "SUMMARY")
+                : (currentStep === "ASSIST_PRACTICAL_CATEGORY_SUMMARY" || currentStep === "SUMMARY"))
+            
+            // SUMMARY 단계일 때만 advance 호출
+            if (summaryStep) {
+              await axios.post("/study/session/advance", {
+                sessionId: learningSessionId,
+                step: "SUMMARY",
+                score: null,
+                detailsJson: null
+              })
+              // advance 호출 후 세션 상태 확인 (movedTo === "END", status === "DONE")
+              const updatedSessionRes = await axios.get(`/study/session/${learningSessionId}`)
+              const updatedSession = updatedSessionRes.data
+              if (updatedSession.status === "DONE") {
+                // 세션이 종료됨 - localStorage에서 삭제
+                console.log("세션이 종료되었습니다. status:", updatedSession.status)
+                if (quizType === "difficulty") {
+                  localStorage.removeItem('difficultyQuizLearningSessionId')
+                } else if (quizType === "weakness") {
+                  localStorage.removeItem('weaknessQuizLearningSessionId')
+                } else if (quizType === "category") {
+                  localStorage.removeItem('categoryQuizLearningSessionId')
+                }
+              }
+            }
+          }
         } catch (err: any) {
           console.error("요약 불러오기 실패:", err)
           setSummaryData({
@@ -128,7 +173,7 @@ export function QuizFlowPage() {
     }
     
     loadSummary()
-  }, [step, learningSessionId, examType, topicId, summaryData])
+  }, [step, learningSessionId, examType, topicId, summaryData, quizType])
 
   // 문제가 없거나 examType이 없을 때 처리
   if (!relatedQuestions || relatedQuestions.length === 0) {

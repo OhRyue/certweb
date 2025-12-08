@@ -7,14 +7,6 @@ import { Badge } from "../ui/badge"
 import { Progress } from "../ui/progress"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog"
-import {
   BookOpen,
   CheckCircle2,
   ListChecks,
@@ -179,11 +171,8 @@ export function MainLearningDashboard() {
   const [expandedMainTopic, setExpandedMainTopic] = useState<number | null>(null)     // 어떤 MainTopic이 펼쳐져 있는지 표시
   const [selectedExamType, setSelectedExamType] = useState<"written" | "practical">("written")    // 현재 선택된 시험 유형(필기/실기)
   const [microStatuses, setMicroStatuses] = useState<Map<number, MicroStatus>>(new Map())  // SubTopic ID별 Micro 학습 진행 상태
-  const [resumableMap, setResumableMap] = useState<Map<number, boolean>>(new Map())  // SubTopic ID별 resumable 상태
   const [microStats, setMicroStats] = useState<MicroStatsResponse | null>(null)  // Micro 학습 통계
   const [reviewStatuses, setReviewStatuses] = useState<Map<number, ReviewStatus>>(new Map())  // MainTopic ID별 Review 학습 진행 상태
-  const [resumeDialogOpen, setResumeDialogOpen] = useState(false)  // 이어서 학습 다이얼로그 열림 상태
-  const [selectedSubTopicId, setSelectedSubTopicId] = useState<number | null>(null)  // 다이얼로그에서 선택된 SubTopic ID
   const fetchedStatusesRef = useRef<string>("")  // 이미 조회한 상태 추적 (examType + topicIds 조합)
   const fetchedReviewStatusesRef = useRef<string>("")  // 이미 조회한 Review 상태 추적 (examType + rootTopicIds 조합)
 
@@ -272,14 +261,11 @@ export function MainLearningDashboard() {
 
         // Map으로 변환하여 저장
         const statusMap = new Map<number, MicroStatus>()
-        const resumableStatusMap = new Map<number, boolean>()
         res.data.statuses.forEach(item => {
           statusMap.set(item.topicId, item.status)
-          resumableStatusMap.set(item.topicId, item.resumable)
         })
 
         setMicroStatuses(statusMap)
-        setResumableMap(resumableStatusMap)
 
         // subjects의 completed 상태 업데이트 (함수형 업데이트로 무한 루프 방지)
         setSubjects(prevSubjects => {
@@ -835,23 +821,13 @@ export function MainLearningDashboard() {
                                 - type 파라미터로 모드 구분
                                 - 세션 시작 API 호출 후 sessionId를 포함해서 navigate
                                 - 진행 상태에 따라 버튼 텍스트와 스타일 변경
-                                - resumable이 true이거나 IN_PROGRESS일 때는 다이얼로그 표시
+                                - 항상 resume=false로 새로운 세션 시작
                              */}
                             <div className="relative">
                               <Button
                                 size="sm"
                                 onClick={async () => {
-                                  const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
-                                  const resumable = resumableMap.get(subTopic.id) || false
-                                  
-                                  // resumable이 true이거나 IN_PROGRESS일 때는 다이얼로그 표시
-                                  if (status === "IN_PROGRESS" || resumable) {
-                                    setSelectedSubTopicId(subTopic.id)
-                                    setResumeDialogOpen(true)
-                                    return
-                                  }
-                                  
-                                  // 그 외의 경우는 바로 세션 시작
+                                  // 항상 새로운 세션으로 시작 (resume=false)
                                   try {
                                     // Micro 모드 세션 시작 API 호출
                                     const res = await axios.post("/study/session/start", {
@@ -901,19 +877,6 @@ export function MainLearningDashboard() {
                                   }
                                 })()}
                               </Button>
-                              {/* resumable이 true이거나 IN_PROGRESS일 때 빨간색 점 표시 (단, COMPLETED/TRULY_COMPLETED는 제외) */}
-                              {(() => {
-                                const status = microStatuses.get(subTopic.id) || "NOT_STARTED"
-                                const resumable = resumableMap.get(subTopic.id) || false
-                                const showDot = (status === "IN_PROGRESS" || resumable) && status !== "COMPLETED" && status !== "TRULY_COMPLETED"
-                                
-                                if (showDot) {
-                                  return (
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
-                                  )
-                                }
-                                return null
-                              })()}
                             </div>
                           </div>
                           )
@@ -928,92 +891,6 @@ export function MainLearningDashboard() {
         </div>
       </div>
 
-      {/* 이어서 학습 선택 다이얼로그 */}
-      <Dialog 
-        open={resumeDialogOpen} 
-        onOpenChange={(open) => {
-          setResumeDialogOpen(open)
-          if (!open) {
-            setSelectedSubTopicId(null)
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>학습 방법 선택</DialogTitle>
-            <DialogDescription>
-              이어서 진행할 수 있는 학습이 있습니다. 어떻게 진행하시겠습니까?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (!selectedSubTopicId) return
-                
-                try {
-                  // 처음부터 하기
-                  const res = await axios.post("/study/session/start", {
-                    topicId: selectedSubTopicId,
-                    mode: "MICRO",
-                    examMode: selectedExamType === "written" ? "WRITTEN" : "PRACTICAL",
-                    resume: false
-                  })
-                  
-                  const sessionId = res.data.sessionId
-                  // sessionId는 learningSessionId이므로 localStorage에 저장
-                  localStorage.setItem('learningSessionId', sessionId.toString())
-                  setResumeDialogOpen(false)
-                  navigate(
-                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,
-                  )
-                } catch (err) {
-                  console.error("세션 시작 실패:", err)
-                  setResumeDialogOpen(false)
-                  navigate(
-                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}`,
-                  )
-                }
-              }}
-              className="w-full sm:w-auto"
-            >
-              처음부터 하기
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!selectedSubTopicId) return
-                
-                try {
-                  // 이어서 하기
-                  const res = await axios.post("/study/session/start", {
-                    topicId: selectedSubTopicId,
-                    mode: "MICRO",
-                    examMode: selectedExamType === "written" ? "WRITTEN" : "PRACTICAL",
-                    resume: true
-                  })
-                  
-                  const sessionId = res.data.sessionId
-                  // sessionId는 learningSessionId이므로 localStorage에 저장
-                  localStorage.setItem('learningSessionId', sessionId.toString())
-                  setResumeDialogOpen(false)
-                  navigate(
-                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}&sessionId=${sessionId}`,
-                  )
-                } catch (err) {
-                  console.error("세션 시작 실패:", err)
-                  setResumeDialogOpen(false)
-                  navigate(
-                    `/learning/micro?subTopicId=${selectedSubTopicId}&type=${selectedExamType}`,
-                  )
-                }
-              }}
-              className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-            >
-              이어서 하기
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

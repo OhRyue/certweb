@@ -97,7 +97,7 @@ export function ReviewFlowPracticalPage() {
   // 오답 목록은 ReviewWrongAnswersPractical 컴포넌트에서 직접 API로 가져옴
   // 중복 호출 방지를 위해 여기서는 제거
 
-  // 3. SUMMARY API 호출 (result 단계일 때만)
+  // 3. SUMMARY API 호출 및 advance API 호출 (result 단계일 때만)
   useEffect(() => {
     const loadSummary = async () => {
       if (step !== "result") return
@@ -131,6 +131,32 @@ export function ReviewFlowPracticalPage() {
         // 경험치를 획득했으면 레벨업 모달 표시
         if (payload.earnedXp && payload.earnedXp > 0) {
           setShowLevelUp(true)
+        }
+        
+        // SUMMARY 단계 완료: advance API 호출
+        // 세션이 있으면 advance API 호출
+        if (finalLearningSessionId) {
+          const sessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
+          const session = sessionRes.data
+          const currentStep = session.currentStep
+          
+          // SUMMARY 단계일 때만 advance 호출
+          if (currentStep === "SUMMARY") {
+            await axios.post("/study/session/advance", {
+              sessionId: finalLearningSessionId,
+              step: "SUMMARY",
+              score: null,
+              detailsJson: null
+            })
+            // advance 호출 후 세션 상태 확인 (movedTo === "END", status === "DONE")
+            const updatedSessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
+            const updatedSession = updatedSessionRes.data
+            if (updatedSession.status === "DONE") {
+              // 세션이 종료됨 - localStorage에서 삭제
+              console.log("세션이 종료되었습니다. status:", updatedSession.status)
+              localStorage.removeItem('practicalReviewLearningSessionId')
+            }
+          }
         }
         
         setSummaryLoaded(true)
@@ -333,40 +359,7 @@ export function ReviewFlowPracticalPage() {
           aiSummary={summaryData?.aiSummary}
           loadingSummary={!summaryLoaded}
           onRetry={() => setStep("problem")}
-          onBackToDashboard={async () => {
-            // SUMMARY 화면 종료 시 advance API 호출 및 세션 완료 처리
-            if (finalLearningSessionId) {
-              try {
-                // 세션 조회하여 SUMMARY 단계 확인
-                const sessionRes = await axios.get(`/study/session/${finalLearningSessionId}`)
-                const session = sessionRes.data
-                
-                // SUMMARY 단계일 때만 advance 호출
-                if (session.currentStep === "SUMMARY") {
-                  const advanceRes = await axios.post("/study/session/advance", {
-                    sessionId: finalLearningSessionId,
-                    step: "SUMMARY",
-                    score: null,
-                    detailsJson: null
-                  })
-                  
-                  // advance 응답 확인
-                  const movedTo = advanceRes.data?.movedTo
-                  if (movedTo === "END" || session.status === "DONE") {
-                    // 세션 완료 시 localStorage에서 삭제
-                    localStorage.removeItem('practicalReviewLearningSessionId')
-                  }
-                } else if (session.status === "DONE") {
-                  // 이미 완료된 세션이면 삭제
-                  localStorage.removeItem('practicalReviewLearningSessionId')
-                }
-              } catch (err: any) {
-                console.error("SUMMARY advance API 호출 실패:", err)
-                // 에러가 발생해도 대시보드로 이동
-              }
-            }
-            navigate("/learning")
-          }}
+          onBackToDashboard={() => navigate("/learning")}
         />
 
         {/* 경험치를 얻으면 항상 LevelUpScreen 표시 */}
