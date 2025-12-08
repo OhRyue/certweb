@@ -120,7 +120,7 @@ export function ReviewProblemSolving({
             <Sparkles className="w-8 h-8 text-blue-600" />
             <h1 className="text-blue-900">Review 문제풀이</h1>
           </div>
-          <p className="text-gray-600 mt-2">OX 이후 단계의 객관식 문제입니다!</p>
+          <p className="text-gray-600 mt-2">실전 문제를 풀어 실력을 향상합시다!</p>
         </div>
 
         {/* Progress */}
@@ -154,7 +154,9 @@ export function ReviewProblemSolving({
               </div>
             )}
 
-            <h2 className="text-blue-900 mb-6">{currentQuestion.stem}</h2>
+            <h2 className="text-blue-900 mb-6 text-lg">
+              {currentQuestion.stem || "문제를 불러오는 중..."}
+            </h2>
 
             <div className="space-y-3">
               {currentQuestion.choices.map((choice) => {

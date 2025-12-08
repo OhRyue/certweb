@@ -179,9 +179,14 @@ export function ProblemSolvingWritten({
 
                 if (!showResult && !isSubmitting) {
                   buttonClass += " hover:border-purple-400 hover:bg-white/60 cursor-pointer";
-                } else if (isCorrectAnswer) {
+                } else if (isSubmitting && isSelected) {
+                  // 제출 중일 때는 로딩 상태 표시 (색상 없이)
+                  buttonClass += " border-purple-300 bg-purple-50";
+                } else if (showResult && isCorrectAnswer) {
+                  // 정답인 경우 초록색 표시 (showResult가 true일 때만)
                   buttonClass += " border-green-400 bg-green-50";
-                } else if (isSelected && !isCorrect) {
+                } else if (showResult && isSelected && !isCorrect) {
+                  // 오답인 경우 빨간색 표시 (showResult가 true일 때만)
                   buttonClass += " border-red-400 bg-red-50";
                 } else {
                   buttonClass += " opacity-50";

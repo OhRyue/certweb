@@ -68,7 +68,7 @@ export function ReviewFlowPage() {
         // API 응답을 ReviewQuestion 형태로 변환
         const reviewQuestions: ReviewQuestion[] = items.map((item: any) => ({
           id: item.questionId,
-          stem: item.stem || "",
+          stem: item.stem || item.question || item.text || item.content || "",
           choices: (item.choices || []).map((choice: any) => ({
             label: choice.label || "",
             content: choice.content || choice.text || ""
