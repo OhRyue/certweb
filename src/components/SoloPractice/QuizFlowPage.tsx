@@ -247,8 +247,10 @@ export function QuizFlowPage() {
               return {
                 correct: res.data.correct || false,
                 correctLabel: res.data.correctLabel || label,
-                explanation: res.data.explanation || "", // 필기는 항상 explanation 사용
-                aiExplanation: "" // 필기는 ai 해설 사용하지 않음
+                explanation: res.data.explanation || "", // 하위 호환성을 위해 유지
+                baseExplanation: res.data.baseExplanation || "",
+                aiExplanation: res.data.aiExplanation || "",
+                aiExplanationFailed: res.data.aiExplanationFailed || false
               }
             }}
             onComplete={async (score, answers) => {

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { BattleGameWritten } from "./BattleGameWritten"
 import { BattleGamePractical } from "./BattleGamePractical"
@@ -285,7 +285,6 @@ export function BattleFlow() {
         opponentNickname={opponentNickname}
         opponentUserId={opponentUserId || ""}
         opponentSkinId={opponentSkinId}
-        onRematch={() => navigate("/battle/onevsone/matching")}
         onBackToDashboard={() => navigate("/battle")}
       />
     )

@@ -4,6 +4,7 @@ import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import axios from "../../../api/axiosConfig";
 import type { Question } from "../../../../types";
 
@@ -313,7 +314,9 @@ export function MicroWrongAnswers({
                     </Badge>
                   )}
                 </div>
-                <p className="text-gray-700">{currentQuestion.explanation}</p>
+                <div className="text-gray-700 prose prose-sm max-w-none">
+                  <ReactMarkdown>{currentQuestion.explanation || ""}</ReactMarkdown>
+                </div>
               </div>
             </div>
           </Card>

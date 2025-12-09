@@ -1,13 +1,12 @@
 import { Card } from "../../../ui/card"
 import { Button } from "../../../ui/button"
 import { Badge } from "../../../ui/badge"
-import { Trophy, Award, RotateCcw, Home } from "lucide-react"
+import { Trophy, Home } from "lucide-react"
 
 export function BattleResult({
   myScore,
   opponentScore,
   opponentName,
-  onRematch,
   onBackToDashboard
 }) {
   const isWin = myScore > opponentScore
@@ -23,9 +22,8 @@ export function BattleResult({
             <Trophy className="w-12 h-12 text-white" />
           </div>
 
-          <h1 className={`mb-2 ${
-            isWin ? "text-green-600" : isDraw ? "text-yellow-600" : "text-gray-600"
-          }`}>
+          <h1 className={`mb-2 ${isWin ? "text-green-600" : isDraw ? "text-yellow-600" : "text-gray-600"
+            }`}>
             {isWin ? "승리!" : isDraw ? "무승부" : "패배"}
           </h1>
 
@@ -60,9 +58,8 @@ export function BattleResult({
               <div className="text-4xl mb-3">🤖</div>
               <p className="text-sm text-gray-600 mb-2">{opponentName}</p>
 
-              <div className={`text-4xl mb-2 ${
-                !isWin && !isDraw ? "text-red-600" : "text-gray-800"
-              }`}>
+              <div className={`text-4xl mb-2 ${!isWin && !isDraw ? "text-red-600" : "text-gray-800"
+                }`}>
                 {opponentScore}
               </div>
 
@@ -90,23 +87,15 @@ export function BattleResult({
 
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <Button
-            onClick={onRematch}
-            variant="outline"
-            className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" /> 재대결
-          </Button>
-
+        <div className="grid grid-cols-1 gap-4">
           <Button
             onClick={onBackToDashboard}
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
           >
-            <Home className="w-4 h-4 mr-2" /> 대전 메뉴로
+            <Home className="w-4 h-4 mr-2" />
+            대전 메뉴로
           </Button>
         </div>
-
       </div>
     </div>
   )

@@ -4,6 +4,8 @@ import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import axios from "../../api/axiosConfig";
 import type { Question } from "../../../types";
 
@@ -12,6 +14,9 @@ interface WrongAnswer {
   userAnswer: string; // "A", "B", "O", "X"
   correctAnswer?: string; // "A", "B", "O", "X"
   explanation?: string;
+  baseExplanation?: string;
+  aiExplanation?: string;
+  aiExplanationFailed?: boolean;
   text?: string;
   imageUrl?: string | null;
 }
@@ -79,13 +84,18 @@ export function ReviewWrongAnswersWritten({
           myAnswer?: string;
           correctAnswer?: string;
           baseExplanation?: string;
+          aiExplanation?: string;
+          aiExplanationFailed?: boolean;
           text?: string;
           imageUrl?: string | null;
         }) => ({
           questionId: item.questionId,
           userAnswer: item.myAnswer || "",
           correctAnswer: item.correctAnswer || "",
-          explanation: item.baseExplanation || "", // 필기는 항상 baseExplanation 사용
+          explanation: item.baseExplanation || "", // 하위 호환성을 위해 유지
+          baseExplanation: item.baseExplanation || "",
+          aiExplanation: item.aiExplanation || "",
+          aiExplanationFailed: item.aiExplanationFailed || false,
           text: item.text || "",
           imageUrl: item.imageUrl || null
         }));
@@ -332,8 +342,22 @@ export function ReviewWrongAnswersWritten({
             <div className="flex items-start gap-3">
               <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0" />
               <div className="flex-1">
-                <h3 className="text-blue-900 mb-2">해설</h3>
-                <p className="text-gray-700">{currentQuestion.explanation}</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-blue-900">해설</h3>
+                  {!currentWrong.aiExplanationFailed && currentWrong.aiExplanation && (
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      AI 해설
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-gray-700 prose prose-sm max-w-none overflow-x-auto">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentWrong.aiExplanationFailed
+                      ? (currentWrong.baseExplanation || currentQuestion.explanation || "")
+                      : (currentWrong.aiExplanation || currentWrong.baseExplanation || currentQuestion.explanation || "")}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           </Card>

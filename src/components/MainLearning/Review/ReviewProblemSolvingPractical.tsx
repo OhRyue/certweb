@@ -6,6 +6,8 @@ import { Progress } from "../../ui/progress"
 import { Input } from "../../ui/input"
 import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import axios from "../../api/axiosConfig"
 
 interface ReviewQuestion {
@@ -159,7 +161,9 @@ export function ReviewProblemSolvingPractical({
                 />
               </div>
             )}
-            <h2 className="text-orange-900 mb-6">{currentQuestion.stem}</h2>
+            <div className="text-orange-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentQuestion.stem || ""}</ReactMarkdown>
+            </div>
 
             <div className="space-y-4">
               <Input

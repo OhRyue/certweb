@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { BattleGameWritten } from "./BattleGameWritten"
 import { BattleGamePractical } from "./BattleGamePractical"
@@ -221,7 +221,6 @@ export function DifficultyBattleFlow() {
         myScore={myScore}
         opponentScore={opponentScore}
         opponentName={opponentName}
-        onRematch={() => navigate("/battle/onevsone/matching")}
         onBackToDashboard={() => navigate("/battle")}
       />
     )
