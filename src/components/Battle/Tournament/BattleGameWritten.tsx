@@ -241,7 +241,8 @@ export function BattleGameWritten({
         const updateTimeLeft = () => {
             const now = new Date().getTime();
             const end = new Date(endTime).getTime();
-            const remaining = Math.max(0, Math.floor((end - now) / 1000));
+            // Math.ceil을 사용하여 0.1초 남아도 1초로 표시 (골든벨과 동일)
+            const remaining = Math.max(0, Math.ceil((end - now) / 1000));
             setTimeLeft(remaining);
 
             // 시간이 만료되었고 아직 답변하지 않았으면 자동 제출
