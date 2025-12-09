@@ -5,6 +5,8 @@ import { Badge } from "../../ui/badge";
 import { Progress } from "../../ui/progress";
 import { Input } from "../../ui/input";
 import { Swords, Clock, Zap, Sparkles, Target } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Question } from "../../../types";
 import { OpponentLeftOverlay } from "../OpponentLeftOverlay";
 import { submitAnswer, getScoreboard, type ScoreboardItem } from "../../api/versusApi";
@@ -87,6 +89,7 @@ export function BattleGamePractical({
   const [participants, setParticipants] = useState<ScoreboardItem[]>([]);
   const [previousCorrectCount, setPreviousCorrectCount] = useState<number | null>(null); // 이전 정답 개수 저장
   const [isAlive, setIsAlive] = useState<boolean>(true); // 탈락 여부
+  const [currentEndTime, setCurrentEndTime] = useState<string | null>(null); // 스코어보드에서 받은 endTime
 
   // questions가 없거나 비어있으면 예외 처리
   const totalQuestions = questions?.length || 0;
@@ -107,6 +110,13 @@ export function BattleGamePractical({
         if (myItem) {
           setMyScore(myItem.score);
           setIsAlive(myItem.alive); // 탈락 여부 업데이트
+        }
+
+        // currentQuestion의 endTime 업데이트 (백엔드 시간 기준)
+        if (scoreboard.currentQuestion?.endTime) {
+          setCurrentEndTime(scoreboard.currentQuestion.endTime);
+        } else {
+          setCurrentEndTime(null);
         }
 
         // 참가자 목록 업데이트 (최대 8명)
@@ -157,12 +167,21 @@ export function BattleGamePractical({
 
   // 새 문제가 로드될 때 상태 리셋 (문제 ID가 실제로 변경된 경우에만)
   const previousQuestionIdRef = useRef<string | null>(null);
+  const previousRoomQuestionIdRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (hasQuestion && question) {
       const currentQuestionId = question.id;
+      const currentRoomQuestionId = question.roomQuestionId;
+      
       // 이전 문제 ID와 다를 때만 초기화 (같은 문제면 초기화하지 않음)
-      if (previousQuestionIdRef.current !== currentQuestionId) {
+      // roomQuestionId를 우선적으로 확인 (더 정확함)
+      const questionChanged = 
+        previousQuestionIdRef.current !== currentQuestionId || 
+        previousRoomQuestionIdRef.current !== currentRoomQuestionId;
+      
+      if (questionChanged) {
         previousQuestionIdRef.current = currentQuestionId;
+        previousRoomQuestionIdRef.current = currentRoomQuestionId;
         // 문제가 변경되면 무조건 모든 상태 초기화
         setTypingAnswer("");
         setIsAnswered(false);
@@ -171,8 +190,12 @@ export function BattleGamePractical({
         setIsCorrect(false);
         isSubmittingRef.current = false; // 제출 플래그도 리셋
       }
+    } else if (!hasQuestion) {
+      // 문제가 없으면 리셋
+      previousQuestionIdRef.current = null;
+      previousRoomQuestionIdRef.current = undefined;
     }
-  }, [question?.id, hasQuestion]);
+  }, [question?.id, question?.roomQuestionId, hasQuestion]);
 
   // Handle answer - 백엔드가 채점하므로 프론트에서는 답안만 제출
   const handleAnswer = useCallback(async () => {
@@ -222,13 +245,16 @@ export function BattleGamePractical({
   }, [roomId, question?.roomQuestionId, question?.roundNo, question?.phase, typingAnswer, myUserId, isAnswered, isAlive, previousCorrectCount]);
 
   // endTime 기준으로 남은 시간 계산 (백엔드 시간 기준)
+  // currentEndTime을 우선 사용하고, 없으면 props의 endTime 사용
+  const effectiveEndTime = currentEndTime || endTime;
   useEffect(() => {
-    if (!endTime || !hasQuestion) return;
+    if (!effectiveEndTime || !hasQuestion) return;
 
     const updateTimeLeft = () => {
       const now = new Date().getTime();
-      const end = new Date(endTime).getTime();
-      const remaining = Math.max(0, Math.floor((end - now) / 1000));
+      const end = new Date(effectiveEndTime).getTime();
+      // Math.ceil을 사용하여 0.1초 남아도 1초로 표시 (골든벨과 동일)
+      const remaining = Math.max(0, Math.ceil((end - now) / 1000));
       setTimeLeft(remaining);
 
       // 시간이 만료되었고 아직 답변하지 않았으면 자동 제출 (탈락하지 않은 경우만)
@@ -244,7 +270,7 @@ export function BattleGamePractical({
     const timer = setInterval(updateTimeLeft, 100);
 
     return () => clearInterval(timer);
-  }, [endTime, hasQuestion, question?.id, isAnswered, handleAnswer]);
+  }, [effectiveEndTime, hasQuestion, question?.id, isAnswered, isAlive, handleAnswer]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
@@ -348,111 +374,53 @@ export function BattleGamePractical({
           )}
         </Card>
 
-        {/* 2단 레이아웃 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 문제 및 답안 제출 */}
+        <div className="max-w-3xl mx-auto">
           {hasQuestion ? (
-            <>
-              {/* 문제 */}
-              <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
-                <div className="mb-4">
-                  <h2 className="text-gray-900 text-base">{question.question}</h2>
+            <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
+              <div className="mb-4 prose prose-sm max-w-none overflow-x-auto">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {question.question}
+                </ReactMarkdown>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-4 rounded-lg border-2 border-orange-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge className="bg-orange-500 text-white">AI 채점 🤖</Badge>
+                    <p className="text-sm text-gray-700">코드나 답변을 입력하세요</p>
+                  </div>
+                  <Input
+                    value={typingAnswer}
+                    onChange={(e) => setTypingAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && isAlive && !isAnswered && typingAnswer.trim()) {
+                        handleAnswer();
+                      }
+                    }}
+                    placeholder="답변을 입력하세요..."
+                    disabled={!isAlive || isAnswered}
+                    className="bg-white border-2 border-orange-300 focus:border-orange-500 disabled:opacity-60"
+                  />
                 </div>
-
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 p-4 rounded-lg border-2 border-orange-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge className="bg-orange-500 text-white">AI 채점 🤖</Badge>
-                      <p className="text-sm text-gray-700">코드나 답변을 입력하세요</p>
-                    </div>
-                    <Input
-                      value={typingAnswer}
-                      onChange={(e) => setTypingAnswer(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && isAlive && !isAnswered && typingAnswer.trim()) {
-                          handleAnswer();
-                        }
-                      }}
-                      placeholder="답변을 입력하세요..."
-                      disabled={!isAlive || isAnswered}
-                      className="bg-white border-2 border-orange-300 focus:border-orange-500 disabled:opacity-60"
-                    />
-                  </div>
-                  {isAlive && !isAnswered && typingAnswer.trim() && (
-                    <Button
-                      onClick={handleAnswer}
-                      className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-                    >
-                      <Zap className="w-4 h-4 mr-2" />
-                      제출하기
-                    </Button>
-                  )}
-                </div>
-              </Card>
-
-              {/* 해설 */}
-              <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
-                {!showResult ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center">
-                    <div className="text-6xl mb-4">🤔</div>
-                    <p className="text-gray-600">답변을 제출하면</p>
-                    <p className="text-gray-600">이곳에 AI 해설이 표시됩니다</p>
-                  </div>
-                ) : (
-                  <div className="h-full flex flex-col">
-                    <div
-                      className={`p-5 rounded-xl border-2 flex-1 ${
-                        isCorrect
-                          ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-300"
-                          : "bg-gradient-to-r from-red-50 to-rose-50 border-red-300"
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 mb-4">
-                        <div className="text-5xl">
-                          {isCorrect ? "🎉" : "💭"}
-                        </div>
-                        <div className="flex-1">
-                          <p
-                            className={`text-xl mb-2 ${
-                              isCorrect ? "text-green-900" : "text-red-900"
-                            }`}
-                          >
-                            {isCorrect ? "정답입니다! ✨" : "아쉽네요! 😢"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-lg bg-white/70 mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge className="bg-orange-500 text-white text-xs">AI 해설</Badge>
-                          <p className="text-sm text-gray-700">📚 해설</p>
-                        </div>
-                        <p className="text-sm text-gray-800">{question.explanation}</p>
-                      </div>
-
-                      {showOpponentAnswer && (
-                        <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg">
-                          <span>🏆</span>
-                          <span>다른 참가자들도 문제를 풀고 있습니다!</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                {isAlive && !isAnswered && typingAnswer.trim() && (
+                  <Button
+                    onClick={handleAnswer}
+                    className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    제출하기
+                  </Button>
                 )}
-              </Card>
-            </>
+              </div>
+            </Card>
           ) : (
-            <>
-              <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
-                <div className="h-full flex flex-col items-center justify-center text-center">
-                  <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                </div>
-              </Card>
-              <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
-                <div className="h-full flex flex-col items-center justify-center text-center">
-                  <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                </div>
-              </Card>
-            </>
+            <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm shadow-lg">
+              <div className="h-full flex flex-col items-center justify-center text-center min-h-[400px]">
+                <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-600 mt-4">문제를 불러오는 중...</p>
+              </div>
+            </Card>
           )}
         </div>
       </div>
