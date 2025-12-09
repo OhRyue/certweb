@@ -257,15 +257,27 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
   }, [roomId, propMyUserId, myUserId, prevAlive, scoreboard?.status]);
 
   // currentQuestion이 변경되면 문제 상세 정보 조회 (초기 로딩 이후)
+  const previousQuestionIdRef = useRef<number | null>(null);
   useEffect(() => {
     // 초기 로딩 중이면 스코어보드의 currentQuestion을 사용하지 않음
     if (isInitialLoad) return;
     if (!scoreboard?.currentQuestion?.questionId) return;
-    if (submittedQuestionId === scoreboard.currentQuestion.questionId) return; // 이미 제출한 문제는 조회하지 않음
+    
+    const currentQuestionId = scoreboard.currentQuestion.questionId;
+    
+    // 문제가 변경되었으면 제출 상태 리셋
+    if (previousQuestionIdRef.current !== null && previousQuestionIdRef.current !== currentQuestionId) {
+      setSubmittedQuestionId(null);
+      autoSubmittedRef.current = null;
+    }
+    previousQuestionIdRef.current = currentQuestionId;
+    
+    // 이미 제출한 문제는 조회하지 않음
+    if (submittedQuestionId === currentQuestionId) return;
 
     const fetchQuestion = async () => {
       try {
-        const questionData = await getVersusQuestion(scoreboard.currentQuestion!.questionId);
+        const questionData = await getVersusQuestion(currentQuestionId);
         setCurrentQuestion(questionData);
         setAnswerStartTime(Date.now());
         setGameStage("answering");

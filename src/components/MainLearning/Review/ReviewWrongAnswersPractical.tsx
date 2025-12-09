@@ -4,6 +4,8 @@ import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import axios from "../../api/axiosConfig";
 
 interface PracticalWrongAnswer {
@@ -100,8 +102,12 @@ export function ReviewWrongAnswersPractical({
             }
           }
           
+          // \r\n을 \n으로 변환하여 마크다운 테이블이 제대로 파싱되도록 함
+          const text = (item.text || "").replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+          
           return {
             ...item,
+            text: text,
             myAnswer: parsedAnswer,
             // answerKey가 있으면 우선 사용, 없으면 correctAnswer 사용
             correctAnswer: item.answerKey || item.correctAnswer || ""
@@ -222,7 +228,9 @@ export function ReviewWrongAnswersPractical({
             <div className="flex items-start gap-3 mb-6">
               <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
               <div className="flex-1">
-                <h2 className="text-red-900 mb-6">{currentWrong.text}</h2>
+                <div className="text-red-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentWrong.text || ""}</ReactMarkdown>
+                </div>
 
                 {/* 이미지가 있는 경우 표시 */}
                 {currentWrong.imageUrl && (

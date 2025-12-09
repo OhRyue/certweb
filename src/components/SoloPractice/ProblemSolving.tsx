@@ -5,6 +5,8 @@ import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Question } from "../../types";
 
 interface ProblemSolvingProps {
@@ -66,7 +68,10 @@ export function ProblemSolving({
         selectedAnswer: answerIndex,
         isCorrect,
         timeSpent: 0,
-        explanation: result.explanation || "", // explanation 필드 사용 (aiExplanation은 사용하지 않음)
+        explanation: result.explanation || "", // 하위 호환성을 위해 유지
+        baseExplanation: result.baseExplanation || "",
+        aiExplanation: result.aiExplanation || "",
+        aiExplanationFailed: result.aiExplanationFailed || false,
         correctLabel: result.correctLabel || label
       }]);
 
@@ -244,8 +249,20 @@ export function ProblemSolving({
                       <h3 className={isCorrect ? "text-green-900" : "text-red-900"}>
                         {isCorrect ? "정답이에요!" : "아쉽네요!"}
                       </h3>
+                      {!currentAnswer?.aiExplanationFailed && currentAnswer?.aiExplanation && (
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          AI 해설
+                        </Badge>
+                      )}
                     </div>
-                    <p className="text-gray-700">{currentAnswer?.explanation || currentQuestion.explanation}</p>
+                    <div className="text-gray-700 prose prose-sm max-w-none overflow-x-auto">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {currentAnswer?.aiExplanationFailed
+                          ? (currentAnswer?.baseExplanation || currentAnswer?.explanation || currentQuestion.explanation || "")
+                          : (currentAnswer?.aiExplanation || currentAnswer?.baseExplanation || currentAnswer?.explanation || currentQuestion.explanation || "")}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               </Card>

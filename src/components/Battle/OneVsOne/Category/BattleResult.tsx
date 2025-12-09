@@ -1,7 +1,7 @@
 import { Card } from "../../../ui/card";
 import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
-import { Trophy, TrendingUp, Award, RotateCcw, Home } from "lucide-react";
+import { Trophy, Home } from "lucide-react";
 import { getProfileImage } from "../../../../utils/profileUtils";
 
 interface BattleResultProps {
@@ -13,7 +13,6 @@ interface BattleResultProps {
   opponentNickname: string | null;
   opponentUserId: string;
   opponentSkinId: number | null;
-  onRematch: () => void;
   onBackToDashboard: () => void;
 }
 
@@ -26,16 +25,15 @@ export function BattleResult({
   opponentNickname,
   opponentUserId,
   opponentSkinId,
-  onRematch,
   onBackToDashboard
 }: BattleResultProps) {
   const isWin = myScore > opponentScore;
   const isDraw = myScore === opponentScore;
-  
+
   // 닉네임이 null이면 userId 표시
   const myDisplayName = myNickname || myUserId || "나";
   const opponentDisplayName = opponentNickname || opponentUserId || "상대";
-  
+
   // skinId 기반 프로필 이미지
   const myProfileImage = mySkinId ? getProfileImage(mySkinId) : "/assets/profile/girl_basic_profile.png";
   const opponentProfileImage = opponentSkinId ? getProfileImage(opponentSkinId) : "/assets/profile/girl_basic_profile.png";
@@ -68,8 +66,8 @@ export function BattleResult({
             {/* My Score */}
             <div className="text-center">
               <div className="mb-3 flex justify-center">
-                <img 
-                  src={myProfileImage} 
+                <img
+                  src={myProfileImage}
                   alt={myDisplayName}
                   className="w-16 h-16 rounded-full object-cover"
                 />
@@ -90,8 +88,8 @@ export function BattleResult({
             {/* Opponent Score */}
             <div className="text-center">
               <div className="mb-3 flex justify-center">
-                <img 
-                  src={opponentProfileImage} 
+                <img
+                  src={opponentProfileImage}
                   alt={opponentDisplayName}
                   className="w-16 h-16 rounded-full object-cover"
                 />
@@ -126,15 +124,7 @@ export function BattleResult({
 
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            onClick={onRematch}
-            variant="outline"
-            className="border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            재대결
-          </Button>
+        <div className="grid grid-cols-1 gap-4">
           <Button
             onClick={onBackToDashboard}
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
@@ -143,6 +133,7 @@ export function BattleResult({
             대전 메뉴로
           </Button>
         </div>
+
       </div>
     </div>
   );

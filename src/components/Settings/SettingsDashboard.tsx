@@ -70,6 +70,7 @@ export function SettingsDashboard({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const handleCheckNickname = async () => {
     const trimmedNickname = profile.name.trim();
@@ -104,14 +105,53 @@ export function SettingsDashboard({
     setNicknameAvailable(null); // 편집 모드 진입 시 중복 확인 상태 초기화
   };
 
-  const handleSaveProfile = () => {
-    // 눈 속임용: 실제로는 원래 값으로 되돌림
-    const originalProfile = { ...userProfile };
-    setProfile(originalProfile);
-    setSelectedCertId(getCurrentCertId());
-    onUpdateProfile(originalProfile);
-    setIsEditingProfile(false);
-    toast.success("프로필이 저장되었습니다!");
+  const handleSaveProfile = async () => {
+    const trimmedNickname = profile.name.trim();
+    
+    // 닉네임이 비어있는지 확인
+    if (!trimmedNickname) {
+      toast.error("닉네임을 입력해주세요.");
+      return;
+    }
+
+    // 닉네임이 변경되었고 중복 확인이 완료되지 않았거나 사용 불가능한 경우
+    const nicknameChanged = trimmedNickname !== userProfile.name;
+    if (nicknameChanged) {
+      if (nicknameAvailable === null) {
+        toast.error("닉네임 중복 확인을 먼저 해주세요.");
+        return;
+      }
+      if (nicknameAvailable === false) {
+        toast.error("사용할 수 없는 닉네임입니다.");
+        return;
+      }
+    }
+
+    try {
+      setIsSavingProfile(true);
+      
+      // API 호출
+      await axios.put("/account/profile", {
+        nickname: trimmedNickname,
+        skinId: null,
+        timezone: null,
+        lang: null
+      });
+
+      // 성공 시 로컬 상태 업데이트
+      const updatedProfile = { ...profile, name: trimmedNickname };
+      setProfile(updatedProfile);
+      setSelectedCertId(getCurrentCertId());
+      onUpdateProfile(updatedProfile);
+      setIsEditingProfile(false);
+      setNicknameAvailable(null); // 저장 후 중복 확인 상태 초기화
+      toast.success("프로필이 저장되었습니다!");
+    } catch (err: any) {
+      console.error("프로필 저장 오류:", err);
+      toast.error(err.response?.data?.message || "프로필 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -260,7 +300,11 @@ export function SettingsDashboard({
                         type="button"
                         onClick={() => {
                           if (isEditingProfile) {
-                            // 편집 모드일 때만 선택 가능 (눈 속임용 - 실제로는 저장되지 않음)
+                            // 정보처리기사(certId: 1)가 아닌 다른 자격증 선택 시 알림
+                            if (category.certId !== 1) {
+                              toast.error("아직 제공되지 않는 자격증입니다.");
+                              return;
+                            }
                             setSelectedCertId(category.certId);
                             setProfile({ ...profile, targetCertification: category.name });
                           }
@@ -307,7 +351,7 @@ export function SettingsDashboard({
                     <p className="text-purple-600">Level {profile.level}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">경험치</p>
+                    <p className="text-sm text-gray-600">총 경험치</p>
                     <p className="text-purple-600">{profile.xp} XP</p>
                   </div>
                 </div>
@@ -324,15 +368,26 @@ export function SettingsDashboard({
                   <div className="flex gap-2">
                     <Button
                       onClick={handleSaveProfile}
+                      disabled={isSavingProfile}
                       className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                     >
-                      <Save className="w-4 h-4 mr-2" />
-                      프로필 저장
+                      {isSavingProfile ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          저장 중...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          프로필 저장
+                        </>
+                      )}
                     </Button>
                     <Button
                       onClick={handleCancelEdit}
                       variant="outline"
                       className="flex-1"
+                      disabled={isSavingProfile}
                     >
                       취소
                     </Button>

@@ -193,3 +193,84 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Markdown 스타일링 */
+.prose {
+  color: inherit;
+}
+
+.prose p {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.prose ul {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+  padding-left: 1.5em;
+  list-style-type: disc;
+}
+
+.prose li {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose strong {
+  font-weight: 600;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+  font-size: 0.9em;
+}
+
+.prose pre {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 1em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  font-size: 0.9em;
+  display: table;
+  overflow-x: auto;
+}
+
+.prose table th,
+.prose table td {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.prose table th {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+.prose table tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.prose table tr:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}

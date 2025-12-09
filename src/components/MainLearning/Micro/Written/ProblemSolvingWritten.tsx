@@ -5,6 +5,7 @@ import { Badge } from "../../../ui/badge";
 import { Progress } from "../../../ui/progress";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import type { Question } from "../../../../types";
 
 interface ProblemSolvingWrittenProps {
@@ -228,7 +229,9 @@ export function ProblemSolvingWritten({
                         {isCorrect ? "정답이에요!" : "아쉽네요!"}
                       </h3>
                     </div>
-                    <p className="text-gray-700">{currentAnswer?.explanation || currentQuestion.explanation}</p>
+                    <div className="text-gray-700 prose prose-sm max-w-none">
+                      <ReactMarkdown>{currentAnswer?.explanation || currentQuestion.explanation || ""}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               </Card>

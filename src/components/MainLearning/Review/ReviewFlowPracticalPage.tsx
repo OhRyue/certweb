@@ -74,12 +74,16 @@ export function ReviewFlowPracticalPage() {
         const items = res.data.payload?.items || []
         // API 응답을 ReviewQuestion 형태로 변환
         // API는 text를 반환하지만 컴포넌트는 stem을 사용
-        const reviewQuestions: ReviewQuestion[] = items.map((item: any) => ({
-          id: item.questionId || item.id,
-          stem: item.text || item.stem || "",  // text를 stem으로 매핑
-          imageUrl: item.imageUrl || null,
-          type: item.type || "SHORT"  // SHORT 타입만 사용
-        }))
+        const reviewQuestions: ReviewQuestion[] = items.map((item: any) => {
+          // \r\n을 \n으로 변환하여 마크다운 테이블이 제대로 파싱되도록 함
+          const text = (item.text || item.stem || "").replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+          return {
+            id: item.questionId || item.id,
+            stem: text,  // text를 stem으로 매핑
+            imageUrl: item.imageUrl || null,
+            type: item.type || "SHORT"  // SHORT 타입만 사용
+          }
+        })
         
         setQuestions(reviewQuestions)
       } catch (err: any) {

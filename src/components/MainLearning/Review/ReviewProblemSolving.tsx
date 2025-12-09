@@ -5,6 +5,7 @@ import { Badge } from "../../ui/badge"
 import { Progress } from "../../ui/progress"
 import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
 import axios from "../../api/axiosConfig"
 
 interface ReviewQuestion {
@@ -226,7 +227,9 @@ export function ReviewProblemSolving({
                       {isCorrect ? "정답이에요!" : "틀렸어요!"}
                     </h3>
                     {gradeResult.explanation && (
-                      <p className="text-gray-700">{gradeResult.explanation}</p>
+                      <div className="text-gray-700 prose prose-sm max-w-none">
+                        <ReactMarkdown>{gradeResult.explanation}</ReactMarkdown>
+                      </div>
                     )}
                   </div>
                 </div>
