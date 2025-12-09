@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "../../../ui/card";
 import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "../../../ui/popover";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import axios from "../../../api/axiosConfig";
 import type { Question } from "../../../../types";
+import { getTagsByCodes } from "../../../api/tagApi";
 
 interface WrongAnswer {
   questionId: number;
@@ -38,6 +40,7 @@ export function MicroWrongAnswersWritten({
   const [loading, setLoading] = useState(!propWrongAnswers); // props로 전달되면 로딩 불필요
   const [error, setError] = useState<string | null>(null);
   const [wrongAnswersLoaded, setWrongAnswersLoaded] = useState(false); // 오답 목록 로딩 완료 여부
+  const [tagDescriptions, setTagDescriptions] = useState<Record<string, string>>({});
   const onContinueRef = useRef(onContinue);
   
   useEffect(() => {
@@ -170,7 +173,7 @@ export function MicroWrongAnswersWritten({
         const question: Question = {
           id: String(data.questionId),
           topicId: "",
-          tags: [],
+          tags: data.tags || [], // API 응답의 태그 포함
           difficulty: "medium",
           type: data.type === "OX" ? "ox" : "multiple",
           examType: "written",
@@ -191,6 +194,39 @@ export function MicroWrongAnswersWritten({
 
     fetchQuestion();
   }, [currentIndex, currentWrong?.questionId, wrongAnswers.length, wrongAnswersLoaded]);
+
+  // 태그 설명 로드
+  useEffect(() => {
+    const loadTagDescriptions = async () => {
+      if (!currentQuestion?.tags || currentQuestion.tags.length === 0) return;
+
+      // 태그 코드 추출
+      const tagCodes = currentQuestion.tags
+        .map(tag => typeof tag === 'object' && tag !== null && 'code' in tag ? tag.code : null)
+        .filter((code): code is string => code !== null);
+
+      if (tagCodes.length === 0) return;
+
+      // 이미 로드된 태그는 스킵
+      const missingCodes = tagCodes.filter(code => !tagDescriptions[code]);
+      if (missingCodes.length === 0) return;
+
+      try {
+        const tags = await getTagsByCodes(missingCodes);
+        const newDescriptions: Record<string, string> = {};
+        tags.forEach(tag => {
+          if (tag.description) {
+            newDescriptions[tag.code] = tag.description;
+          }
+        });
+        setTagDescriptions(prev => ({ ...prev, ...newDescriptions }));
+      } catch (err) {
+        console.error("태그 설명 로드 실패:", err);
+      }
+    };
+
+    loadTagDescriptions();
+  }, [currentQuestion?.tags, currentIndex]);
 
   // 오답이 없고 로딩이 완료된 경우에만 null 반환
   if (wrongAnswers.length === 0 && wrongAnswersLoaded && !loading) {
@@ -274,13 +310,52 @@ export function MicroWrongAnswersWritten({
             <div className="flex items-start gap-3 mb-6">
               <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  {currentQuestion.tags.map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
+                {/* 태그 뱃지 */}
+                {currentQuestion.tags && currentQuestion.tags.length > 0 && (
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    {currentQuestion.tags.map((tag, index) => {
+                      const tagLabel = typeof tag === 'object' && tag !== null && 'labelKo' in tag 
+                        ? tag.labelKo 
+                        : typeof tag === 'string' 
+                          ? tag 
+                          : '';
+                      const tagCode = typeof tag === 'object' && tag !== null && 'code' in tag 
+                        ? tag.code 
+                        : null;
+                      const tagKey = tagCode || String(index);
+                      const description = tagCode ? tagDescriptions[tagCode] : null;
+                      
+                      if (!tagLabel) return null;
+                      
+                      return (
+                        <Badge 
+                          key={tagKey} 
+                          variant="outline" 
+                          className="bg-blue-50 text-blue-700 border-blue-300 flex items-center gap-1"
+                        >
+                          {tagLabel}
+                          {tagCode && description && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="ml-1 cursor-pointer hover:text-blue-900 transition-colors text-xs"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  ⓘ
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64 p-3 text-sm">
+                                <div className="font-semibold mb-1 text-blue-900">{tagLabel}</div>
+                                <div className="text-gray-700">{description}</div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <h2 className="text-red-900 mb-6">{currentQuestion.question}</h2>
 

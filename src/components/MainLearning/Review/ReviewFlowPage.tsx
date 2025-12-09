@@ -11,6 +11,7 @@ interface ReviewQuestion {
   stem: string
   choices: { label: string; content: string }[]
   imageUrl: string | null
+  tags?: Array<{ code: string; labelKo: string; labelEn?: string; description?: string; domain: string; orderNo: number }> | string[]
 }
 
 export function ReviewFlowPage() {
@@ -73,7 +74,8 @@ export function ReviewFlowPage() {
             label: choice.label || "",
             content: choice.content || choice.text || ""
           })),
-          imageUrl: item.imageUrl || null
+          imageUrl: item.imageUrl || null,
+          tags: item.tags || [] // 태그 포함
         }))
         
         setQuestions(reviewQuestions)

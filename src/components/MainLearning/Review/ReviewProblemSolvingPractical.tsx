@@ -1,20 +1,23 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "../../ui/card"
 import { Button } from "../../ui/button"
 import { Badge } from "../../ui/badge"
 import { Progress } from "../../ui/progress"
 import { Input } from "../../ui/input"
+import { Popover, PopoverTrigger, PopoverContent } from "../../ui/popover"
 import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import axios from "../../api/axiosConfig"
+import { getTagsByCodes } from "../../api/tagApi"
 
 interface ReviewQuestion {
   id: number
   stem: string
   imageUrl: string | null
   type?: string
+  tags?: Array<{ code: string; labelKo: string; labelEn?: string; description?: string; domain: string; orderNo: number }> | string[]
 }
 
 interface ReviewProblemSolvingPracticalProps {
@@ -43,6 +46,7 @@ export function ReviewProblemSolvingPractical({
     aiExplanation: string
     aiExplanationFailed: boolean
   } | null>(null)
+  const [tagDescriptions, setTagDescriptions] = useState<Record<string, string>>({})
 
   // 문제 비었을 때 방어
   if (!questions || questions.length === 0) {
@@ -55,6 +59,39 @@ export function ReviewProblemSolvingPractical({
 
   const currentQuestion = questions[currentIndex]
   const progress = ((currentIndex + 1) / questions.length) * 100
+
+  // 태그 설명 로드
+  useEffect(() => {
+    const loadTagDescriptions = async () => {
+      if (!currentQuestion?.tags || currentQuestion.tags.length === 0) return;
+
+      // 태그 코드 추출
+      const tagCodes = currentQuestion.tags
+        .map(tag => typeof tag === 'object' && tag !== null && 'code' in tag ? tag.code : null)
+        .filter((code): code is string => code !== null);
+
+      if (tagCodes.length === 0) return;
+
+      // 이미 로드된 태그는 스킵
+      const missingCodes = tagCodes.filter(code => !tagDescriptions[code]);
+      if (missingCodes.length === 0) return;
+
+      try {
+        const tags = await getTagsByCodes(missingCodes);
+        const newDescriptions: Record<string, string> = {};
+        tags.forEach(tag => {
+          if (tag.description) {
+            newDescriptions[tag.code] = tag.description;
+          }
+        });
+        setTagDescriptions(prev => ({ ...prev, ...newDescriptions }));
+      } catch (err) {
+        console.error("태그 설명 로드 실패:", err);
+      }
+    };
+
+    loadTagDescriptions();
+  }, [currentQuestion?.tags, currentIndex]);
 
   const handleSubmit = async () => {
     if (showResult || !typedAnswer.trim() || isGrading) return
@@ -161,6 +198,54 @@ export function ReviewProblemSolvingPractical({
                 />
               </div>
             )}
+
+            {/* 태그 뱃지 */}
+            {currentQuestion.tags && currentQuestion.tags.length > 0 && (
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {currentQuestion.tags.map((tag, index) => {
+                  const tagLabel = typeof tag === 'object' && tag !== null && 'labelKo' in tag 
+                    ? tag.labelKo 
+                    : typeof tag === 'string' 
+                      ? tag 
+                      : '';
+                  const tagCode = typeof tag === 'object' && tag !== null && 'code' in tag 
+                    ? tag.code 
+                    : null;
+                  const tagKey = tagCode || String(index);
+                  const description = tagCode ? tagDescriptions[tagCode] : null;
+                  
+                  if (!tagLabel) return null;
+                  
+                  return (
+                    <Badge 
+                      key={tagKey} 
+                      variant="outline" 
+                      className="bg-blue-50 text-blue-700 border-blue-300 flex items-center gap-1"
+                    >
+                      {tagLabel}
+                      {tagCode && description && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="ml-1 cursor-pointer hover:text-blue-900 transition-colors text-xs"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              ⓘ
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3 text-sm">
+                            <div className="font-semibold mb-1 text-blue-900">{tagLabel}</div>
+                            <div className="text-gray-700">{description}</div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="text-orange-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentQuestion.stem || ""}</ReactMarkdown>
             </div>

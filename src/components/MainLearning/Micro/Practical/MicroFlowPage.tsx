@@ -167,7 +167,7 @@ export function MicroFlowPage() {
 
       // 기본값 설정
       difficulty: "medium",
-      tags: [],
+      tags: q.tags ?? [],         // API 응답의 태그 포함
       type: "typing",             // 실기는 타이핑 타입
       examType: "practical"       // 실기 타입 명시
     }))

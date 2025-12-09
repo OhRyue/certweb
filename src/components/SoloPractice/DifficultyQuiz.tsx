@@ -75,7 +75,7 @@ export function DifficultyQuiz() {
           return {
             id: String(item.questionId),
             topicId: "",
-            tags: [],
+            tags: item.tags || [], // API 응답의 태그 포함
             difficulty: difficulty as "easy" | "medium" | "hard",
             type: "typing" as const,
             examType: "practical" as const,
@@ -95,7 +95,7 @@ export function DifficultyQuiz() {
           return {
             id: String(item.questionId),
             topicId: "",
-            tags: [],
+            tags: item.tags || [], // API 응답의 태그 포함
             difficulty: difficulty as "easy" | "medium" | "hard",
             type: "multiple" as const,
             examType: "written" as const,

@@ -213,7 +213,7 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
           return {
             id: String(item.questionId),
             topicId: "",
-            tags: [],
+            tags: item.tags || [], // API 응답의 태그 포함
             difficulty: "medium" as const,
             type: "typing" as const,
             examType: "practical" as const,
@@ -233,7 +233,7 @@ export function CategoryQuiz({ }: CategoryQuizProps) {
           return {
             id: String(item.questionId),
             topicId: "",
-            tags: [],
+            tags: item.tags || [], // API 응답의 태그 포함
             difficulty: "medium" as const,
             type: "multiple" as const,
             examType: "written" as const,

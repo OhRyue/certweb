@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "../../ui/popover";
 import { motion } from "motion/react";
 import { XCircle, CheckCircle2, ArrowRight, ArrowLeft, Sparkles, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import axios from "../../api/axiosConfig";
+import { getTagsByCodes } from "../../api/tagApi";
 
 interface PracticalWrongAnswer {
   questionId: number;
@@ -19,6 +21,7 @@ interface PracticalWrongAnswer {
   imageUrl?: string | null;
   aiExplanation: string;
   aiExplanationFailed?: boolean; // AI 해설 생성 실패 여부
+  tags?: Array<{ code: string; labelKo: string; labelEn?: string; description?: string; domain: string; orderNo: number }> | string[];
 }
 
 interface ReviewWrongAnswersPracticalProps {
@@ -37,6 +40,7 @@ export function ReviewWrongAnswersPractical({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [wrongAnswersLoaded, setWrongAnswersLoaded] = useState(false); // 오답 목록 로딩 완료 여부
+  const [tagDescriptions, setTagDescriptions] = useState<Record<string, string>>({});
   const onContinueRef = useRef(onContinue);
   
   useEffect(() => {
@@ -110,7 +114,8 @@ export function ReviewWrongAnswersPractical({
             text: text,
             myAnswer: parsedAnswer,
             // answerKey가 있으면 우선 사용, 없으면 correctAnswer 사용
-            correctAnswer: item.answerKey || item.correctAnswer || ""
+            correctAnswer: item.answerKey || item.correctAnswer || "",
+            tags: item.tags || [] // 태그 포함
           };
         });
         
@@ -171,6 +176,39 @@ export function ReviewWrongAnswersPractical({
 
   const currentWrong = wrongAnswers[currentIndex];
 
+  // 태그 설명 로드
+  useEffect(() => {
+    const loadTagDescriptions = async () => {
+      if (!currentWrong?.tags || currentWrong.tags.length === 0) return;
+
+      // 태그 코드 추출
+      const tagCodes = currentWrong.tags
+        .map(tag => typeof tag === 'object' && tag !== null && 'code' in tag ? tag.code : null)
+        .filter((code): code is string => code !== null);
+
+      if (tagCodes.length === 0) return;
+
+      // 이미 로드된 태그는 스킵
+      const missingCodes = tagCodes.filter(code => !tagDescriptions[code]);
+      if (missingCodes.length === 0) return;
+
+      try {
+        const tags = await getTagsByCodes(missingCodes);
+        const newDescriptions: Record<string, string> = {};
+        tags.forEach(tag => {
+          if (tag.description) {
+            newDescriptions[tag.code] = tag.description;
+          }
+        });
+        setTagDescriptions(prev => ({ ...prev, ...newDescriptions }));
+      } catch (err) {
+        console.error("태그 설명 로드 실패:", err);
+      }
+    };
+
+    loadTagDescriptions();
+  }, [currentWrong?.tags, currentIndex]);
+
   const handleNext = () => {
     if (currentIndex < wrongAnswers.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -228,6 +266,53 @@ export function ReviewWrongAnswersPractical({
             <div className="flex items-start gap-3 mb-6">
               <XCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
               <div className="flex-1">
+                {/* 태그 뱃지 */}
+                {currentWrong.tags && currentWrong.tags.length > 0 && (
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    {currentWrong.tags.map((tag, index) => {
+                      const tagLabel = typeof tag === 'object' && tag !== null && 'labelKo' in tag 
+                        ? tag.labelKo 
+                        : typeof tag === 'string' 
+                          ? tag 
+                          : '';
+                      const tagCode = typeof tag === 'object' && tag !== null && 'code' in tag 
+                        ? tag.code 
+                        : null;
+                      const tagKey = tagCode || String(index);
+                      const description = tagCode ? tagDescriptions[tagCode] : null;
+                      
+                      if (!tagLabel) return null;
+                      
+                      return (
+                        <Badge 
+                          key={tagKey} 
+                          variant="outline" 
+                          className="bg-blue-50 text-blue-700 border-blue-300 flex items-center gap-1"
+                        >
+                          {tagLabel}
+                          {tagCode && description && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="ml-1 cursor-pointer hover:text-blue-900 transition-colors text-xs"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  ⓘ
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-64 p-3 text-sm">
+                                <div className="font-semibold mb-1 text-blue-900">{tagLabel}</div>
+                                <div className="text-gray-700">{description}</div>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className="text-red-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentWrong.text || ""}</ReactMarkdown>
                 </div>

@@ -11,6 +11,7 @@ interface ReviewQuestion {
   stem: string
   imageUrl: string | null
   type?: string
+  tags?: Array<{ code: string; labelKo: string; labelEn?: string; description?: string; domain: string; orderNo: number }> | string[]
 }
 
 export function ReviewFlowPracticalPage() {
@@ -81,7 +82,8 @@ export function ReviewFlowPracticalPage() {
             id: item.questionId || item.id,
             stem: text,  // text를 stem으로 매핑
             imageUrl: item.imageUrl || null,
-            type: item.type || "SHORT"  // SHORT 타입만 사용
+            type: item.type || "SHORT",  // SHORT 타입만 사용
+            tags: item.tags || [] // 태그 포함
           }
         })
         

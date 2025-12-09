@@ -48,10 +48,19 @@ export interface QuestionOption {
   text: string;
 }
 
+export interface QuestionTag {
+  code: string;
+  labelKo: string;
+  labelEn?: string;
+  description?: string;
+  domain: string;
+  orderNo: number;
+}
+
 export interface Question {
   id: string
   topicId: string
-  tags: string[]
+  tags: string[] | QuestionTag[] // 문자열 배열 또는 태그 객체 배열
   difficulty: "easy" | "medium" | "hard"
   type: "multiple" | "ox" | "typing" // typing for 실기
   examType?: "written" | "practical" // 필기 or 실기
