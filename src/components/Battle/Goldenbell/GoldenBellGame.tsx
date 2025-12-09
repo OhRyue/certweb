@@ -6,6 +6,8 @@ import { Badge } from "../../ui/badge";
 import { Progress } from "../../ui/progress";
 import { Bell, Trophy, Clock, Users } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { GoldenBellCharacter, CanvasEffect } from "../../../types";
 import { CharacterGrid } from "./CharacterGrid";
 import { EffectCanvas } from "./EffectCanvas";
@@ -232,8 +234,16 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
             setPrevAlive(currentAlive);
             setMyRevived(currentRevived);
             
-            // 관전자 모드 상태 업데이트 (scoreboard의 alive 필드만 사용)
-            setIsSpectator(!currentAlive);
+            // 관전자 모드 상태 업데이트
+            // 부활전일 때: 생존자는 답을 제출할 수 없고, 오직 부활 가능자(revived === true)만 답을 제출할 수 있음
+            // 부활전이 아닐 때: 탈락자만 관전자 모드
+            if (currentPhase === "REVIVAL") {
+              // 부활전: 생존자이거나 부활 자격이 없는 탈락자는 관전자 모드
+              setIsSpectator(currentAlive === true || currentRevived === false);
+            } else {
+              // 본전: 탈락자만 관전자 모드
+              setIsSpectator(!currentAlive);
+            }
           }
         }
       } catch (error) {
@@ -827,37 +837,56 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
                             </Badge>
                           )}
                         </div>
-                        <h2 className="text-gray-900 mb-4">{currentQuestion.stem}</h2>
-                        {isSpectator && (
-                          <div className={`rounded-lg p-4 mb-4 border-2 ${
-                            scoreboard?.currentQuestion?.phase === "REVIVAL" && myRevived === false
-                              ? "bg-red-50 border-red-300"
-                              : "bg-yellow-50 border-yellow-300"
-                          }`}>
-                            <p className={`text-sm ${
-                              scoreboard?.currentQuestion?.phase === "REVIVAL" && myRevived === false
-                                ? "text-red-800"
-                                : "text-yellow-800"
+                        <div className="text-gray-900 mb-4 prose prose-sm max-w-none overflow-x-auto">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {currentQuestion.stem}
+                          </ReactMarkdown>
+                        </div>
+                        {isSpectator && (() => {
+                          const userIdToUse = propMyUserId || myUserId;
+                          const myItem = scoreboard?.items?.find(item => item.userId === userIdToUse);
+                          const isAlive = myItem?.alive ?? false;
+                          const isRevivalPhase = scoreboard?.currentQuestion?.phase === "REVIVAL";
+                          
+                          return (
+                            <div className={`rounded-lg p-4 mb-4 border-2 ${
+                              isRevivalPhase && myRevived === false
+                                ? "bg-red-50 border-red-300"
+                                : isRevivalPhase && isAlive
+                                ? "bg-blue-50 border-blue-300"
+                                : "bg-yellow-50 border-yellow-300"
                             }`}>
-                              ⚠️ 관전자 모드입니다. 문제는 볼 수 있지만 답안을 제출할 수 없습니다.
-                            </p>
-                            {scoreboard?.currentQuestion?.phase === "REVIVAL" && (
-                              myRevived === true ? (
-                                <p className="text-purple-700 text-sm mt-2 font-semibold">
-                                  💫 부활전이 진행 중입니다. 부활 기회를 노려보세요!
-                                </p>
-                              ) : myRevived === false ? (
-                                <p className="text-red-700 text-sm mt-2 font-semibold">
-                                  ❌ 부활 자격이 없습니다. 정답을 맞춘 문제가 없어 부활할 수 없습니다.
-                                </p>
-                              ) : (
-                                <p className="text-purple-700 text-sm mt-2 font-semibold">
-                                  💫 부활전이 진행 중입니다. 부활 기회를 노려보세요!
-                                </p>
-                              )
-                            )}
-                          </div>
-                        )}
+                              <p className={`text-sm ${
+                                isRevivalPhase && myRevived === false
+                                  ? "text-red-800"
+                                  : isRevivalPhase && isAlive
+                                  ? "text-blue-800"
+                                  : "text-yellow-800"
+                              }`}>
+                                ⚠️ 관전자 모드입니다. 문제는 볼 수 있지만 답안을 제출할 수 없습니다.
+                              </p>
+                              {isRevivalPhase && (
+                                isAlive ? (
+                                  <p className="text-blue-700 text-sm mt-2 font-semibold">
+                                    💙 부활전에서는 생존자는 답을 제출할 수 없습니다. 오직 부활 가능자만 답변할 수 있습니다.
+                                  </p>
+                                ) : myRevived === true ? (
+                                  <p className="text-purple-700 text-sm mt-2 font-semibold">
+                                    💫 부활전이 진행 중입니다. 부활 기회를 노려보세요!
+                                  </p>
+                                ) : myRevived === false ? (
+                                  <p className="text-red-700 text-sm mt-2 font-semibold">
+                                    ❌ 부활 자격이 없습니다. 정답을 맞춘 문제가 없어 부활할 수 없습니다.
+                                  </p>
+                                ) : (
+                                  <p className="text-purple-700 text-sm mt-2 font-semibold">
+                                    💫 부활전이 진행 중입니다. 부활 기회를 노려보세요!
+                                  </p>
+                                )
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {currentQuestion.type === "OX" ? (

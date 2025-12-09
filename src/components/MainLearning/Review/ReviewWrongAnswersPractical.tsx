@@ -283,11 +283,13 @@ export function ReviewWrongAnswersPractical({
                     </Badge>
                   )}
                 </div>
-                <p className="text-gray-700">
-                  {currentWrong.aiExplanationFailed
-                    ? (currentWrong.baseExplanation || "해설이 없습니다.")
-                    : (currentWrong.aiExplanation || currentWrong.baseExplanation || "해설이 없습니다.")}
-                </p>
+                <div className="text-gray-700 prose prose-sm max-w-none overflow-x-auto">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {currentWrong.aiExplanationFailed
+                      ? (currentWrong.baseExplanation || "해설이 없습니다.")
+                      : (currentWrong.aiExplanation || currentWrong.baseExplanation || "해설이 없습니다.")}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           </Card>

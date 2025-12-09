@@ -35,6 +35,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import axios from "../api/axiosConfig"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import type { ActivityDetail, ActivityListResponse, ActivityDetailResponse } from "../../types"
 import { useNavigate } from "react-router-dom"
 
@@ -569,7 +571,11 @@ export function FullHistoryView() {
                             </Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-900 mb-2">{question.stem}</p>
+                        <div className="text-sm text-gray-900 mb-2 prose prose-sm max-w-none overflow-x-auto">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {question.stem}
+                          </ReactMarkdown>
+                        </div>
                         <div className="flex items-center gap-4 text-xs">
                           <div>
                             <span className="text-gray-600">내 답: </span>

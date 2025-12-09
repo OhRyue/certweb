@@ -208,13 +208,9 @@ export function ProblemSolvingPractical({
           <Card className="p-8 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 mb-6">
 
             <div className="text-purple-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
-              {quizType ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {currentQuestion.question}
-                </ReactMarkdown>
-              ) : (
-                <h2>{currentQuestion.question}</h2>
-              )}
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentQuestion.question}
+              </ReactMarkdown>
             </div>
 
             {/* 이미지가 있는 경우 표시 */}

@@ -42,8 +42,8 @@ export function WeaknessQuiz() {
         });
 
         // API 응답을 WeaknessTag 형식으로 변환
-        const transformedTags: WeaknessTag[] = response.data.items.map((item: any) => ({
-          tag: item.tag,
+        const transformedTags: WeaknessTag[] = (response.data.items || []).map((item: any) => ({
+          tag: item.tag?.labelKo || item.tag?.code || item.tag || "",
           total: item.total,
           correct: item.correct,
           proficiency: Math.round(item.accuracy), // 정답률을 proficiency로 사용

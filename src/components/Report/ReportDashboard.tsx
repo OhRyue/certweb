@@ -28,7 +28,9 @@ import {
   XCircle
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { RecentActivity, ActivityDetail, ActivityDetailResponse } from "../../types"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import type { RecentActivity, ActivityDetail, ActivityDetailResponse } from "../../types"
 
 export function ReportDashboard() {
 
@@ -67,15 +69,16 @@ export function ReportDashboard() {
 
       setTagStats(
         data.items.map((item: any) => ({
-          tag: item.tag,
+          tag: item.tag?.labelKo || item.tag?.code || item.tag || "",
+          tagObject: item.tag, // 전체 tag 객체도 보관
           total: item.total,
           correct: item.correct,
           proficiency: Math.round(item.accuracy),
         }))
       )
 
-      setWeaknessTags(data.weaknessTags)
-      setMessage(data.message)
+      setWeaknessTags(data.weaknessTags || [])
+      setMessage(data.message || "")
 
     } catch (error: any) {
       console.error(error)
@@ -631,7 +634,11 @@ export function ReportDashboard() {
                             </Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-900 mb-2">{question.stem}</p>
+                        <div className="text-sm text-gray-900 mb-2 prose prose-sm max-w-none overflow-x-auto">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {question.stem}
+                          </ReactMarkdown>
+                        </div>
                         <div className="flex items-center gap-4 text-xs">
                           <div>
                             <span className="text-gray-600">내 답: </span>
