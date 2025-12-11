@@ -249,7 +249,11 @@ export function ProblemSolving({
               </div>
             )}
 
-            <h2 className="text-purple-900 mb-6">{currentQuestion.question}</h2>
+            <div className="text-purple-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentQuestion.question}
+              </ReactMarkdown>
+            </div>
 
             {/* 필기 모드: 선택형 */}
             <div className="space-y-3">

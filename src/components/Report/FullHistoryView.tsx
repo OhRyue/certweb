@@ -341,12 +341,6 @@ export function FullHistoryView() {
                           {item.finalRank}위
                         </div>
                       )}
-                      {item.xpGained !== undefined && (
-                        <div className="flex items-center gap-1 text-sm text-purple-600">
-                          <Sparkles className="w-4 h-4" />
-                          +{item.xpGained} XP
-                        </div>
-                      )}
                     </div>
                   </div>
                 </Card>

@@ -701,12 +701,12 @@ export function HomeDashboard() {
                         {quickStats.accuracyDelta > 0 ? (
                           <>
                             <TrendingUp className="w-4 h-4 inline-block mr-1" />
-                            정답률이 어제보다 {quickStats.accuracyToday.toFixed(1)}% 향상되었어요! 🎉
+                            정답률이 어제보다 {Math.abs(quickStats.accuracyDelta).toFixed(1)}% 향상되었어요! 🎉
                           </>
                         ) : quickStats.accuracyDelta < 0 ? (
                           <>
                             <TrendingUp className="w-4 h-4 inline-block mr-1 rotate-180" />
-                            정답률이 어제보다 {(Math.abs(quickStats.accuracyDelta) * 100).toFixed(0)}% 감소했어요
+                            정답률이 어제보다 {Math.abs(quickStats.accuracyDelta).toFixed(1)}% 감소했어요
                           </>
                         ) : (
                           <>

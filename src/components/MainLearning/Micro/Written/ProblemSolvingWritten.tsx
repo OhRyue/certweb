@@ -7,6 +7,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "../../../ui/popover";
 import { motion } from "motion/react";
 import { CheckCircle2, XCircle, ArrowRight, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Question } from "../../../../types";
 import { getTagsByCodes, type TagInfo } from "../../../api/tagApi";
 
@@ -228,7 +229,11 @@ export function ProblemSolvingWritten({
               </div>
             )}
 
-            <h2 className="text-purple-900 mb-6">{currentQuestion.question}</h2>
+            <div className="text-purple-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentQuestion.question}
+              </ReactMarkdown>
+            </div>
 
             {/* 필기 모드: 선택형 */}
             <div className="space-y-3">

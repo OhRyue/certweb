@@ -7,6 +7,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "../../ui/popover"
 import { motion } from "motion/react"
 import { CheckCircle2, XCircle, ArrowRight, Sparkles, Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import axios from "../../api/axiosConfig"
 import { getTagsByCodes } from "../../api/tagApi"
 
@@ -239,9 +240,11 @@ export function ReviewProblemSolving({
               </div>
             )}
 
-            <h2 className="text-blue-900 mb-6">
-              {currentQuestion.stem || "문제를 불러오는 중..."}
-            </h2>
+            <div className="text-blue-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {currentQuestion.stem || "문제를 불러오는 중..."}
+              </ReactMarkdown>
+            </div>
 
             <div className="space-y-3">
               {currentQuestion.choices.map((choice) => {

@@ -3,6 +3,8 @@ import { Card } from "../../../ui/card";
 import { Badge } from "../../../ui/badge";
 import { Progress } from "../../../ui/progress";
 import { Swords, Clock, Sparkles, Target } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Question } from "../../../../types";
 import { OpponentLeftOverlay } from "../../OpponentLeftOverlay"; // ✅ 추가
 import { submitAnswer, getScoreboard, getVersusQuestion, sendHeartbeat, type CurrentQuestion } from "../../../api/versusApi";
@@ -582,7 +584,11 @@ export function BattleGameWritten({
                 {/* Questions */}
                 {hasQuestion ? (
                     <Card className="p-8 border-2 border-purple-200 bg-white/90 backdrop-blur-sm">
-                        <h2 className="text-gray-900 text-base mb-4">{question.question}</h2>
+                        <div className="text-gray-900 text-base mb-4 prose prose-sm max-w-none overflow-x-auto">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {question.question}
+                          </ReactMarkdown>
+                        </div>
                         <div className="space-y-3">
                             {question.options?.map((option, index) => {
                                 const isSelected = selectedAnswer === index;

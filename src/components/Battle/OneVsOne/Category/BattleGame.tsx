@@ -4,6 +4,8 @@ import { Button } from "../../../ui/button"
 import { Badge } from "../../../ui/badge"
 import { Progress } from "../../../ui/progress"
 import { Swords, Clock, Zap, X } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import type { Question } from "../../../../types"
 
 interface BattleGameProps {
@@ -153,7 +155,11 @@ export function BattleGame({ questions, opponentName, myUserId, opponentUserId, 
         {/* --- Question --- */}
         <Card className="p-8 border-2 border-purple-200">
           <Badge className="bg-purple-100 text-purple-700 mb-4">{question.category}</Badge>
-          <h2 className="text-gray-900 mb-6">{question.question}</h2>
+          <div className="text-gray-900 mb-6 prose prose-sm max-w-none overflow-x-auto">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {question.question}
+            </ReactMarkdown>
+          </div>
 
           {/* --- Options --- */}
           <div className="space-y-3">
