@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { clearAuthTokens } from "../../utils/authStorage";
+import { emitAuthLogoutEvent } from "../../utils/authEvents";
 
 interface SettingsDashboardProps {
   userProfile: {
@@ -174,6 +175,7 @@ export function SettingsDashboard({
     }
 
     clearAuthTokens()
+    emitAuthLogoutEvent()
 
     toast.success("로그아웃 완료")
     onLogout()
@@ -196,6 +198,7 @@ export function SettingsDashboard({
       
       // 로컬 스토리지 정리
       clearAuthTokens();
+      emitAuthLogoutEvent()
       
       // 로그아웃 처리
       onLogout();

@@ -1,5 +1,6 @@
 // App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { LoginScreen } from "./components/LoginScreen"
 import { SignUpScreen } from "./components/SignUpScreen"
@@ -12,6 +13,36 @@ import axios from "./components/api/axiosConfig"
 import { isTokenExpired, logTokenInfo } from "./utils/tokenUtils"
 import { OnboardingRedirector } from "./OnboardingRedirector"
 import { clearAuthTokens, getAccessToken, getRefreshTokenWithSource, setAuthItemInStorage } from "./utils/authStorage"
+import { AUTH_EVENT_STORAGE_KEY, emitAuthLogoutEvent } from "./utils/authEvents"
+
+function AuthStorageEventListener({ onRemoteLogout }: { onRemoteLogout: () => void }) {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.storageArea !== localStorage) return
+      if (e.key !== AUTH_EVENT_STORAGE_KEY) return
+      if (!e.newValue) return
+
+      try {
+        const payload = JSON.parse(e.newValue) as { type?: string }
+        if (payload?.type !== "logout") return
+      } catch {
+        return
+      }
+
+      // 다른 탭에서 로그아웃 신호 수신 → 이 탭도 즉시 로그아웃 처리
+      clearAuthTokens()
+      onRemoteLogout()
+      navigate("/login", { replace: true })
+    }
+
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
+  }, [navigate, onRemoteLogout])
+
+  return null
+}
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -81,6 +112,7 @@ export default function App() {
 
   const handleLogout = () => {
     clearAuthTokens()
+    emitAuthLogoutEvent()
     setIsLoggedIn(false)
   }
 
@@ -98,6 +130,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <AuthStorageEventListener onRemoteLogout={() => setIsLoggedIn(false)} />
       <OnboardingRedirector />
       <Routes>
 
