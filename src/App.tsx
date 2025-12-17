@@ -5,11 +5,12 @@ import { LoginScreen } from "./components/LoginScreen"
 import { SignUpScreen } from "./components/SignUpScreen"
 import { ForgotPasswordScreen } from "./components/ForgotPasswordScreen"
 import { OnboardingScreen } from "./components/OnboardingScreen"
+import { NaverCallback } from "./components/NaverCallback"
 import { PrivateRoute } from "./PrivateRoute"
-import InnerApp from "./InnerApp"
-import { Toaster } from "./components/ui/sonner"
+import { AppInitializer } from "./AppInitializer"
 import axios from "./components/api/axiosConfig"
 import { isTokenExpired, logTokenInfo } from "./utils/tokenUtils"
+import { OnboardingRedirector } from "./OnboardingRedirector"
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -96,6 +97,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <OnboardingRedirector />
       <Routes>
 
         {/* 로그인 페이지 */}
@@ -111,10 +113,20 @@ export default function App() {
         <Route path="/signup" element={<SignUpScreen />} />
         <Route path="/forgotPassword" element={<ForgotPasswordScreen />} />
 
+        {/* 네이버 OAuth 콜백 */}
+        <Route
+          path="/oauth/naver"
+          element={
+            isLoggedIn
+              ? <Navigate to="/" replace />
+              : <NaverCallback onLogin={() => setIsLoggedIn(true)} />
+          }
+        />
+
         {/* 보호 영역 */}
         <Route element={<PrivateRoute isLoggedIn={isLoggedIn} />}>
           <Route path="/onboarding" element={<OnboardingScreen />} />
-          <Route path="/*" element={<InnerApp onLogout={handleLogout} />} />
+          <Route path="/*" element={<AppInitializer onLogout={handleLogout} />} />
         </Route>
       </Routes>
     </BrowserRouter>

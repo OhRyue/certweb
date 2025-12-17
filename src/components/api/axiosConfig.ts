@@ -1,4 +1,5 @@
 import axios from "axios";
+import { emitOnboardingRequired } from "../../utils/authEvents";
 
 // 환경 변수 검증
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -170,7 +171,9 @@ instance.interceptors.response.use(
     const errorCode = error.response?.data?.errorCode;
     if (errorCode === "ONBOARDING_REQUIRED") {
       console.warn("⚠️ [AUTH] 온보딩 미완료 감지");
-      window.location.href = "/onboarding";
+      // 라우터 밖(인터셉터)에서 SPA 이동을 직접 수행하지 않고,
+      // 전역 이벤트로 신호를 보내 라우터 레벨에서 navigate로 처리한다.
+      emitOnboardingRequired();
       return Promise.reject(error);
     }
 

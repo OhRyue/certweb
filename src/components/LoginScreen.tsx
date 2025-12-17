@@ -8,9 +8,28 @@ import {
   Sparkles,
   AlertCircle,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "./api/axiosConfig"
+
+// Google Identity Services 타입 선언 (vite-env.d.ts의 타입이 인식되지 않는 경우를 대비)
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+            use_fedcm_for_prompt?: boolean;
+          }) => void;
+          prompt: (notification?: { type: 'display' | 'skip' }) => void;
+        };
+      };
+    };
+    Kakao?: any;
+  }
+}
 
 export function LoginScreen({ onLogin }) {
   const [userId, setUserId] = useState("");
@@ -18,6 +37,8 @@ export function LoginScreen({ onLogin }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [showExpiredAlert, setShowExpiredAlert] = useState(false);
+  const [isGoogleSDKReady, setIsGoogleSDKReady] = useState(false);
+  const [isKakaoSDKReady, setIsKakaoSDKReady] = useState(false);
 
   // URL 파라미터에서 만료 메시지 확인
   useEffect(() => {
@@ -29,6 +50,194 @@ export function LoginScreen({ onLogin }) {
       return () => clearTimeout(timer);
     }
   }, [searchParams])
+
+  // Google 로그인 콜백
+  const handleGoogleLogin = useCallback(async (response: { credential: string }) => {
+    try {
+      const idToken = response.credential;
+
+      if (!idToken) {
+        alert("Google 로그인에 실패했습니다. id_token을 받지 못했습니다.");
+        return;
+      }
+
+      // 백엔드로 id_token 전송
+      const loginResponse = await axios.post("/account/login/google", {
+        idToken: idToken,
+      });
+
+      console.log("Google 로그인 성공:", loginResponse.data);
+
+      // 토큰 저장
+      localStorage.setItem("accessToken", loginResponse.data.accessToken);
+      localStorage.setItem("refreshToken", loginResponse.data.refreshToken);
+      localStorage.setItem("userId", loginResponse.data.userId);
+      localStorage.setItem("email", loginResponse.data.email);
+      localStorage.setItem("role", loginResponse.data.role);
+
+      // 로그인 성공 시 온보딩 완료 여부 확인
+      onLogin();
+      // 온보딩 판정은 AppInitializer에서 단일 처리
+      navigate("/");
+    } catch (error: unknown) {
+      console.error("Google 로그인 실패:", error);
+      alert("Google 로그인에 실패했습니다. 다시 시도해주세요.");
+    }
+  }, [navigate, onLogin]);
+
+  // Google SDK 초기화
+  useEffect(() => {
+    const initializeGoogleSDK = () => {
+      if (window.google?.accounts?.id) {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        console.log(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+        console.log(window.location.origin);
+        
+        if (!clientId) {
+          console.error("VITE_GOOGLE_CLIENT_ID 환경 변수가 설정되지 않았습니다.");
+          return;
+        }
+
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleLogin,
+
+          use_fedcm_for_prompt: false,
+        });
+
+        setIsGoogleSDKReady(true);
+      } else {
+        // SDK가 아직 로드되지 않았으면 잠시 후 재시도
+        setTimeout(initializeGoogleSDK, 100);
+      }
+    };
+
+    initializeGoogleSDK();
+  }, [handleGoogleLogin]);
+
+  // Google 로그인 버튼 클릭 핸들러
+  const handleGoogleLoginClick = () => {
+    if (!isGoogleSDKReady) {
+      alert("Google 로그인 서비스가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    const currentOrigin = window.location.origin;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    
+    console.log("🔍 [Google Login] 현재 Origin:", currentOrigin);
+    console.log("🔍 [Google Login] Client ID:", clientId);
+    console.log("🔍 [Google Login] 전체 URL:", window.location.href);
+
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.prompt();
+    } else {
+      alert("Google 로그인 서비스를 사용할 수 없습니다.");
+    }
+  };
+
+  // 카카오 로그인 콜백
+  const handleKakaoLogin = useCallback(async (accessToken: string) => {
+    try {
+      if (!accessToken) {
+        alert("카카오 로그인에 실패했습니다. access_token을 받지 못했습니다.");
+        return;
+      }
+
+      const loginResponse = await axios.post("/account/login/kakao", {
+        accessToken: accessToken,
+      });
+
+      console.log("카카오 로그인 성공:", loginResponse.data);
+
+      localStorage.setItem("accessToken", loginResponse.data.accessToken);
+      localStorage.setItem("refreshToken", loginResponse.data.refreshToken);
+      localStorage.setItem("userId", loginResponse.data.userId);
+      localStorage.setItem("email", loginResponse.data.email);
+      localStorage.setItem("role", loginResponse.data.role);
+
+      onLogin();
+      // 온보딩 판정은 AppInitializer에서 단일 처리
+      navigate("/");
+    } catch (error: unknown) {
+      console.error("카카오 로그인 실패:", error);
+      alert("카카오 로그인에 실패했습니다. 다시 시도해주세요.");
+    }
+  }, [navigate, onLogin]);
+
+  // 카카오 SDK 초기화
+  useEffect(() => {
+    const initializeKakaoSDK = () => {
+      if (window.Kakao) {
+        if (!window.Kakao.isInitialized()) {
+          const jsKey = import.meta.env.VITE_KAKAO_JS_KEY;
+          
+          if (!jsKey) {
+            console.error("VITE_KAKAO_JS_KEY 환경 변수가 설정되지 않았습니다.");
+            return;
+          }
+
+          window.Kakao.init(jsKey);
+        }
+
+        setIsKakaoSDKReady(true);
+      } else {
+        setTimeout(initializeKakaoSDK, 100);
+      }
+    };
+
+    initializeKakaoSDK();
+  }, []);
+
+  // 카카오 로그인 버튼 클릭 핸들러
+  const handleKakaoLoginClick = () => {
+    if (!isKakaoSDKReady) {
+      alert("카카오 로그인 서비스가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    if (window.Kakao) {
+      window.Kakao.Auth.login({
+        success: (authObj: any) => {
+          const accessToken = authObj.access_token;
+          if (accessToken) {
+            handleKakaoLogin(accessToken);
+          } else {
+            alert("카카오 로그인에 실패했습니다. access_token을 받지 못했습니다.");
+          }
+        },
+        fail: (err: any) => {
+          console.error("카카오 로그인 실패:", err);
+          alert("카카오 로그인에 실패했습니다. 다시 시도해주세요.");
+        },
+        scope: "profile_nickname",
+      });
+    } else {
+      alert("카카오 로그인 서비스를 사용할 수 없습니다.");
+    }
+  };
+
+  // 네이버 로그인 버튼 클릭 핸들러
+  const handleNaverLoginClick = () => {
+    const clientId = import.meta.env.VITE_NAVER_CLIENT_ID;
+    
+    if (!clientId) {
+      console.error("VITE_NAVER_CLIENT_ID 환경 변수가 설정되지 않았습니다.");
+      alert("네이버 로그인 서비스를 사용할 수 없습니다.");
+      return;
+    }
+
+    const state = crypto.randomUUID();
+    sessionStorage.setItem("naver_oauth_state", state);
+
+    const redirectUri = window.location.origin === "http://localhost:3000"
+      ? "http://localhost:3000/oauth/naver"
+      : "https://mycertpilot.com/oauth/naver";
+
+    const naverAuthUrl = "https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=" + clientId + "&redirect_uri=" + encodeURIComponent(redirectUri) + "&state=" + state;
+
+    window.location.href = naverAuthUrl;
+  };
 
   const features = [
     {
@@ -86,12 +295,8 @@ export function LoginScreen({ onLogin }) {
       // 로그인 성공 시 온보딩 완료 여부 확인
       onLogin()
       
-      // 온보딩을 하지 않은 유저는 온보딩 화면으로 강제 이동
-      if (response.data.onboardingCompleted === false) {
-        navigate("/onboarding")
-      } else {
-        navigate("/")
-      }
+      // 온보딩 판정은 AppInitializer에서 단일 처리
+      navigate("/")
     } catch (error: unknown) {
       console.error("로그인 실패:", error)
       alert("아이디 또는 비밀번호가 올바르지 않습니다")
@@ -282,6 +487,55 @@ export function LoginScreen({ onLogin }) {
                   <Sparkles className="w-4 h-4 mr-2" />
                   로그인하기
                 </Button>
+
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">또는</span>
+                  </div>
+                </div>
+
+                {/* Social Login */}
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-2 hover:bg-gray-50"
+                    onClick={handleGoogleLoginClick}
+                  >
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    </svg>
+                    Google로 계속하기
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-2 hover:bg-gray-50"
+                    onClick={handleNaverLoginClick}
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="#03C75A" viewBox="0 0 24 24">
+                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.5 16.5h-9v-9h9v9z" />
+                    </svg>
+                    네이버로 계속하기
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-2 hover:bg-gray-50"
+                    onClick={handleKakaoLoginClick}
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="#FEE500" viewBox="0 0 24 24">
+                      <path fill="#000000" d="M12 3c-4.97 0-9 3.37-9 7.5 0 2.63 1.69 4.95 4.24 6.32l-.75 2.77 2.84-1.56c.87.19 1.78.29 2.67.29 4.97 0 9-3.37 9-7.5S16.97 3 12 3z" />
+                    </svg>
+                    카카오로 계속하기
+                  </Button>
+                </div>
 
                 <div className="text-center mt-6">
                   <button
