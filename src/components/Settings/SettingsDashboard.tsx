@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { clearAuthTokens } from "../../utils/authStorage";
 
 interface SettingsDashboardProps {
   userProfile: {
@@ -172,9 +173,7 @@ export function SettingsDashboard({
       console.error("로그아웃 API 실패", e)
     }
 
-    localStorage.removeItem("accessToken")
-    localStorage.removeItem("refreshToken")
-    localStorage.removeItem("userId")
+    clearAuthTokens()
 
     toast.success("로그아웃 완료")
     onLogout()
@@ -196,9 +195,7 @@ export function SettingsDashboard({
       toast.success("계정이 탈퇴되었습니다.");
       
       // 로컬 스토리지 정리
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
+      clearAuthTokens();
       
       // 로그아웃 처리
       onLogout();

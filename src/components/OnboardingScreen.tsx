@@ -6,6 +6,7 @@ import { Card } from "./ui/card"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { CheckCircle2, Sparkles } from "lucide-react"
+import { clearAuthTokens, getAccessToken } from "../utils/authStorage"
 
 export function OnboardingScreen() {
     const navigate = useNavigate()
@@ -28,7 +29,7 @@ export function OnboardingScreen() {
     async function handleCompleteProfile() {
         try {
             // 토큰이 있는지 확인
-            const token = localStorage.getItem("accessToken")
+            const token = getAccessToken()
             if (!token) {
                 alert("인증 토큰이 없습니다. 다시 로그인해주세요.")
                 navigate("/login")
@@ -75,7 +76,7 @@ export function OnboardingScreen() {
 
                 // 인터셉터가 이미 재시도를 했는데도 실패했다면, 백엔드 문제
                 alert("토큰 검증에 실패했습니다. 서버 측 문제일 수 있습니다. 잠시 후 다시 시도해주세요.")
-                localStorage.clear()
+                clearAuthTokens()
                 navigate("/login")
             } else {
                 alert(err.response?.data?.message || "설정 실패")

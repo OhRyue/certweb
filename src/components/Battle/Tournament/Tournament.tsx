@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
+import { getAuthItem } from "../../../utils/authStorage";
 
 interface TournamentProps {
   onBack?: () => void;
@@ -108,7 +109,7 @@ export function Tournament({ onBack }: TournamentProps) {
       setCreatingRoom(true);
 
       // 현재 사용자 ID 가져오기
-      const currentUserId = localStorage.getItem("userId");
+      const currentUserId = getAuthItem("userId");
       const participants = currentUserId ? [currentUserId] : undefined;
 
       // 토너먼트 PvP 방 생성

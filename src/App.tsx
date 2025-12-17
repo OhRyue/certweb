@@ -11,6 +11,7 @@ import { AppInitializer } from "./AppInitializer"
 import axios from "./components/api/axiosConfig"
 import { isTokenExpired, logTokenInfo } from "./utils/tokenUtils"
 import { OnboardingRedirector } from "./OnboardingRedirector"
+import { clearAuthTokens, getAccessToken, getRefreshTokenWithSource, setAuthItemInStorage } from "./utils/authStorage"
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -18,8 +19,8 @@ export default function App() {
 
   useEffect(() => {
     async function validateAndRefreshToken() {
-      const accessToken = localStorage.getItem("accessToken")
-      const refreshToken = localStorage.getItem("refreshToken")
+      const accessToken = getAccessToken()
+      const { token: refreshToken, source } = getRefreshTokenWithSource()
 
       // 1. 토큰이 없으면 로그아웃 상태
       if (!accessToken) {
@@ -39,7 +40,7 @@ export default function App() {
         // 3. Refresh token으로 갱신 시도
         if (!refreshToken) {
           console.error("🔴 [APP INIT] Refresh 토큰이 없습니다. 로그아웃 처리")
-          localStorage.clear()
+          clearAuthTokens()
           setIsLoggedIn(false)
           setIsCheckingToken(false)
           return
@@ -51,19 +52,19 @@ export default function App() {
           
           const newAccessToken = response.data.accessToken
           if (newAccessToken) {
-            localStorage.setItem("accessToken", newAccessToken)
+            setAuthItemInStorage(source ?? "session", "accessToken", newAccessToken)
             console.log("✅ [APP INIT] 토큰 갱신 성공")
             logTokenInfo(newAccessToken, "New Access Token")
             setIsLoggedIn(true)
           } else {
             console.error("🔴 [APP INIT] 새 액세스 토큰을 받지 못했습니다.")
-            localStorage.clear()
+            clearAuthTokens()
             setIsLoggedIn(false)
           }
         } catch (error: any) {
           console.error("🔴 [APP INIT] 토큰 갱신 실패:", error)
           console.error("응답:", error.response?.data)
-          localStorage.clear()
+          clearAuthTokens()
           setIsLoggedIn(false)
         }
       } else {
@@ -79,7 +80,7 @@ export default function App() {
   }, [])
 
   const handleLogout = () => {
-    localStorage.clear()
+    clearAuthTokens()
     setIsLoggedIn(false)
   }
 

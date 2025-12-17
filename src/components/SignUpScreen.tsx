@@ -7,6 +7,7 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Progress } from "./ui/progress"
 import { ArrowLeft, ArrowRight, CheckCircle2, Mail, Lock, User, Sparkles, Shield } from "lucide-react"
+import { clearAuthTokens, getAccessToken, setAuthTokens } from "../utils/authStorage"
 
 // 아이디 유효성 정규식 (영문+숫자, 8~20자)
 const idRegex = /^[A-Za-z0-9]{8,20}$/;
@@ -165,11 +166,14 @@ export function SignUpScreen() {
 
             const { accessToken, refreshToken, userId, email, role, onboardingCompleted } = res.data
 
-            localStorage.setItem("accessToken", accessToken)
-            localStorage.setItem("refreshToken", refreshToken)
-            localStorage.setItem("userId", userId)
-            localStorage.setItem("email", email)
-            localStorage.setItem("role", role)
+            // 회원가입 완료 직후 기본값은 "로그인 상태 비유지"로 sessionStorage에 저장
+            setAuthTokens("session", {
+              accessToken,
+              refreshToken,
+              userId: String(userId),
+              email,
+              role,
+            })
 
             // onboardingCompleted는 항상 false (회원가입 완료 후 Step 2로 이동하여 온보딩을 완료해야 함)
             // 백엔드에서 온보딩 프로필 설정 완료 시 자동으로 true로 업데이트됨
@@ -188,7 +192,7 @@ export function SignUpScreen() {
     async function handleCompleteProfile() {
         try {
             // 토큰이 있는지 확인
-            const token = localStorage.getItem("accessToken")
+            const token = getAccessToken()
             if (!token) {
                 alert("인증 토큰이 없습니다. 다시 로그인해주세요.")
                 navigate("/login")
@@ -252,7 +256,7 @@ export function SignUpScreen() {
 
                 // 인터셉터가 이미 재시도를 했는데도 실패했다면, 백엔드 문제
                 alert("토큰 검증에 실패했습니다. 서버 측 문제일 수 있습니다. 잠시 후 다시 시도해주세요.")
-                localStorage.clear()
+                clearAuthTokens()
                 navigate("/login")
             } else {
                 alert(errorResponse?.response?.data?.message || "설정 실패")

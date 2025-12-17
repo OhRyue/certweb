@@ -28,6 +28,7 @@ import {
   XCircle
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { getAuthItem } from "../../utils/authStorage"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { RecentActivity, ActivityDetail, ActivityDetailResponse } from "../../types"
@@ -51,7 +52,7 @@ export function ReportDashboard() {
 
 
   // userId는 나중에 토큰 기반으로 제거됨. 지금은 임시 유지
-  const userId = localStorage.getItem("userId")
+  const userId = getAuthItem("userId")
 
   async function fetchReport(mode: "written" | "practical") {
     try {

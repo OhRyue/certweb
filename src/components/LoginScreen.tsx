@@ -11,6 +11,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "./api/axiosConfig"
+import { setAuthSessionPreference, setAuthTokens } from "../utils/authStorage";
 
 // Google Identity Services 타입 선언 (vite-env.d.ts의 타입이 인식되지 않는 경우를 대비)
 declare global {
@@ -34,6 +35,7 @@ declare global {
 export function LoginScreen({ onLogin }) {
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberLogin, setRememberLogin] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [showExpiredAlert, setShowExpiredAlert] = useState(false);
@@ -68,12 +70,16 @@ export function LoginScreen({ onLogin }) {
 
       console.log("Google 로그인 성공:", loginResponse.data);
 
-      // 토큰 저장
-      localStorage.setItem("accessToken", loginResponse.data.accessToken);
-      localStorage.setItem("refreshToken", loginResponse.data.refreshToken);
-      localStorage.setItem("userId", loginResponse.data.userId);
-      localStorage.setItem("email", loginResponse.data.email);
-      localStorage.setItem("role", loginResponse.data.role);
+      // 토큰 저장 (체크 시 localStorage, 미체크 시 sessionStorage)
+      const storageKind = rememberLogin ? "local" : "session";
+      setAuthSessionPreference(rememberLogin);
+      setAuthTokens(storageKind, {
+        accessToken: loginResponse.data.accessToken,
+        refreshToken: loginResponse.data.refreshToken,
+        userId: String(loginResponse.data.userId),
+        email: loginResponse.data.email,
+        role: loginResponse.data.role,
+      });
 
       // 로그인 성공 시 온보딩 완료 여부 확인
       onLogin();
@@ -83,7 +89,7 @@ export function LoginScreen({ onLogin }) {
       console.error("Google 로그인 실패:", error);
       alert("Google 로그인에 실패했습니다. 다시 시도해주세요.");
     }
-  }, [navigate, onLogin]);
+  }, [navigate, onLogin, rememberLogin]);
 
   // Google SDK 초기화
   useEffect(() => {
@@ -150,11 +156,15 @@ export function LoginScreen({ onLogin }) {
 
       console.log("카카오 로그인 성공:", loginResponse.data);
 
-      localStorage.setItem("accessToken", loginResponse.data.accessToken);
-      localStorage.setItem("refreshToken", loginResponse.data.refreshToken);
-      localStorage.setItem("userId", loginResponse.data.userId);
-      localStorage.setItem("email", loginResponse.data.email);
-      localStorage.setItem("role", loginResponse.data.role);
+      const storageKind = rememberLogin ? "local" : "session";
+      setAuthSessionPreference(rememberLogin);
+      setAuthTokens(storageKind, {
+        accessToken: loginResponse.data.accessToken,
+        refreshToken: loginResponse.data.refreshToken,
+        userId: String(loginResponse.data.userId),
+        email: loginResponse.data.email,
+        role: loginResponse.data.role,
+      });
 
       onLogin();
       // 온보딩 판정은 AppInitializer에서 단일 처리
@@ -163,7 +173,7 @@ export function LoginScreen({ onLogin }) {
       console.error("카카오 로그인 실패:", error);
       alert("카카오 로그인에 실패했습니다. 다시 시도해주세요.");
     }
-  }, [navigate, onLogin]);
+  }, [navigate, onLogin, rememberLogin]);
 
   // 카카오 SDK 초기화
   useEffect(() => {
@@ -229,6 +239,8 @@ export function LoginScreen({ onLogin }) {
 
     const state = crypto.randomUUID();
     sessionStorage.setItem("naver_oauth_state", state);
+    // 네이버 OAuth 콜백에서 사용할 로그인 유지 설정 저장
+    setAuthSessionPreference(rememberLogin);
 
     const redirectUri = window.location.origin === "http://localhost:3000"
       ? "http://localhost:3000/oauth/naver"
@@ -285,12 +297,16 @@ export function LoginScreen({ onLogin }) {
 
       console.log("로그인 성공:", response.data)
 
-      // 토큰 저장
-      localStorage.setItem("accessToken", response.data.accessToken)
-      localStorage.setItem("refreshToken", response.data.refreshToken)
-      localStorage.setItem("userId", response.data.userId)
-      localStorage.setItem("email", response.data.email)
-      localStorage.setItem("role", response.data.role)
+      // 토큰 저장 (체크 시 localStorage, 미체크 시 sessionStorage)
+      const storageKind = rememberLogin ? "local" : "session";
+      setAuthSessionPreference(rememberLogin);
+      setAuthTokens(storageKind, {
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken,
+        userId: String(response.data.userId),
+        email: response.data.email,
+        role: response.data.role,
+      });
 
       // 로그인 성공 시 온보딩 완료 여부 확인
       onLogin()
@@ -468,8 +484,13 @@ export function LoginScreen({ onLogin }) {
 
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
-                    <input type="checkbox" className="rounded border-blue-300" />
-                    로그인 유지
+                    <input
+                      type="checkbox"
+                      className="rounded border-blue-300"
+                      checked={rememberLogin}
+                      onChange={(e) => setRememberLogin(e.target.checked)}
+                    />
+                    로그인 상태 유지
                   </label>
                   <button
                     type="button"

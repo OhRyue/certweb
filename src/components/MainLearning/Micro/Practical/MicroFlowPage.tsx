@@ -8,6 +8,7 @@ import { ProblemSolvingPractical } from "./ProblemSolvingPractical"
 import { MicroWrongAnswersPractical } from "./MicroWrongAnswersPractical"
 import { MicroResult } from "../MicroResult"
 import { LevelUpScreen } from "../../../LevelUpScreen"
+import { getAuthItem } from "../../../../utils/authStorage"
 
 // 세션 단계 타입
 // 실기: CONCEPT, MINI, REVIEW_WRONG, SHORT, SUMMARY
@@ -100,7 +101,7 @@ export function MicroFlowPage() {
   const navigate = useNavigate()
 
   const subTopicId = Number(searchParams.get("subTopicId"))         // 쿼리에서 서브 토픽 아이디 읽기
-  const userId = localStorage.getItem("userId") || "guest"          // 임시 유저 아이디, 로그인 안되어 있으면 게스트로 처리
+  const userId = getAuthItem("userId") || "guest"          // 임시 유저 아이디, 로그인 안되어 있으면 게스트로 처리
   const sessionIdParam = searchParams.get("sessionId")             // 쿼리에서 세션 아이디 읽기
   
   const [sessionId] = useState<number | null>(

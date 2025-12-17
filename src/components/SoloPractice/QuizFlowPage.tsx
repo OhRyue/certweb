@@ -8,6 +8,7 @@ import { ReviewResult } from "./SoloResult"
 import { LevelUpScreen } from "../LevelUpScreen"
 import type { Question } from "../../types"
 import axios from "../api/axiosConfig"
+import { getAuthItem } from "../../utils/authStorage"
 
 // 카테고리 퀴즈와 난이도 퀴즈의 플로우 컨테이너
 // 1. 문제 풀이 (컴포넌트 분기: 필기 / 실기)
@@ -209,7 +210,7 @@ export function QuizFlowPage() {
     if (examType === "written") {
       // 필기 모드: learningSession 기반 (API 채점 지원)
       if (sessionId !== undefined) {
-        const userId = localStorage.getItem("userId") || "guest"
+        const userId = getAuthItem("userId") || "guest"
         const quizTitle = quizType === "weakness" ? "약점 보완 퀴즈" 
           : quizType === "difficulty" ? "난이도 퀴즈" 
           : "카테고리 퀴즈"

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { emitOnboardingRequired } from "../../utils/authEvents";
+import { clearAuthTokens, getAccessToken, getRefreshTokenWithSource, setAuthItemInStorage } from "../../utils/authStorage";
 
 // 환경 변수 검증
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -24,8 +25,7 @@ console.log("🔵 [AXIOS INIT] 최종 baseURL =", instance.defaults.baseURL);
 
 // 토큰 제거 유틸 함수
 function clearTokens(): void {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
+  clearAuthTokens();
   console.log("🧹 [AUTH] 토큰 제거 완료");
 }
 
@@ -46,7 +46,7 @@ instance.interceptors.request.use(
       // 이미 Authorization 헤더가 설정되어 있으면 (재시도인 경우) 그대로 사용
       // 그렇지 않으면 localStorage에서 토큰 가져오기
       if (!config.headers?.Authorization) {
-        const token = localStorage.getItem("accessToken")
+        const token = getAccessToken()
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`
           console.log("요청 인터셉터: 토큰 추가됨", config.url)
@@ -182,7 +182,7 @@ instance.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
+      const { token: refreshToken, source } = getRefreshTokenWithSource();
       if (!refreshToken) {
         console.error("🔴 [AUTH] Refresh 토큰이 없습니다.");
         clearTokens();
@@ -202,7 +202,8 @@ instance.interceptors.response.use(
       }
 
       // 새 토큰 저장
-      localStorage.setItem("accessToken", newAccessToken);
+      // refreshToken이 존재했던 저장소에 accessToken도 같이 갱신 저장
+      setAuthItemInStorage(source ?? "session", "accessToken", newAccessToken);
       console.log("✅ [AUTH] 새 토큰 저장 완료");
 
       // 원래 요청의 Authorization 헤더를 새 토큰으로 업데이트

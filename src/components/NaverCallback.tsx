@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "./api/axiosConfig";
+import { clearAuthSessionPreference, getAuthSessionPreference, setAuthTokens } from "../utils/authStorage";
 
 export function NaverCallback({ onLogin }: { onLogin: () => void }) {
   const navigate = useNavigate();
@@ -35,13 +36,18 @@ export function NaverCallback({ onLogin }: { onLogin: () => void }) {
 
         console.log("네이버 로그인 성공:", loginResponse.data);
 
-        localStorage.setItem("accessToken", loginResponse.data.accessToken);
-        localStorage.setItem("refreshToken", loginResponse.data.refreshToken);
-        localStorage.setItem("userId", loginResponse.data.userId);
-        localStorage.setItem("email", loginResponse.data.email);
-        localStorage.setItem("role", loginResponse.data.role);
+        const rememberLogin = getAuthSessionPreference();
+        const storageKind = rememberLogin ? "local" : "session";
+        setAuthTokens(storageKind, {
+          accessToken: loginResponse.data.accessToken,
+          refreshToken: loginResponse.data.refreshToken,
+          userId: String(loginResponse.data.userId),
+          email: loginResponse.data.email,
+          role: loginResponse.data.role,
+        });
 
         sessionStorage.removeItem("naver_oauth_state");
+        clearAuthSessionPreference();
 
         onLogin();
         // 온보딩 판정은 AppInitializer에서 단일 처리
@@ -49,6 +55,7 @@ export function NaverCallback({ onLogin }: { onLogin: () => void }) {
       } catch (error: any) {
         console.error("네이버 로그인 실패:", error);
         sessionStorage.removeItem("naver_oauth_state");
+        clearAuthSessionPreference();
         
         const errorMessage = error.response?.data?.message || "네이버 로그인에 실패했습니다. 다시 시도해주세요.";
         alert(errorMessage);
