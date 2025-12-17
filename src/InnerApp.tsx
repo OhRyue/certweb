@@ -127,7 +127,6 @@ import { useSearchParams } from "react-router-dom"
 interface InnerAppProps {
   onLogout: () => void
   initialProfile: {
-    onboardingCompleted?: boolean
     userId?: string
     nickname?: string
     skinId?: number

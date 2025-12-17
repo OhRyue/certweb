@@ -12,11 +12,12 @@ export function OnboardingScreen() {
     const navigate = useNavigate()
     const [isCheckingNickname, setIsCheckingNickname] = useState(false)
     const [nicknameAvailable, setNicknameAvailable] = useState<boolean | null>(null)
+    const AVAILABLE_CERT_ID = 1
 
     // 예시: 자격증 선택용 mock 데이터
     const categories = [
         { certId: 1, name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
-        { certId: 2, name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
+        { certId: 2, name: "컴퓨터활용능력", icon: "📊", color: "from-green-400 to-teal-400" },
         { certId: 3, name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
         { certId: 4, name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
     ]
@@ -215,23 +216,35 @@ export function OnboardingScreen() {
                                 </label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {categories.map((category) => (
+                                        (() => {
+                                            const isAvailable = category.certId === AVAILABLE_CERT_ID
+                                            const isSelected = formData.targetCertification === category.certId
+
+                                            return (
                                         <button
                                             key={category.certId}
-                                            onClick={() => setFormData({ ...formData, targetCertification: category.certId })}
-                                            className={`p-5 rounded-xl border-2 transition-all transform hover:scale-105 ${formData.targetCertification === category.certId
+                                            type="button"
+                                            disabled={!isAvailable}
+                                            aria-disabled={!isAvailable}
+                                            title={!isAvailable ? "아직 제공되지 않는 자격증입니다." : undefined}
+                                            onClick={() => {
+                                                if (!isAvailable) return
+                                                setFormData({ ...formData, targetCertification: category.certId })
+                                            }}
+                                            className={`p-5 rounded-xl border-2 transition-all transform ${isAvailable ? "hover:scale-105" : ""} ${isSelected
                                                 ? `border-purple-500 bg-gradient-to-br ${category.color} shadow-lg`
-                                                : 'border-gray-200 bg-white hover:border-purple-300'
-                                                }`}
+                                                : 'border-gray-200 bg-white'
+                                                } ${isAvailable ? "hover:border-purple-300" : "opacity-60 cursor-not-allowed"}`}
                                         >
                                             <div className="flex flex-col items-center gap-2">
                                                 <div
-                                                    className={`text-4xl transition-transform ${formData.targetCertification === category.certId ? 'scale-110' : ''
+                                                    className={`text-4xl transition-transform ${isSelected ? 'scale-110' : ''
                                                         }`}
                                                 >
                                                     {category.icon}
                                                 </div>
                                                 <div
-                                                    className={`transition-colors ${formData.targetCertification === category.certId
+                                                    className={`transition-colors ${isSelected
                                                         ? 'text-white'
                                                         : 'text-gray-900'
                                                         }`}
@@ -239,7 +252,13 @@ export function OnboardingScreen() {
                                                     {category.name}
                                                 </div>
 
-                                                {formData.targetCertification === category.certId && (
+                                                {!isAvailable && (
+                                                    <div className="text-xs text-gray-600 text-center">
+                                                        아직 제공되지 않는 자격증입니다.
+                                                    </div>
+                                                )}
+
+                                                {isSelected && (
                                                     <motion.div
                                                         initial={{ scale: 0 }}
                                                         animate={{ scale: 1 }}
@@ -250,6 +269,8 @@ export function OnboardingScreen() {
                                                 )}
                                             </div>
                                         </button>
+                                            )
+                                        })()
                                     ))}
                                 </div>
                                 <p className="text-xs text-gray-500 mt-3 text-center">

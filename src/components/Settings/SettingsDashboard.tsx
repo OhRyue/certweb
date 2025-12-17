@@ -55,7 +55,7 @@ export function SettingsDashboard({
   // 자격증 선택 목록
   const categories = [
     { certId: 1, name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
-    { certId: 2, name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
+    { certId: 2, name: "컴퓨터활용능력", icon: "📊", color: "from-green-400 to-teal-400" },
     { certId: 3, name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
     { certId: 4, name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
   ];

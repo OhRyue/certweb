@@ -4,10 +4,19 @@ import axios from "./components/api/axiosConfig";
 import InnerApp from "./InnerApp";
 
 type ProfileResponse = {
-  onboardingCompleted?: boolean;
   userId?: string;
   nickname?: string;
   skinId?: number;
+};
+
+type OnboardingStatusResponse = {
+  completed: boolean;
+  completedAt?: string;
+  nextStep?: string;
+  emailVerified?: boolean;
+  nicknameSet?: boolean;
+  goalSelected?: boolean;
+  settingsReady?: boolean;
 };
 
 export function AppInitializer({ onLogout }: { onLogout: () => void }) {
@@ -20,17 +29,21 @@ export function AppInitializer({ onLogout }: { onLogout: () => void }) {
 
     async function init() {
       try {
-        const profileRes = await axios.get("/account/profile");
-        const nextProfile = profileRes.data as ProfileResponse;
+        // 1) 온보딩 완료 여부는 onboarding status API의 completed로만 판단
+        const statusRes = await axios.get("/account/onboarding/status");
+        const status = statusRes.data as OnboardingStatusResponse;
 
         if (cancelled) return;
-        setProfile(nextProfile);
-
-        // 서버의 onboardingCompleted 필드만을 유일한 기준으로 사용
-        if (nextProfile.onboardingCompleted === false || nextProfile.onboardingCompleted == null) {
+        if (!status?.completed) {
           navigate("/onboarding", { replace: true });
           return;
         }
+
+        // 2) 온보딩 완료 상태인 경우에만 메인 진입용 프로필을 1회 조회
+        const profileRes = await axios.get("/account/profile");
+        const nextProfile = profileRes.data as ProfileResponse;
+        if (cancelled) return;
+        setProfile(nextProfile);
       } catch (err: any) {
         // 프로필 조회가 401이면 로그인 세션 문제로 판단하고 로그아웃 처리
         if (!cancelled) {
