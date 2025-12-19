@@ -2,7 +2,6 @@
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom"
 import { Navigation } from "./components/Navigation"
 import { Toaster } from "./components/ui/sonner"
-import { userProfile as initialProfile, userSettings as initialSettings, shopItems as initialShopItems } from "./data/mockData"
 import { useEffect, useState } from "react"
 import axios from "./components/api/axiosConfig"
 import { CERT_MAP } from "./constants/certMap"
@@ -147,9 +146,17 @@ function MicroFlowPageRouter() {
 
 export default function InnerApp({ onLogout, initialProfile }: InnerAppProps) {
   const navigate = useNavigate()
-  const [userSettings, setUserSettings] = useState(initialSettings)
+  const [userSettings, setUserSettings] = useState({
+    timerEnabled: true,
+    timerDuration: 60,
+    hintsEnabled: true,
+    soundEnabled: true,
+    notifications: {
+      dailyReminder: true,
+      weeklyReport: true,
+    },
+  })
   const [userPoints, setUserPoints] = useState(5000)
-  const [shopItems, setShopItems] = useState(initialShopItems)
 
   // 유저 프로필 
   const [userProfile, setUserProfile] = useState({
