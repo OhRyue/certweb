@@ -1,15 +1,48 @@
 // App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { LoginScreen } from "./components/LoginScreen"
 import { SignUpScreen } from "./components/SignUpScreen"
 import { ForgotPasswordScreen } from "./components/ForgotPasswordScreen"
 import { OnboardingScreen } from "./components/OnboardingScreen"
+import { NaverCallback } from "./components/NaverCallback"
 import { PrivateRoute } from "./PrivateRoute"
-import InnerApp from "./InnerApp"
-import { Toaster } from "./components/ui/sonner"
+import { AppInitializer } from "./AppInitializer"
 import axios from "./components/api/axiosConfig"
 import { isTokenExpired, logTokenInfo } from "./utils/tokenUtils"
+import { OnboardingRedirector } from "./OnboardingRedirector"
+import { clearAuthTokens, getAccessToken, getRefreshTokenWithSource, setAuthItemInStorage } from "./utils/authStorage"
+import { AUTH_EVENT_STORAGE_KEY, emitAuthLogoutEvent } from "./utils/authEvents"
+
+function AuthStorageEventListener({ onRemoteLogout }: { onRemoteLogout: () => void }) {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.storageArea !== localStorage) return
+      if (e.key !== AUTH_EVENT_STORAGE_KEY) return
+      if (!e.newValue) return
+
+      try {
+        const payload = JSON.parse(e.newValue) as { type?: string }
+        if (payload?.type !== "logout") return
+      } catch {
+        return
+      }
+
+      // 다른 탭에서 로그아웃 신호 수신 → 이 탭도 즉시 로그아웃 처리
+      clearAuthTokens()
+      onRemoteLogout()
+      navigate("/login", { replace: true })
+    }
+
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
+  }, [navigate, onRemoteLogout])
+
+  return null
+}
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -17,8 +50,8 @@ export default function App() {
 
   useEffect(() => {
     async function validateAndRefreshToken() {
-      const accessToken = localStorage.getItem("accessToken")
-      const refreshToken = localStorage.getItem("refreshToken")
+      const accessToken = getAccessToken()
+      const { token: refreshToken, source } = getRefreshTokenWithSource()
 
       // 1. 토큰이 없으면 로그아웃 상태
       if (!accessToken) {
@@ -38,7 +71,7 @@ export default function App() {
         // 3. Refresh token으로 갱신 시도
         if (!refreshToken) {
           console.error("🔴 [APP INIT] Refresh 토큰이 없습니다. 로그아웃 처리")
-          localStorage.clear()
+          clearAuthTokens()
           setIsLoggedIn(false)
           setIsCheckingToken(false)
           return
@@ -50,19 +83,19 @@ export default function App() {
           
           const newAccessToken = response.data.accessToken
           if (newAccessToken) {
-            localStorage.setItem("accessToken", newAccessToken)
+            setAuthItemInStorage(source ?? "session", "accessToken", newAccessToken)
             console.log("✅ [APP INIT] 토큰 갱신 성공")
             logTokenInfo(newAccessToken, "New Access Token")
             setIsLoggedIn(true)
           } else {
             console.error("🔴 [APP INIT] 새 액세스 토큰을 받지 못했습니다.")
-            localStorage.clear()
+            clearAuthTokens()
             setIsLoggedIn(false)
           }
         } catch (error: any) {
           console.error("🔴 [APP INIT] 토큰 갱신 실패:", error)
           console.error("응답:", error.response?.data)
-          localStorage.clear()
+          clearAuthTokens()
           setIsLoggedIn(false)
         }
       } else {
@@ -78,7 +111,8 @@ export default function App() {
   }, [])
 
   const handleLogout = () => {
-    localStorage.clear()
+    clearAuthTokens()
+    emitAuthLogoutEvent()
     setIsLoggedIn(false)
   }
 
@@ -96,6 +130,8 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <AuthStorageEventListener onRemoteLogout={() => setIsLoggedIn(false)} />
+      <OnboardingRedirector />
       <Routes>
 
         {/* 로그인 페이지 */}
@@ -111,10 +147,20 @@ export default function App() {
         <Route path="/signup" element={<SignUpScreen />} />
         <Route path="/forgotPassword" element={<ForgotPasswordScreen />} />
 
+        {/* 네이버 OAuth 콜백 */}
+        <Route
+          path="/oauth/naver"
+          element={
+            isLoggedIn
+              ? <Navigate to="/" replace />
+              : <NaverCallback onLogin={() => setIsLoggedIn(true)} />
+          }
+        />
+
         {/* 보호 영역 */}
         <Route element={<PrivateRoute isLoggedIn={isLoggedIn} />}>
           <Route path="/onboarding" element={<OnboardingScreen />} />
-          <Route path="/*" element={<InnerApp onLogout={handleLogout} />} />
+          <Route path="/*" element={<AppInitializer onLogout={handleLogout} />} />
         </Route>
       </Routes>
     </BrowserRouter>

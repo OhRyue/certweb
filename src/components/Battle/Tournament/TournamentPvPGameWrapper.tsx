@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { TournamentWaitingRoom } from "./TournamentWaitingRoom"
 import { getRoomDetail, getScoreboard, type RoomDetailResponse, type Scoreboard } from "../../api/versusApi"
 import { TournamentGameFlow } from "./TournamentGameFlow"
+import { getAuthItem } from "../../../utils/authStorage"
 
 export function TournamentPvPGameWrapper() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -30,8 +31,8 @@ export function TournamentPvPGameWrapper() {
         
         setRoomDetail(detail)
         
-        // myUserId는 로컬스토리지에서 가져오기
-        const storedUserId = localStorage.getItem("userId")
+        // myUserId는 저장소(local → session)에서 가져오기
+        const storedUserId = getAuthItem("userId")
         if (storedUserId) {
           setMyUserId(storedUserId)
         } else {

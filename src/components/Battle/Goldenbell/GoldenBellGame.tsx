@@ -13,6 +13,7 @@ import { CharacterGrid } from "./CharacterGrid";
 import { EffectCanvas } from "./EffectCanvas";
 import { LevelUpScreen } from "../../LevelUpScreen";
 import { getLevelFromTotalXp } from "../../utils/leveling";
+import { getAuthItem } from "../../../utils/authStorage";
 import { 
   getScoreboard, 
   getRoomState,
@@ -154,20 +155,20 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
         // myUserId 설정 (prop에서 받은 값 우선 사용, 없으면 scoreboard에서 찾기)
         const currentMyUserId = propMyUserId || myUserId;
         if (!currentMyUserId && scoreboardData.items.length > 0) {
-          // localStorage에서 userId 가져오기 시도
-          const localStorageUserId = localStorage.getItem("userId");
-          if (localStorageUserId) {
-            // localStorage의 userId가 scoreboard에 있는지 확인
-            const foundItem = scoreboardData.items.find(item => item.userId === localStorageUserId);
+          // 저장소(local → session)에서 userId 가져오기 시도
+          const storedUserId = getAuthItem("userId");
+          if (storedUserId) {
+            // userId가 scoreboard에 있는지 확인
+            const foundItem = scoreboardData.items.find(item => item.userId === storedUserId);
             if (foundItem) {
-              setMyUserId(localStorageUserId);
+              setMyUserId(storedUserId);
             } else {
               // 없으면 첫 번째 항목 사용 (fallback)
-              console.warn("localStorage의 userId가 scoreboard에 없습니다. 첫 번째 항목을 사용합니다.");
+              console.warn("저장된 userId가 scoreboard에 없습니다. 첫 번째 항목을 사용합니다.");
               setMyUserId(scoreboardData.items[0].userId);
             }
           } else {
-            // localStorage에도 없으면 첫 번째 항목 사용 (fallback)
+            // 저장된 userId가 없으면 첫 번째 항목 사용 (fallback)
             console.warn("myUserId를 찾을 수 없습니다. 첫 번째 항목을 사용합니다.");
             setMyUserId(scoreboardData.items[0].userId);
           }

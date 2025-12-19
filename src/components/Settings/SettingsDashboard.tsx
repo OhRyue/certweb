@@ -15,6 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { clearAuthTokens } from "../../utils/authStorage";
+import { emitAuthLogoutEvent } from "../../utils/authEvents";
 
 interface SettingsDashboardProps {
   userProfile: {
@@ -53,7 +55,7 @@ export function SettingsDashboard({
   // 자격증 선택 목록
   const categories = [
     { certId: 1, name: "정보처리기사", icon: "💻", color: "from-indigo-400 to-blue-400" },
-    { certId: 2, name: "컴활", icon: "📊", color: "from-green-400 to-teal-400" },
+    { certId: 2, name: "컴퓨터활용능력", icon: "📊", color: "from-green-400 to-teal-400" },
     { certId: 3, name: "SQLD", icon: "🧠", color: "from-yellow-400 to-orange-400" },
     { certId: 4, name: "리눅스", icon: "🐧", color: "from-gray-400 to-slate-400" },
   ];
@@ -172,9 +174,8 @@ export function SettingsDashboard({
       console.error("로그아웃 API 실패", e)
     }
 
-    localStorage.removeItem("accessToken")
-    localStorage.removeItem("refreshToken")
-    localStorage.removeItem("userId")
+    clearAuthTokens()
+    emitAuthLogoutEvent()
 
     toast.success("로그아웃 완료")
     onLogout()
@@ -196,9 +197,8 @@ export function SettingsDashboard({
       toast.success("계정이 탈퇴되었습니다.");
       
       // 로컬 스토리지 정리
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
+      clearAuthTokens();
+      emitAuthLogoutEvent()
       
       // 로그아웃 처리
       onLogout();
