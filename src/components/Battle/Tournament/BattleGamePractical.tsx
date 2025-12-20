@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm";
 import type { Question } from "../../../types";
 import { OpponentLeftOverlay } from "../OpponentLeftOverlay";
 import { submitAnswer, getScoreboard, type ScoreboardItem } from "../../api/versusApi";
+import { BattleWebSocketClient } from "../../../ws/BattleWebSocketClient";
 
 // 캐릭터 이미지 경로
 const girlBasicCharacter = "/assets/characters/girl_basic_noBackGround.png";
@@ -59,7 +60,11 @@ interface BattleGamePracticalProps {
   opponentUserId?: string; // 토너먼트에서는 사용하지 않지만 호환성을 위해 유지
   myRank?: number | null;
   opponentRank?: number | null; // 토너먼트에서는 사용하지 않지만 호환성을 위해 유지
-  endTime?: string; // currentQuestion.endTime (ISO 8601 형식)
+  endTime?: string; // currentQuestion.endTime (ISO 8601 형식, 봇전용)
+  questionEndTimeMs?: number | null; // QUESTION_STARTED에서 받은 endTimeMs (WebSocket용, PvP)
+  currentQuestionId?: number | null; // 현재 문제 ID (WebSocket용)
+  wsClient?: BattleWebSocketClient | null; // WebSocket 클라이언트 (답안 제출용, PvP 전용)
+  isBotMatch?: boolean; // 봇전 여부
   onComplete: (myScore: number, opponentScore: number) => void;
   onExit: () => void;
 }
@@ -70,6 +75,10 @@ export function BattleGamePractical({
   myUserId,
   myRank,
   endTime,
+  questionEndTimeMs,
+  currentQuestionId,
+  wsClient,
+  isBotMatch = false,
   onComplete,
   onExit,
 }: BattleGamePracticalProps) {
@@ -97,67 +106,116 @@ export function BattleGamePractical({
   const [timeLeft, setTimeLeft] = useState(0); // endTime 기준으로 계산
 
 
-  // 스코어보드 폴링 (점수 업데이트 및 상대방 이탈 감지)
+  // 스코어보드 폴링 (봇전) 또는 WebSocket 이벤트 (PvP)
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !myUserId) return;
 
-    const pollScoreboard = async () => {
-      try {
-        const scoreboard = await getScoreboard(roomId);
+    // 봇전인 경우 REST API 폴링 사용
+    if (isBotMatch) {
+      const pollScoreboard = async () => {
+        try {
+          const scoreboard = await getScoreboard(roomId);
 
-        // 내 점수 및 탈락 여부 업데이트 (백엔드에서 계산된 점수)
-        const myItem = scoreboard.items.find(item => item.userId === myUserId);
-        if (myItem) {
-          setMyScore(myItem.score);
-          setIsAlive(myItem.alive); // 탈락 여부 업데이트
-        }
+          // 내 점수 및 탈락 여부 업데이트 (백엔드에서 계산된 점수)
+          const myItem = scoreboard.items.find(item => item.userId === myUserId);
+          if (myItem) {
+            setMyScore(myItem.score);
+            setIsAlive(myItem.alive); // 탈락 여부 업데이트
+          }
 
-        // currentQuestion의 endTime 업데이트 (백엔드 시간 기준)
-        if (scoreboard.currentQuestion?.endTime) {
-          setCurrentEndTime(scoreboard.currentQuestion.endTime);
-        } else {
-          setCurrentEndTime(null);
-        }
+          // currentQuestion의 endTime 업데이트 (백엔드 시간 기준)
+          if (scoreboard.currentQuestion?.endTime) {
+            setCurrentEndTime(scoreboard.currentQuestion.endTime);
+          } else {
+            setCurrentEndTime(null);
+          }
 
-        // 참가자 목록 업데이트 (최대 8명)
-        const sortedParticipants = [...scoreboard.items]
-          .sort((a, b) => a.rank - b.rank)
-          .slice(0, 8);
-        setParticipants(sortedParticipants);
+          // 참가자 목록 업데이트 (최대 8명)
+          const sortedParticipants = [...scoreboard.items]
+            .sort((a, b) => a.rank - b.rank)
+            .slice(0, 8);
+          setParticipants(sortedParticipants);
 
-        // 초기 참가자 수 설정
-        if (previousParticipantCount === null) {
-          setPreviousParticipantCount(scoreboard.items.length);
-          
-          // 상대방 이름 저장 (나를 제외한 사용자)
-          if (scoreboard.items.length === 2) {
-            const opponent = scoreboard.items.find(item => item.userId !== myUserId);
-            if (opponent) {
-              setOpponentName(opponent.nickname || opponent.userId);
+          // 초기 참가자 수 설정
+          if (previousParticipantCount === null) {
+            setPreviousParticipantCount(scoreboard.items.length);
+            
+            // 상대방 이름 저장 (나를 제외한 사용자)
+            if (scoreboard.items.length === 2) {
+              const opponent = scoreboard.items.find(item => item.userId !== myUserId);
+              if (opponent) {
+                setOpponentName(opponent.nickname || opponent.userId);
+              }
             }
           }
-        }
 
-        // 참가자 수가 2 -> 1로 줄어든 경우 상대방 이탈
-        if (previousParticipantCount === 2 && scoreboard.items.length === 1) {
-          console.log("상대방 이탈 감지!");
-          setOpponentLeft(true);
-        }
+          // 참가자 수가 2 -> 1로 줄어든 경우 상대방 이탈
+          if (previousParticipantCount === 2 && scoreboard.items.length === 1) {
+            console.log("상대방 이탈 감지!");
+            setOpponentLeft(true);
+          }
 
-        setPreviousParticipantCount(scoreboard.items.length);
-      } catch (error) {
-        console.error("스코어보드 조회 실패:", error);
+          setPreviousParticipantCount(scoreboard.items.length);
+        } catch (error) {
+          console.error("스코어보드 조회 실패:", error);
+        }
+      };
+
+      // 즉시 실행
+      pollScoreboard();
+
+      // 2초마다 폴링
+      const pollingInterval = setInterval(pollScoreboard, 2000);
+
+      return () => clearInterval(pollingInterval);
+    }
+
+    // PvP인 경우 WebSocket 이벤트 사용 (폴링 비활성화)
+    // 스코어보드 업데이트는 SUBMIT_ANSWER_RESPONSE와 SCOREBOARD_UPDATED 이벤트에서 처리
+  }, [roomId, myUserId, previousParticipantCount, isBotMatch]);
+
+  // WebSocket 답안 제출 응답 핸들러 설정 (PvP 전용)
+  useEffect(() => {
+    // 봇전인 경우 WebSocket 사용하지 않음
+    if (isBotMatch || !wsClient || !roomId) return;
+
+    // SUBMIT_ANSWER_RESPONSE 콜백 설정
+    wsClient.setSubmitAnswerResponseCallback((response) => {
+      console.log('[BattleGamePractical] SUBMIT_ANSWER_RESPONSE 수신:', response);
+      
+      if (response.success && response.scoreboard) {
+        // 스코어보드 업데이트
+        const currentUserId = myUserId;
+        if (currentUserId) {
+          const myItem = response.scoreboard.items.find(item => item.userId === currentUserId);
+          
+          if (myItem) {
+            setMyScore(myItem.score);
+            setIsAlive(myItem.alive);
+            
+            // 이전 correctCount와 비교하여 정답 여부 판단
+            const wasCorrect = previousCorrectCount !== null 
+              ? myItem.correctCount > previousCorrectCount 
+              : myItem.correctCount > 0; // 첫 문제인 경우
+            setIsCorrect(wasCorrect);
+            // 다음 문제를 위해 현재 correctCount 저장
+            setPreviousCorrectCount(myItem.correctCount);
+          }
+          
+          // 참가자 목록 업데이트 (최대 8명)
+          const sortedParticipants = [...response.scoreboard.items]
+            .sort((a, b) => a.rank - b.rank)
+            .slice(0, 8);
+          setParticipants(sortedParticipants);
+        }
       }
+    });
+
+    // cleanup
+    return () => {
+      wsClient.setSubmitAnswerResponseCallback(null);
     };
-
-    // 즉시 실행
-    pollScoreboard();
-
-    // 2초마다 폴링
-    const pollingInterval = setInterval(pollScoreboard, 2000);
-
-    return () => clearInterval(pollingInterval);
-  }, [roomId, myUserId, previousParticipantCount]);
+  }, [wsClient, roomId, myUserId, isBotMatch, previousCorrectCount]);
 
   // questions가 없거나 비어있으면 화면 구조는 유지하되 문제 부분만 대기 표시
   const hasQuestion = questions && Array.isArray(questions) && questions.length > 0 && question;
@@ -197,7 +255,9 @@ export function BattleGamePractical({
     }
   }, [question?.id, question?.roomQuestionId, hasQuestion]);
 
-  // Handle answer - 백엔드가 채점하므로 프론트에서는 답안만 제출
+  // Handle answer - 답안 제출
+  // 봇전: REST API 사용
+  // PvP: WebSocket 사용 (폴백으로 REST API)
   const handleAnswer = useCallback(async () => {
     // 탈락했거나 이미 제출 중이거나 답변했으면 중복 호출 방지
     if (!isAlive || isAnswered || isSubmittingRef.current) return;
@@ -206,17 +266,23 @@ export function BattleGamePractical({
     setIsAnswered(true);
     setShowOpponentAnswer(true);
 
-    // 답안 제출 API 호출 (서버가 채점 및 timeMs 계산)
-    if (roomId && question?.roomQuestionId !== undefined && question.roundNo !== undefined && question.phase) {
+    if (!roomId || !question?.roomQuestionId) {
+      setIsCorrect(false);
+      setShowResult(true);
+      return;
+    }
+
+    // 봇전인 경우 REST API로만 답안 제출
+    if (isBotMatch) {
       try {
         // 서버 응답 받기
         const response = await submitAnswer(roomId, {
           questionId: question.roomQuestionId,
           userAnswer: typingAnswer.trim(), // 실기 문제는 입력한 답안을 그대로 전송
           correct: false, // 서버가 채점하므로 프론트에서는 false로 전송
-          timeMs: 0, // 백엔드가 계산하므로 0으로 전송 (실제로는 백엔드가 계산)
-          roundNo: question.roundNo,
-          phase: question.phase,
+          timeMs: 0, // 백엔드가 계산하므로 0으로 전송
+          roundNo: question.roundNo || 1,
+          phase: question.phase || "MAIN",
         });
 
         // 서버 응답의 scoreboard에서 내 점수 확인
@@ -234,43 +300,148 @@ export function BattleGamePractical({
       } catch (error) {
         console.error("답안 제출 실패:", error);
         setIsCorrect(false);
-        // 에러가 발생해도 게임은 계속 진행
       }
-    } else {
-      setIsCorrect(false);
+      setShowResult(true);
+      return;
     }
 
-    setShowResult(true);
-    // 다음 문제는 scoreboard 폴링으로 자동 감지되므로 여기서는 결과만 표시
-  }, [roomId, question?.roomQuestionId, question?.roundNo, question?.phase, typingAnswer, myUserId, isAnswered, isAlive, previousCorrectCount]);
+    // PvP 전인 경우 WebSocket 방식으로 답안 제출
+    if (wsClient && wsClient.getConnectionStatus()) {
+      try {
+        // WebSocket 메시지 전송
+        wsClient.submitAnswer(
+          roomId,
+          question.roomQuestionId,
+          typingAnswer.trim() // 실기 문제는 입력한 답안을 그대로 전송
+        );
+        
+        console.log('[BattleGamePractical] WebSocket 답안 제출:', {
+          roomId,
+          questionId: question.roomQuestionId,
+          userAnswer: typingAnswer.trim()
+        });
 
-  // endTime 기준으로 남은 시간 계산 (백엔드 시간 기준)
-  // currentEndTime을 우선 사용하고, 없으면 props의 endTime 사용
-  const effectiveEndTime = currentEndTime || endTime;
-  useEffect(() => {
-    if (!effectiveEndTime || !hasQuestion) return;
-
-    const updateTimeLeft = () => {
-      const now = new Date().getTime();
-      const end = new Date(effectiveEndTime).getTime();
-      // Math.ceil을 사용하여 0.1초 남아도 1초로 표시 (골든벨과 동일)
-      const remaining = Math.max(0, Math.ceil((end - now) / 1000));
-      setTimeLeft(remaining);
-
-      // 시간이 만료되었고 아직 답변하지 않았으면 자동 제출 (탈락하지 않은 경우만)
-      if (remaining === 0 && isAlive && !isAnswered && !isSubmittingRef.current) {
-        handleAnswer();
+        // UI 표시용 (백엔드 채점 결과는 SUBMIT_ANSWER_RESPONSE에서 받음)
+        setIsCorrect(false); // 백엔드가 채점하므로 프론트에서는 알 수 없음
+        setShowResult(true);
+      } catch (error) {
+        console.error("WebSocket 답안 제출 실패:", error);
+        // WebSocket 실패 시 REST API로 폴백
+        try {
+          const response = await submitAnswer(roomId, {
+            questionId: question.roomQuestionId,
+            userAnswer: typingAnswer.trim(),
+            correct: false,
+            timeMs: 0,
+            roundNo: question.roundNo || 1,
+            phase: question.phase || "MAIN",
+          });
+          const myItem = response.items.find(item => item.userId === myUserId);
+          if (myItem) {
+            setMyScore(myItem.score);
+            const wasCorrect = previousCorrectCount !== null 
+              ? myItem.correctCount > previousCorrectCount 
+              : myItem.correctCount > 0;
+            setIsCorrect(wasCorrect);
+            setPreviousCorrectCount(myItem.correctCount);
+          }
+        } catch (fallbackError) {
+          console.error("REST API 폴백도 실패:", fallbackError);
+          setIsCorrect(false);
+        }
+        setShowResult(true);
       }
-    };
+    } else {
+      // WebSocket이 없거나 연결되지 않은 경우 REST API로 폴백
+      console.warn('[BattleGamePractical] WebSocket이 없거나 연결되지 않음, REST API로 폴백');
+      try {
+        const response = await submitAnswer(roomId, {
+          questionId: question.roomQuestionId,
+          userAnswer: typingAnswer.trim(),
+          correct: false,
+          timeMs: 0,
+          roundNo: question.roundNo || 1,
+          phase: question.phase || "MAIN",
+        });
+        const myItem = response.items.find(item => item.userId === myUserId);
+        if (myItem) {
+          setMyScore(myItem.score);
+          const wasCorrect = previousCorrectCount !== null 
+            ? myItem.correctCount > previousCorrectCount 
+            : myItem.correctCount > 0;
+          setIsCorrect(wasCorrect);
+          setPreviousCorrectCount(myItem.correctCount);
+        }
+      } catch (error) {
+        console.error("답안 제출 실패:", error);
+        setIsCorrect(false);
+      }
+      setShowResult(true);
+    }
+  }, [roomId, question, typingAnswer, myUserId, isAnswered, isAlive, previousCorrectCount, wsClient, isBotMatch]);
 
-    // 즉시 실행
-    updateTimeLeft();
+  // endTime 기준으로 남은 시간 계산
+  // 봇전: endTime (ISO 8601) 또는 currentEndTime 사용
+  // PvP: questionEndTimeMs (밀리초) 사용
+  useEffect(() => {
+    if (!hasQuestion) return;
 
-    // 100ms마다 업데이트 (더 정확한 표시)
-    const timer = setInterval(updateTimeLeft, 100);
+    // 봇전인 경우 endTime 또는 currentEndTime 사용
+    if (isBotMatch) {
+      const effectiveEndTime = currentEndTime || endTime;
+      if (!effectiveEndTime) {
+        setTimeLeft(0);
+        return;
+      }
 
-    return () => clearInterval(timer);
-  }, [effectiveEndTime, hasQuestion, question?.id, isAnswered, isAlive, handleAnswer]);
+      const updateTimeLeft = () => {
+        const now = new Date().getTime();
+        const end = new Date(effectiveEndTime).getTime();
+        // Math.ceil을 사용하여 0.1초 남아도 1초로 표시
+        const remaining = Math.max(0, Math.ceil((end - now) / 1000));
+        setTimeLeft(remaining);
+
+        // 시간이 만료되었고 아직 답변하지 않았으면 자동 제출 (탈락하지 않은 경우만)
+        if (remaining === 0 && isAlive && !isAnswered && !isSubmittingRef.current) {
+          handleAnswer();
+        }
+      };
+
+      // 즉시 실행
+      updateTimeLeft();
+
+      // 100ms마다 업데이트 (더 정확한 표시)
+      const timer = setInterval(updateTimeLeft, 100);
+
+      return () => clearInterval(timer);
+    }
+
+    // PvP인 경우 questionEndTimeMs 사용
+    if (!isBotMatch && questionEndTimeMs) {
+      const updateTimeLeft = () => {
+        const now = Date.now();
+        const remainingMs = questionEndTimeMs - now;
+        const remaining = Math.max(0, Math.ceil(remainingMs / 1000));
+        setTimeLeft(remaining);
+
+        // 시간이 만료되었고 아직 답변하지 않았으면 자동 제출 (탈락하지 않은 경우만)
+        if (remaining === 0 && isAlive && !isAnswered && !isSubmittingRef.current) {
+          handleAnswer();
+        }
+      };
+
+      // 즉시 실행
+      updateTimeLeft();
+
+      // 200ms마다 업데이트 (표시용)
+      const timer = setInterval(updateTimeLeft, 200);
+
+      return () => clearInterval(timer);
+    }
+
+    // 둘 다 없으면 시간 표시 안 함
+    setTimeLeft(0);
+  }, [endTime, currentEndTime, questionEndTimeMs, hasQuestion, question?.id, isAnswered, isAlive, handleAnswer, isBotMatch]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">

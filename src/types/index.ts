@@ -305,3 +305,10 @@ export interface ActivityDetailResponse {
   header: ActivityDetailHeader;
   questions: ActivityQuestion[];
 }
+
+// Battle Status Types
+export type BattleStatus = 
+  | "WAITING"           // 대기 중 (게임 시작 전)
+  | "QUESTION_PLAYING"  // 문제 진행 중
+  | "QUESTION_FINISHED" // 문제 종료
+  | "MATCH_FINISHED";   // 매치 종료

@@ -7,7 +7,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Question } from "../../../../types";
 import { OpponentLeftOverlay } from "../../OpponentLeftOverlay";
-import { submitAnswer, getScoreboard, getVersusQuestion, sendHeartbeat, type CurrentQuestion } from "../../../api/versusApi";
+import { submitAnswer, getScoreboard, getVersusQuestion, type CurrentQuestion } from "../../../api/versusApi";
+import { BattleWebSocketClient } from "../../../../ws/BattleWebSocketClient";
 import axios from "../../../api/axiosConfig";
 
 // 프로필 이미지 경로
@@ -65,6 +66,10 @@ interface BattleGameWrittenProps {
     opponentUserId?: string;
     myRank?: number | null;
     opponentRank?: number | null;
+    questionEndTimeMs?: number | null; // QUESTION_STARTED에서 받은 endTimeMs
+    currentQuestionId?: number | null; // 현재 문제 ID
+    wsClient?: BattleWebSocketClient | null; // WebSocket 클라이언트 (답안 제출용, PvP 전용)
+    isBotMatch?: boolean; // 봇전 여부
     onComplete: (myScore: number, opponentScore: number) => void;
     onExit: () => void;
 }
@@ -78,6 +83,10 @@ export function BattleGameWritten({
     opponentUserId,
     myRank,
     opponentRank,
+    questionEndTimeMs,
+    currentQuestionId,
+    wsClient,
+    isBotMatch = false,
     onComplete,
     onExit,
 }: BattleGameWrittenProps) {
@@ -87,7 +96,7 @@ export function BattleGameWritten({
     const [opponentScore, setOpponentScore] = useState(0);
     const [previousScore, setPreviousScore] = useState(0);
     const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number | null>(null); // 백엔드에서 제공하는 현재 문제 번호
-    const [timeLeft, setTimeLeft] = useState<number>(0); // 백엔드 endTime 기반으로 계산
+    const [timeLeft, setTimeLeft] = useState<number>(0); // UI 타이머 표시용 (표시만, 0이 되어도 동작 없음)
     const [isAnswered, setIsAnswered] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [showOpponentAnswer, setShowOpponentAnswer] = useState(false);
@@ -113,9 +122,14 @@ export function BattleGameWritten({
     const [myNickname, setMyNickname] = useState<string | null>(null);
     const [opponentNickname, setOpponentNickname] = useState<string | null>(null);
 
-    // 1초 폴링으로 실시간 스코어보드 조회
+    // 스코어보드 조회
+    // 봇전: REST API 폴링 사용
+    // PvP: WebSocket 이벤트 사용 (폴링 비활성화)
     useEffect(() => {
         if (!roomId || !myUserId) return;
+
+        // 봇전이 아닌 경우 폴링 비활성화 (PvP는 WebSocket 이벤트 사용)
+        if (!isBotMatch) return;
 
         const pollScoreboard = async () => {
             try {
@@ -187,6 +201,7 @@ export function BattleGameWritten({
                     setTimeLeft(remainingSec);
                     
                     // orderNo는 1부터 시작하므로 인덱스로 변환 (orderNo - 1)
+                    // 봇전인 경우 문제 인덱스 자동 업데이트 (폴링 기반)
                     const questionIndex = orderNo - 1;
                     if (questionIndex >= 0 && questionIndex !== currentQuestionIndex) {
                         setCurrentQuestionIndex(questionIndex);
@@ -218,33 +233,9 @@ export function BattleGameWritten({
         const interval = setInterval(pollScoreboard, 2000);
 
         return () => clearInterval(interval);
-    }, [roomId, myUserId, previousScore, isAnswered, serverCorrect, currentQuestionIndex, opponentLeft]);
+    }, [roomId, myUserId, previousScore, isAnswered, serverCorrect, currentQuestionIndex, opponentLeft, isBotMatch]);
 
-    // 하트비트 전송 (15초마다)
-    useEffect(() => {
-        if (!roomId || gameStatus === "DONE") return;
-
-        const sendHeartbeatRequest = async () => {
-            try {
-                await sendHeartbeat(roomId);
-            } catch (error) {
-                console.error("Heartbeat 전송 실패:", error);
-                // heartbeat 실패는 자동 추방으로 이어지므로 에러 표시하지 않음
-            }
-        };
-
-        // 즉시 한 번 전송
-        sendHeartbeatRequest();
-
-        // 15초마다 전송
-        const heartbeatInterval = setInterval(sendHeartbeatRequest, 15000);
-
-        return () => {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-            }
-        };
-    }, [roomId, gameStatus]);
+    // [WebSocket 전환] REST 기반 heartbeat 제거 - WebSocket heartbeat만 사용
 
     // 게임 종료 처리
     useEffect(() => {
@@ -256,10 +247,13 @@ export function BattleGameWritten({
         }
     }, [gameStatus, myScore, opponentScore, onComplete]);
 
-    // currentQuestion이 변경되면 문제를 하나씩 가져오기 (토너먼트 방식)
+    // currentQuestionId prop이 변경되면 문제를 가져오기 (WebSocket 기반)
     useEffect(() => {
         const fetchQuestion = async () => {
-            if (!currentQuestionFromServer || !roomId) {
+            // currentQuestionId prop이 있으면 우선 사용 (WebSocket에서 받은 값)
+            const questionIdToFetch = currentQuestionId || currentQuestionFromServer?.questionId;
+            
+            if (!questionIdToFetch || !roomId) {
                 if (setQuestions) {
                     setQuestions([]); // 문제 목록 비우기
                 }
@@ -267,13 +261,13 @@ export function BattleGameWritten({
             }
 
             // 이미 같은 문제를 가져왔으면 다시 가져오지 않음
-            if (currentQuestionIdRef.current === currentQuestionFromServer.questionId) {
+            if (currentQuestionIdRef.current === questionIdToFetch) {
                 return;
             }
 
             setQuestionLoading(true);
             try {
-                const data = await getVersusQuestion(currentQuestionFromServer.questionId);
+                const data = await getVersusQuestion(questionIdToFetch);
 
                 // answerKey를 인덱스로 변환 (A=0, B=1, C=2, D=3)
                 const answerKeyToIndex = (key: string): number => {
@@ -348,7 +342,7 @@ export function BattleGameWritten({
 
                 // API 응답을 Question 타입으로 변환
                 const questionData: Question = {
-                    id: String(data.id || currentQuestionFromServer.questionId),
+                    id: String(data.id || questionIdToFetch),
                     topicId: "",
                     tags: [],
                     difficulty: convertDifficulty(data.difficulty || "NORMAL"),
@@ -359,14 +353,14 @@ export function BattleGameWritten({
                     correctAnswer: correctAnswerIndex,
                     explanation: data.solutionText || "",
                     imageUrl: undefined,
-                    timeLimitSec: currentQuestionFromServer.timeLimitSec,
-                    roomQuestionId: currentQuestionFromServer.questionId, // 답안 제출용
-                    roundNo: currentQuestionFromServer.roundNo, // 답안 제출용
-                    phase: currentQuestionFromServer.phase as "MAIN" | "REVIVAL" // 답안 제출용
+                    timeLimitSec: currentQuestionFromServer?.timeLimitSec || 30, // 기본값 30초
+                    roomQuestionId: questionIdToFetch, // 답안 제출용
+                    roundNo: currentQuestionFromServer?.roundNo || 1, // 답안 제출용
+                    phase: (currentQuestionFromServer?.phase || "MAIN") as "MAIN" | "REVIVAL" // 답안 제출용
                 };
 
                 // 현재 문제만 배열에 저장 (토너먼트 방식)
-                currentQuestionIdRef.current = currentQuestionFromServer.questionId;
+                currentQuestionIdRef.current = questionIdToFetch;
                 if (setQuestions) {
                     setQuestions([questionData]);
                 }
@@ -381,7 +375,7 @@ export function BattleGameWritten({
         };
 
         fetchQuestion();
-    }, [currentQuestionFromServer, roomId, setQuestions]);
+    }, [currentQuestionId, currentQuestionFromServer, roomId, setQuestions]);
 
     // 문제 인덱스나 문제 번호가 변경될 때마다 상태 초기화 (첫 문제 포함)
     useEffect(() => {
@@ -394,18 +388,87 @@ export function BattleGameWritten({
         isSubmittingRef.current = false; // 제출 플래그도 리셋
     }, [currentQuestionIndex, currentQuestionNumber]);
 
-    // Timer - 백엔드 endTime 기반으로 계산하므로 프론트에서 직접 세지 않음
-    // 스코어보드 폴링에서 timeLeft를 업데이트하므로 별도 타이머 불필요
+    // UI 타이머
+    // 봇전: 폴링으로 받은 endTime 기반
+    // PvP: WebSocket QUESTION_STARTED 이벤트에서 받은 questionEndTimeMs 기반
+    useEffect(() => {
+        // 봇전인 경우 폴링에서 이미 timeLeft가 업데이트되므로 여기서는 처리하지 않음
+        if (isBotMatch) return;
+        
+        // PvP 전인 경우 WebSocket 이벤트에서 받은 questionEndTimeMs 사용
+        if (!questionEndTimeMs) {
+            setTimeLeft(0);
+            return;
+        }
+
+        const updateTimeLeft = () => {
+            const now = Date.now();
+            const remainingMs = questionEndTimeMs - now;
+            const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+            setTimeLeft(remainingSec);
+        };
+
+        // 즉시 한 번 업데이트
+        updateTimeLeft();
+
+        // 200ms 간격으로 업데이트 (표시용)
+        const interval = setInterval(updateTimeLeft, 200);
+
+        return () => clearInterval(interval);
+    }, [questionEndTimeMs, isBotMatch]);
 
     // 문제가 있는지 확인 (토너먼트 방식 참고)
     const hasQuestion = currentQuestionFromServer && questions && questions.length > 0 && !questionLoading;
     const question = questions?.[0]; // 현재 문제는 항상 첫 번째 요소
 
-    // Handle Answer - 답안 제출 (백엔드가 채점 및 점수 관리)
+    // WebSocket 답안 제출 응답 핸들러 설정 (PvP 전용)
+    useEffect(() => {
+        // 봇전인 경우 WebSocket 사용하지 않음
+        if (isBotMatch || !wsClient || !roomId) return;
+
+        // SUBMIT_ANSWER_RESPONSE 콜백 설정
+        wsClient.setSubmitAnswerResponseCallback((response) => {
+            console.log('[BattleGameWritten] SUBMIT_ANSWER_RESPONSE 수신:', response);
+            
+            if (response.success && response.scoreboard) {
+                // 스코어보드 업데이트
+                const currentUserId = myUserId;
+                if (currentUserId) {
+                    const myItem = response.scoreboard.items.find(item => item.userId === currentUserId);
+                    const opponentItem = response.scoreboard.items.find(item => item.userId !== currentUserId);
+                    
+                    if (myItem) {
+                        setMyScore(myItem.score);
+                        setMySkinId(myItem.skinId);
+                        setMyNickname(myItem.nickname);
+                    }
+                    if (opponentItem) {
+                        setOpponentScore(opponentItem.score);
+                        setOpponentSkinId(opponentItem.skinId);
+                        setOpponentNickname(opponentItem.nickname);
+                    }
+                }
+            }
+        });
+
+        // cleanup
+        return () => {
+            wsClient.setSubmitAnswerResponseCallback(null);
+        };
+    }, [wsClient, roomId, myUserId, isBotMatch]);
+
+    // Handle Answer - 답안 제출
+    // 봇전: REST API 사용
+    // PvP: WebSocket 사용 (폴백으로 REST API)
     const handleAnswer = async (answer: number | null) => {
         // 이미 제출 중이거나 답변했으면 중복 호출 방지
         if (isAnswered || isSubmittingRef.current) return;
         
+        if (!roomId || !question?.roomQuestionId) {
+            console.error("답안 제출 실패: roomId 또는 questionId가 없습니다.");
+            return;
+        }
+
         isSubmittingRef.current = true;
         // 선택한 답안을 먼저 설정 (UI에서 노란색으로 표시하기 위해)
         setSelectedAnswer(answer);
@@ -413,60 +476,100 @@ export function BattleGameWritten({
         setShowOpponentAnswer(true);
         setServerCorrect(null); // 초기화
 
-        // 답안 제출 API 호출 (백엔드가 채점)
-        if (roomId && question?.roomQuestionId !== undefined && question?.roundNo !== undefined && question?.phase) {
+        // 답안을 문자열로 변환
+        let answerString = "";
+        if (answer !== null) {
+            if (question.type === "ox") {
+                // OX 문제: userAnswer는 "O" 또는 "X"로 전송
+                answerString = answer === 0 ? "O" : "X";
+            } else {
+                // MCQ 문제: 0 -> "A", 1 -> "B", 2 -> "C", 3 -> "D"
+                answerString = String.fromCharCode(65 + answer);
+            }
+        }
+
+        // 봇전인 경우 REST API로만 답안 제출
+        if (isBotMatch) {
             try {
-                // 답안을 문자열로 변환
-                let answerString = "";
-                if (answer !== null) {
-                    if (question.type === "ox") {
-                        // OX 문제: userAnswer는 "O" 또는 "X"로 전송
-                        answerString = answer === 0 ? "O" : "X";
-                    } else {
-                        // MCQ 문제: 0 -> "A", 1 -> "B", 2 -> "C", 3 -> "D"
-                        answerString = String.fromCharCode(65 + answer);
-                    }
-                }
-                 // 백엔드에서 제공하는 endTime 기반으로 시간 계산
-                 // 현재는 timeLeft를 사용하되, 백엔드가 정확한 시간을 관리
-                 const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
-                
-                // 정답 판단: correctAnswer와 비교
-                let isCorrect = false;
-                if (answer !== null && question.correctAnswer !== undefined) {
-                    if (question.type === "ox") {
-                        // OX 문제: correctAnswer는 인덱스 (0 또는 1)
-                        // answerString은 "O" 또는 "X"
-                        const correctOption = question.options?.[question.correctAnswer as number];
-                        isCorrect = correctOption?.label === answerString;
-                    } else {
-                        // 객관식 문제: correctAnswer는 인덱스
-                        isCorrect = answer === question.correctAnswer;
-                    }
-                }
-                
-                // 답안 제출 (백엔드가 채점 및 점수 저장)
-                // OX 문제: userAnswer는 "O" 또는 "X"
-                const response = await submitAnswer(roomId, {
+                const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
+                await submitAnswer(roomId, {
                     questionId: question.roomQuestionId,
-                    userAnswer: answerString, // OX: "O" 또는 "X", MCQ: "A", "B", "C", "D"
-                    correct: isCorrect, // 정답 여부 판단
+                    userAnswer: answerString,
+                    correct: false, // 백엔드가 채점하므로 프론트에서는 false로 전송
                     timeMs: Math.max(0, timeMs),
-                    roundNo: question.roundNo,
-                    phase: question.phase,
+                    roundNo: question.roundNo || 1,
+                    phase: question.phase || "MAIN",
+                });
+                setServerCorrect(null);
+            } catch (error) {
+                console.error("답안 제출 실패:", error);
+                setServerCorrect(null);
+            }
+            isSubmittingRef.current = false;
+            return;
+        }
+
+        // PvP 전인 경우 WebSocket 방식으로 답안 제출
+        if (wsClient && wsClient.getConnectionStatus()) {
+            try {
+                // WebSocket 메시지 전송
+                // Destination: /app/versus/answer
+                // Body: { roomId, questionId, userAnswer }
+                wsClient.submitAnswer(
+                    roomId,
+                    question.roomQuestionId,
+                    answerString // OX: "O" 또는 "X", MCQ: "A", "B", "C", "D"
+                );
+                
+                console.log('[BattleGameWritten] WebSocket 답안 제출:', {
+                    roomId,
+                    questionId: question.roomQuestionId,
+                    userAnswer: answerString
                 });
 
                 // 백엔드가 채점하므로 프론트에서는 채점 결과를 알 수 없음
-                // 스코어보드 폴링이 점수를 업데이트할 때 채점 결과를 확인
-                setServerCorrect(null); // 채점 결과는 백엔드에서 관리
+                // 채점 결과는 SUBMIT_ANSWER_RESPONSE에서 받음
+                setServerCorrect(null);
             } catch (error) {
-                console.error("답안 제출 실패:", error);
-                setServerCorrect(null); // 백엔드가 채점하므로 프론트에서는 알 수 없음
-                // 에러가 발생해도 게임은 계속 진행
+                console.error("WebSocket 답안 제출 실패:", error);
+                // WebSocket 실패 시 REST API로 폴백
+                try {
+                    const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
+                    await submitAnswer(roomId, {
+                        questionId: question.roomQuestionId,
+                        userAnswer: answerString,
+                        correct: false, // 백엔드가 채점하므로 프론트에서는 false로 전송
+                        timeMs: Math.max(0, timeMs),
+                        roundNo: question.roundNo || 1,
+                        phase: question.phase || "MAIN",
+                    });
+                    setServerCorrect(null);
+                } catch (fallbackError) {
+                    console.error("REST API 폴백도 실패:", fallbackError);
+                    setServerCorrect(null);
+                }
             }
         } else {
-            setServerCorrect(null);
+            // WebSocket이 없거나 연결되지 않은 경우 REST API로 폴백
+            console.warn('[BattleGameWritten] WebSocket이 없거나 연결되지 않음, REST API로 폴백');
+            try {
+                const timeMs = (question.timeLimitSec || 30) * 1000 - (timeLeft * 1000);
+                await submitAnswer(roomId, {
+                    questionId: question.roomQuestionId,
+                    userAnswer: answerString,
+                    correct: false, // 백엔드가 채점하므로 프론트에서는 false로 전송
+                    timeMs: Math.max(0, timeMs),
+                    roundNo: question.roundNo || 1,
+                    phase: question.phase || "MAIN",
+                });
+                setServerCorrect(null);
+            } catch (error) {
+                console.error("답안 제출 실패:", error);
+                setServerCorrect(null);
+            }
         }
+        
+        isSubmittingRef.current = false;
 
         // 점수는 백엔드에서 관리하므로 프론트에서 계산하지 않음
         // 백엔드에서 currentQuestion이 바뀌면 자동으로 다음 문제로 전환되므로
@@ -474,8 +577,14 @@ export function BattleGameWritten({
     };
 
     // 시간이 만료되었을 때 자동으로 빈 답안 제출
+    // [WebSocket 전환] 자동 답안 제출 무력화: WebSocket 이벤트에서만 상태 변경
     useEffect(() => {
         if (!hasQuestion || !question || !roomId) return;
+        
+        // 자동 답안 제출 비활성화 - WebSocket 이벤트에서만 상태 변경
+        const AUTO_SUBMIT_DISABLED = true;
+        if (AUTO_SUBMIT_DISABLED) return;
+
         if (timeLeft === 0 && !isAnswered && !isSubmittingRef.current) {
             handleAnswer(null);
         }

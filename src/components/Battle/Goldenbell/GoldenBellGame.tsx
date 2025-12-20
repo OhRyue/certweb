@@ -23,15 +23,18 @@ import {
   type RoomStateResponse,
   type VersusQuestionResponse 
 } from "../../api/versusApi";
+import { BattleWebSocketClient, type BattleEvent, type JoinRoomSnapshot } from "../../../ws/BattleWebSocketClient";
 
 interface GoldenBellGameProps {
   sessionId: string; // roomId as string
   myUserId?: string; // API에서 받은 사용자 ID
+  wsClient?: BattleWebSocketClient | null; // WebSocket 클라이언트 (PvP 전용)
+  isBotMatch?: boolean; // 봇전 여부
   onComplete: (survived: boolean, rank: number) => void;
   onExit: () => void;
 }
 
-export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, onExit }: GoldenBellGameProps) {
+export function GoldenBellGame({ sessionId, myUserId: propMyUserId, wsClient, isBotMatch = false, onComplete, onExit }: GoldenBellGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 1000, height: 800 });
   const roomId = Number(sessionId);
@@ -125,10 +128,10 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
     }
   }, [propMyUserId, myUserId]);
 
-  // 스코어보드 폴링 (1초마다)
+  // 스코어보드 업데이트 (봇전: REST API 폴링, PvP: WebSocket 이벤트)
   useEffect(() => {
     if (!roomId || isNaN(roomId)) return;
-    // status가 "DONE"이면 폴링 중지
+    // status가 "DONE"이면 업데이트 중지
     if (scoreboard?.status === "DONE") {
       // 기존 interval 정리
       if (pollingIntervalRef.current) {
@@ -138,7 +141,9 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
       return;
     }
 
-    const pollScoreboard = async () => {
+    // 봇전인 경우 REST API 폴링 사용
+    if (isBotMatch) {
+      const pollScoreboard = async () => {
       try {
         const scoreboardData = await getScoreboard(roomId);
         setScoreboard(scoreboardData);
@@ -252,22 +257,156 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
       }
     };
 
-    // 즉시 한 번 호출
-    pollScoreboard();
+      // 즉시 한 번 호출
+      pollScoreboard();
 
-    // 1초마다 폴링
-    const interval = setInterval(pollScoreboard, 1000);
-    pollingIntervalRef.current = interval;
+      // 1초마다 폴링
+      const interval = setInterval(pollScoreboard, 1000);
+      pollingIntervalRef.current = interval;
 
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [roomId, propMyUserId, myUserId, prevAlive, scoreboard?.status]);
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+    
+    // PvP 전인 경우 WebSocket 이벤트 사용
+    if (!isBotMatch && wsClient) {
+      // 이벤트 핸들러 설정
+      const handleEvent = (eventType: string, event: BattleEvent) => {
+        console.log('[GoldenBellGame] 이벤트 수신:', eventType, event);
+        
+        // QUESTION_STARTED 이벤트 수신 시 문제 상세 정보 조회
+        if (eventType === 'QUESTION_STARTED' && event.payload) {
+          const payload = event.payload as any;
+          const questionId = payload.questionId;
+          
+          if (!questionId) return;
+          
+          // 문제가 변경되었으면 제출 상태 리셋
+          if (previousQuestionIdRef.current !== null && previousQuestionIdRef.current !== questionId) {
+            setSubmittedQuestionId(null);
+            autoSubmittedRef.current = null;
+          }
+          previousQuestionIdRef.current = questionId;
+          
+          // 이미 제출한 문제는 조회하지 않음
+          if (submittedQuestionId === questionId) return;
+
+          // 문제 상세 정보 조회
+          getVersusQuestion(questionId).then(questionData => {
+            setCurrentQuestion(questionData);
+            setAnswerStartTime(Date.now());
+            setGameStage("answering");
+            setUserAnswer("");
+            setIsInitialLoad(false);
+          }).catch(error => {
+            console.error("문제 조회 실패:", error);
+          });
+        }
+        
+        // SCOREBOARD_UPDATED 이벤트 수신 시 스코어보드 업데이트
+        if (eventType === 'SCOREBOARD_UPDATED' && event.payload) {
+          // 스코어보드를 다시 조회하거나 이벤트에서 직접 업데이트
+          // 여기서는 간단히 스코어보드를 다시 조회
+          getScoreboard(roomId).then(scoreboardData => {
+            setScoreboard(scoreboardData);
+            
+            // alive 상태 변경 감지 및 관전자 모드 처리
+            const userIdToCheck = propMyUserId || myUserId;
+            if (userIdToCheck && scoreboardData.items.length > 0) {
+              const myItem = scoreboardData.items.find(item => item.userId === userIdToCheck);
+              if (myItem) {
+                const currentAlive = myItem.alive;
+                const currentRevived = myItem.revived;
+                const currentPhase = scoreboardData.currentQuestion?.phase || null;
+                
+                // 탈락 감지
+                if (prevAlive !== null && prevAlive === true && currentAlive === false) {
+                  setShowEliminationNotice(true);
+                  setIsSpectator(true);
+                  setTimeout(() => {
+                    setShowEliminationNotice(false);
+                  }, 3000);
+                }
+                
+                // 부활전 시작 감지
+                const phaseChangedToRevival = prevPhase !== "REVIVAL" && currentPhase === "REVIVAL";
+                if (phaseChangedToRevival && !currentAlive && !noRevivalNoticeShown) {
+                  if (currentRevived === false) {
+                    setShowNoRevivalNotice(true);
+                    setNoRevivalNoticeShown(true);
+                    setTimeout(() => {
+                      setShowNoRevivalNotice(false);
+                    }, 5000);
+                  }
+                }
+                
+                // 부활전이 끝나면 플래그 리셋
+                if (prevPhase === "REVIVAL" && currentPhase !== "REVIVAL") {
+                  setNoRevivalNoticeShown(false);
+                }
+                
+                // 부활 감지
+                if (prevAlive === false && currentAlive === true) {
+                  setShowRevivalNotice(true);
+                  setIsSpectator(false);
+                  setNoRevivalNoticeShown(false);
+                  setTimeout(() => {
+                    setShowRevivalNotice(false);
+                  }, 3000);
+                }
+                
+                // 상태 저장
+                setPrevPhase(currentPhase);
+                setPrevAlive(currentAlive);
+                setMyRevived(currentRevived);
+                
+                // 관전자 모드 상태 업데이트
+                if (currentPhase === "REVIVAL") {
+                  setIsSpectator(currentAlive === true || currentRevived === false);
+                } else {
+                  setIsSpectator(!currentAlive);
+                }
+              }
+            }
+          }).catch(error => {
+            console.error("스코어보드 조회 실패:", error);
+          });
+        }
+        
+        // QUESTION_STARTED 이벤트는 이미 currentQuestion 업데이트로 처리됨
+        // (snapshot.currentQuestion 또는 scoreboard.currentQuestion 사용)
+      };
+
+      wsClient.setEventCallback(handleEvent);
+      
+      // SUBMIT_ANSWER_RESPONSE 핸들러 설정
+      wsClient.setSubmitAnswerResponseCallback((response) => {
+        console.log('[GoldenBellGame] SUBMIT_ANSWER_RESPONSE 수신:', response);
+        
+        if (response.success && response.scoreboard) {
+          // 스코어보드 업데이트
+          setScoreboard({
+            status: response.scoreboard.status || "ONGOING",
+            items: response.scoreboard.items || []
+          });
+        }
+      });
+
+      // cleanup
+      return () => {
+        wsClient.setEventCallback(null);
+        wsClient.setSubmitAnswerResponseCallback(null);
+      };
+    }
+  }, [roomId, propMyUserId, myUserId, prevAlive, scoreboard?.status, isBotMatch, wsClient, prevPhase, noRevivalNoticeShown]);
 
   // currentQuestion이 변경되면 문제 상세 정보 조회 (초기 로딩 이후)
+  // 봇전: 스코어보드 폴링에서 currentQuestion 변경 감지
+  // PvP: WebSocket QUESTION_STARTED 이벤트 또는 스코어보드 업데이트에서 감지
   const previousQuestionIdRef = useRef<number | null>(null);
   useEffect(() => {
     // 초기 로딩 중이면 스코어보드의 currentQuestion을 사용하지 않음
@@ -477,20 +616,44 @@ export function GoldenBellGame({ sessionId, myUserId: propMyUserId, onComplete, 
         autoSubmittedRef.current = currentQuestionId;
       }
       
-      // 답안 제출 (1:1 배틀과 동일한 파라미터 사용)
-      // scoreboard.currentQuestion.questionId를 사용 (API에서 제공하는 questionId)
-      await submitAnswer(roomId, {
-        questionId: currentQuestionId,
-        userAnswer: answer,
-        correct: false, // API에서 판단하므로 임시값
-        timeMs,
-        roundNo: scoreboard.currentQuestion.roundNo,
-        phase: scoreboard.currentQuestion.phase as "MAIN" | "REVIVAL",
-      });
+      // 봇전인 경우 REST API로 답안 제출
+      if (isBotMatch) {
+        await submitAnswer(roomId, {
+          questionId: currentQuestionId,
+          userAnswer: answer,
+          correct: false, // API에서 판단하므로 임시값
+          timeMs,
+          roundNo: scoreboard.currentQuestion.roundNo,
+          phase: scoreboard.currentQuestion.phase as "MAIN" | "REVIVAL",
+        });
 
-      setSubmittedQuestionId(currentQuestionId);
-      setGameStage("waiting");
-      // 정답 여부는 스코어보드 폴링으로 업데이트됨
+        setSubmittedQuestionId(currentQuestionId);
+        setGameStage("waiting");
+        // 정답 여부는 스코어보드 폴링으로 업데이트됨
+      } else {
+        // PvP 전인 경우 WebSocket으로 답안 제출
+        if (wsClient && wsClient.getConnectionStatus()) {
+          wsClient.submitAnswer(roomId, currentQuestionId, answer);
+          
+          setSubmittedQuestionId(currentQuestionId);
+          setGameStage("waiting");
+          // 정답 여부는 SUBMIT_ANSWER_RESPONSE 또는 SCOREBOARD_UPDATED 이벤트로 업데이트됨
+        } else {
+          // WebSocket이 없거나 연결되지 않은 경우 REST API로 폴백
+          console.warn('[GoldenBellGame] WebSocket이 없거나 연결되지 않음, REST API로 폴백');
+          await submitAnswer(roomId, {
+            questionId: currentQuestionId,
+            userAnswer: answer,
+            correct: false,
+            timeMs,
+            roundNo: scoreboard.currentQuestion.roundNo,
+            phase: scoreboard.currentQuestion.phase as "MAIN" | "REVIVAL",
+          });
+
+          setSubmittedQuestionId(currentQuestionId);
+          setGameStage("waiting");
+        }
+      }
     } catch (error) {
       console.error("답안 제출 실패:", error);
       // 에러 발생 시 자동 제출 플래그도 리셋

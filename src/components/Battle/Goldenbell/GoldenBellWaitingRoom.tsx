@@ -1,15 +1,18 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "../../ui/card"
 import { Badge } from "../../ui/badge"
 import { Avatar } from "../../ui/avatar"
 import { Bell, Users, Clock, User } from "lucide-react"
 import { sendHeartbeat, getScoreboard, type RoomDetailResponse, type Scoreboard } from "../../api/versusApi"
 import { toast } from "sonner"
+import { BattleWebSocketClient, type JoinRoomSnapshot, type BattleEvent } from "../../../ws/BattleWebSocketClient"
 
 interface GoldenBellWaitingRoomProps {
   roomId: number
   roomDetail: RoomDetailResponse
   myUserId: string
+  wsClient?: BattleWebSocketClient | null
+  snapshot?: JoinRoomSnapshot | null
   onGameStart: () => void
   onError: (error: string) => void
 }
@@ -18,6 +21,8 @@ export function GoldenBellWaitingRoom({
   roomId, 
   roomDetail: initialRoomDetail, 
   myUserId, 
+  wsClient,
+  snapshot,
   onGameStart,
   onError 
 }: GoldenBellWaitingRoomProps) {
@@ -26,6 +31,7 @@ export function GoldenBellWaitingRoom({
   const [gameStarting, setGameStarting] = useState(false) // 게임 시작 중 플래그
   // scheduledAt을 우선 사용, 없으면 createdAt 사용
   const scheduledAt = initialRoomDetail.room.scheduledAt || initialRoomDetail.room.createdAt
+  const isBotMatch = initialRoomDetail.room.isBotMatch || false
 
   // 한국 시각으로 표시
   const formatKoreanDateTime = (isoString: string) => {
@@ -71,94 +77,141 @@ export function GoldenBellWaitingRoom({
     return () => clearInterval(interval)
   }, [scheduledAt])
 
-  // Heartbeat 폴링 (30초마다)
+  // Heartbeat 처리 (봇전: REST API, PvP: WebSocket)
   useEffect(() => {
-    // 게임이 시작되면 heartbeat 폴링하지 않음
+    // 게임이 시작되면 heartbeat 중지
     if (gameStarting) {
       return
     }
 
-    let heartbeatInterval: NodeJS.Timeout
+    // 봇전인 경우 REST API 폴링 사용
+    if (isBotMatch) {
+      let heartbeatInterval: NodeJS.Timeout
 
-    const sendHeartbeatRequest = async () => {
-      try {
-        await sendHeartbeat(roomId)
-        console.log("Heartbeat 전송 성공")
-      } catch (error: any) {
-        console.error("Heartbeat 전송 실패:", error)
-        // heartbeat 실패는 자동 추방으로 이어지므로 에러 표시하지 않음
+      const sendHeartbeatRequest = async () => {
+        try {
+          await sendHeartbeat(roomId)
+          console.log("Heartbeat 전송 성공 (REST API)")
+        } catch (error: any) {
+          console.error("Heartbeat 전송 실패:", error)
+        }
+      }
+
+      // 즉시 한 번 전송
+      sendHeartbeatRequest()
+      
+      // 30초마다 전송
+      heartbeatInterval = setInterval(sendHeartbeatRequest, 30000)
+
+      return () => {
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval)
+          console.log("Heartbeat 폴링 중지 (REST API)")
+        }
       }
     }
-
-    // 즉시 한 번 전송
-    sendHeartbeatRequest()
     
-    // 30초마다 전송
-    heartbeatInterval = setInterval(sendHeartbeatRequest, 30000)
+    // PvP 전인 경우 WebSocket heartbeat는 BattleWebSocketClient에서 자동 처리됨
+    // (WAIT 상태일 때만 자동으로 전송됨)
+  }, [roomId, gameStarting, isBotMatch])
 
-    return () => {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval)
-        console.log("Heartbeat 폴링 중지")
-      }
-    }
-  }, [roomId, gameStarting])
-
-  // 스코어보드 폴링 (2초마다) - 참가자 수 & 방 상태 확인
+  // 스코어보드 업데이트 (봇전: REST API 폴링, PvP: WebSocket 이벤트)
   useEffect(() => {
-    // 게임이 시작되면 스코어보드 폴링하지 않음
+    // 게임이 시작되면 업데이트 중지
     if (gameStarting) {
       return
     }
 
-    let scoreboardInterval: NodeJS.Timeout
+    // 봇전인 경우 REST API 폴링 사용
+    if (isBotMatch) {
+      let scoreboardInterval: NodeJS.Timeout
 
-    const fetchScoreboard = async () => {
-      try {
-        const newScoreboard = await getScoreboard(roomId)
-        setScoreboard(newScoreboard)
+      const fetchScoreboard = async () => {
+        try {
+          const newScoreboard = await getScoreboard(roomId)
+          setScoreboard(newScoreboard)
+          
+          // 스코어보드의 status가 ONGOING 또는 IN_PROGRESS로 변경되면 게임 시작
+          if (newScoreboard.status === "ONGOING" || newScoreboard.status === "IN_PROGRESS") {
+            console.log("게임이 시작되었습니다! status:", newScoreboard.status)
+            setGameStarting(true)
+            toast.success("게임이 시작됩니다!")
+            
+            setTimeout(() => {
+              onGameStart()
+            }, 500)
+            
+            return
+          }
+          
+          // 상태가 CANCELLED이면 에러 처리
+          if (newScoreboard.status === "CANCELLED") {
+            setGameStarting(true)
+            onError("방이 취소되었습니다.")
+          }
+        } catch (error: any) {
+          console.error("스코어보드 조회 실패:", error)
+          if (error.response?.status === 404) {
+            setGameStarting(true)
+            onError("방을 찾을 수 없습니다.")
+          }
+        }
+      }
+
+      // 즉시 한 번 호출
+      fetchScoreboard()
+
+      // 2초마다 스코어보드 업데이트
+      scoreboardInterval = setInterval(fetchScoreboard, 2000)
+
+      return () => {
+        if (scoreboardInterval) {
+          clearInterval(scoreboardInterval)
+          console.log("스코어보드 폴링 중지 (REST API)")
+        }
+      }
+    }
+    
+    // PvP 전인 경우 WebSocket 이벤트 사용
+    if (!isBotMatch && wsClient) {
+      // snapshot에서 초기 스코어보드 설정
+      if (snapshot) {
+        setScoreboard({
+          status: snapshot.scoreboard.status || "WAIT",
+          items: snapshot.scoreboard.items || []
+        })
+      }
+
+      // 이벤트 핸들러 설정
+      const handleEvent = (eventType: string, event: BattleEvent) => {
+        console.log('[GoldenBellWaitingRoom] 이벤트 수신:', eventType, event)
         
-        // 스코어보드의 status가 ONGOING 또는 IN_PROGRESS로 변경되면 게임 시작
-        if (newScoreboard.status === "ONGOING" || newScoreboard.status === "IN_PROGRESS") {
-          console.log("게임이 시작되었습니다! status:", newScoreboard.status)
-          setGameStarting(true) // 플래그 설정하여 폴링 중지
+        // MATCH_STARTED 이벤트 수신 시 게임 시작
+        if (eventType === 'MATCH_STARTED') {
+          console.log("게임이 시작되었습니다! (WebSocket)")
+          setGameStarting(true)
           toast.success("게임이 시작됩니다!")
           
-          // 약간의 딜레이 후 게임 화면으로 전환
           setTimeout(() => {
             onGameStart()
           }, 500)
-          
-          return // 더 이상 폴링하지 않음
         }
         
-        // 상태가 CANCELLED이면 에러 처리
-        if (newScoreboard.status === "CANCELLED") {
-          setGameStarting(true) // 폴링 중지
-          onError("방이 취소되었습니다.")
-        }
-      } catch (error: any) {
-        console.error("스코어보드 조회 실패:", error)
-        if (error.response?.status === 404) {
-          setGameStarting(true) // 폴링 중지
-          onError("방을 찾을 수 없습니다.")
+        // PLAYER_JOINED 이벤트 수신 시 참가자 목록 업데이트
+        if (eventType === 'PLAYER_JOINED' && event.payload) {
+          // snapshot을 다시 받아서 업데이트하거나, 이벤트에서 참가자 정보를 추출
+          // 여기서는 간단히 스코어보드를 다시 조회 (또는 snapshot 업데이트 대기)
         }
       }
-    }
 
-    // 즉시 한 번 호출
-    fetchScoreboard()
+      wsClient.setEventCallback(handleEvent)
 
-    // 2초마다 스코어보드 업데이트
-    scoreboardInterval = setInterval(fetchScoreboard, 2000)
-
-    return () => {
-      if (scoreboardInterval) {
-        clearInterval(scoreboardInterval)
-        console.log("스코어보드 폴링 중지")
+      // cleanup
+      return () => {
+        wsClient.setEventCallback(null)
       }
     }
-  }, [roomId, onGameStart, onError, gameStarting])
+  }, [roomId, onGameStart, onError, gameStarting, isBotMatch, wsClient, snapshot])
 
   const participants = scoreboard?.items || []
   const participantCount = participants.length

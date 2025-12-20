@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { BattleGameWritten } from "./BattleGameWritten"
 import { BattleGamePractical } from "./BattleGamePractical"
@@ -7,7 +7,8 @@ import { LevelUpScreen } from "../../../LevelUpScreen"
 import { getSavedRoomId, getScoreboard } from "../../../api/versusApi"
 import { getLevelFromTotalXp, getStartXP } from "../../../utils/leveling"
 import axios from "../../../api/axiosConfig"
-import type { Question } from "../../../../types"
+import type { Question, BattleStatus } from "../../../../types"
+import { BattleWebSocketClient, type JoinRoomSnapshot } from "../../../../ws/BattleWebSocketClient"
 
 type ExamType = "written" | "practical"
 
@@ -23,6 +24,7 @@ export function BattleFlow() {
       topicId?: string
       topicName?: string
       examType?: ExamType
+      isBotMatch?: boolean // 봇전 여부
     }
   }
 
@@ -42,6 +44,7 @@ export function BattleFlow() {
   const topicKey = state?.topicId ?? state?.topicName ?? "db-basic"
   const examType: ExamType = state?.examType ?? "written"
   const roomId = state?.roomId || getSavedRoomId()
+  const isBotMatch = state?.isBotMatch || false // 봇전 여부
 
   // 현재 사용자 정보 가져오기 (한 번만)
   useEffect(() => {
@@ -60,8 +63,12 @@ export function BattleFlow() {
   }, [myUserId])
 
   // scoreboard 폴링하여 참가자 정보 가져오기
+  // 봇전인 경우에만 폴링 사용, PvP는 WebSocket 사용
   useEffect(() => {
     if (!roomId) return
+
+    // 봇전이 아닌 경우 폴링 비활성화 (PvP는 WebSocket 사용)
+    if (!isBotMatch) return;
 
     let intervalId: NodeJS.Timeout | null = null
 
@@ -109,7 +116,7 @@ export function BattleFlow() {
         clearInterval(intervalId)
       }
     }
-  }, [roomId, myUserId, state?.myUserId])
+  }, [roomId, myUserId, state?.myUserId, isBotMatch])
 
   useEffect(() => {
     if (!state || !topicKey) {
@@ -117,7 +124,220 @@ export function BattleFlow() {
     }
   }, [state, topicKey, navigate])
 
+  // WebSocket 연결 및 이벤트 핸들러 설정
+  // 봇전인 경우 WebSocket 연결하지 않음 (REST API 폴링 사용)
+  useEffect(() => {
+    if (!roomId) return;
+    
+    // 봇전인 경우 WebSocket 연결하지 않음
+    if (isBotMatch) {
+      console.log('[BattleFlow] 봇전 모드: WebSocket 연결하지 않음, REST API 폴링 사용');
+      return;
+    }
+
+    // PvP 전인 경우에만 WebSocket 연결
+    console.log('[BattleFlow] PvP 모드: WebSocket 연결 시작');
+    const wsClient = new BattleWebSocketClient();
+
+    // JOIN_ROOM snapshot 핸들러 설정 (상태 복구)
+    wsClient.setSnapshotCallback((snapshot) => {
+      console.log('[BattleFlow] JOIN_ROOM snapshot 수신, roomId:', roomId, snapshot);
+
+      // snapshot 기반 상태 복구 (방어 코드 포함)
+      const room = snapshot?.room;
+      const scoreboard = snapshot?.scoreboard;
+
+      if (!room || !scoreboard) {
+        console.warn('[BattleFlow] snapshot 구조가 올바르지 않습니다. roomId:', roomId, snapshot);
+        return;
+      }
+
+      // 초기 스코어보드 데이터 설정
+      const currentUserId = myUserId || state?.myUserId;
+      if (currentUserId && scoreboard.items) {
+        const myItem = scoreboard.items.find((item: any) => item.userId === currentUserId);
+        const opponentItem = scoreboard.items.find((item: any) => item.userId !== currentUserId);
+        
+        if (myItem) {
+          setMyScore(myItem.score);
+          setMyNickname(myItem.nickname);
+          setMySkinId(myItem.skinId);
+        }
+        if (opponentItem) {
+          setOpponentScore(opponentItem.score);
+          setOpponentNickname(opponentItem.nickname);
+          setOpponentSkinId(opponentItem.skinId);
+          setOpponentUserId(opponentItem.userId);
+        }
+      }
+
+      // currentQuestion 추출 (우선순위: currentQuestion > scoreboard.currentQuestion > room.currentQuestion)
+      const currentQuestion = snapshot.currentQuestion 
+        || scoreboard?.currentQuestion 
+        || room?.currentQuestion;
+
+      // 방 상태에 따라 battleStatus 업데이트
+      if (room.status === 'IN_PROGRESS' || room.status === 'ONGOING') {
+        // 현재 문제가 있으면 QUESTION_PLAYING, 없으면 WAITING
+        if (currentQuestion && currentQuestion.questionId) {
+          setBattleStatus('QUESTION_PLAYING');
+          setStep('game');
+
+          // currentQuestion에서 endTimeMs 계산 (방어 코드)
+          const startedAt = currentQuestion.startedAt as string | undefined;
+          const timeLimitSec = currentQuestion.timeLimitSec as number | undefined;
+          const questionId = currentQuestion.questionId as number;
+
+          console.log('[BattleFlow] snapshot에서 currentQuestion 추출:', {
+            startedAt,
+            timeLimitSec,
+            questionId,
+            currentQuestion
+          });
+
+          if (questionId) {
+            setCurrentQuestionId(questionId);
+            console.log('[BattleFlow] snapshot에서 questionId 설정:', questionId);
+          }
+
+          if (startedAt && timeLimitSec) {
+            const startedAtMs = new Date(startedAt).getTime();
+            if (!isNaN(startedAtMs)) {
+              const endTimeMs = startedAtMs + (timeLimitSec * 1000);
+              setQuestionEndTimeMs(endTimeMs);
+              console.log('[BattleFlow] snapshot 복구 완료 - endTimeMs:', endTimeMs, 'questionId:', questionId, 'roomId:', roomId);
+            } else {
+              console.warn('[BattleFlow] startedAt 파싱 실패, roomId:', roomId, startedAt);
+            }
+          } else {
+            console.warn('[BattleFlow] currentQuestion에 startedAt 또는 timeLimitSec이 없습니다. roomId:', roomId, currentQuestion);
+            // startedAt이 없어도 questionId만 있으면 문제는 불러올 수 있음
+            if (questionId) {
+              console.log('[BattleFlow] questionId만으로 문제 불러오기 시도:', questionId);
+            }
+          }
+        } else {
+          setBattleStatus('WAITING');
+          console.log('[BattleFlow] snapshot 복구 - WAITING 상태 (currentQuestion 없음), roomId:', roomId);
+        }
+      } else if (room.status === 'COMPLETED') {
+        setBattleStatus('MATCH_FINISHED');
+        setStep('result');
+        console.log('[BattleFlow] snapshot 복구 - MATCH_FINISHED, roomId:', roomId);
+      } else {
+        setBattleStatus('WAITING');
+        console.log('[BattleFlow] snapshot 복구 - WAITING 상태, roomId:', roomId, 'room.status:', room.status);
+      }
+    });
+
+    // 이벤트 핸들러 설정
+    wsClient.setEventCallback((eventType, event) => {
+      console.log('[BattleFlow] WebSocket 이벤트 수신:', eventType, event);
+
+      // 이벤트 타입에 따라 battleStatus 업데이트
+      switch (eventType) {
+        case 'QUESTION_STARTED': {
+          console.log('[BattleFlow] QUESTION_STARTED 이벤트 수신:', event);
+          setBattleStatus('QUESTION_PLAYING');
+          // step이 "game"이 아니면 "game"으로 전환
+          setStep('game');
+          
+          // payload에서 startedAt, timeLimitSec 추출하여 endTimeMs 계산
+          const startedAt = event.startedAt as string; // ISO 8601 형식
+          const timeLimitSec = event.timeLimitSec as number;
+          const questionId = event.questionId as number;
+          
+          console.log('[BattleFlow] QUESTION_STARTED 데이터:', {
+            startedAt,
+            timeLimitSec,
+            questionId,
+            event
+          });
+          
+          if (startedAt && timeLimitSec && questionId) {
+            const startedAtMs = new Date(startedAt).getTime();
+            const endTimeMs = startedAtMs + (timeLimitSec * 1000);
+            setQuestionEndTimeMs(endTimeMs);
+            setCurrentQuestionId(questionId);
+            console.log('[BattleFlow] QUESTION_STARTED 처리 완료 - endTimeMs:', endTimeMs, 'questionId:', questionId);
+          } else {
+            console.error('[BattleFlow] QUESTION_STARTED 데이터 불완전:', {
+              startedAt,
+              timeLimitSec,
+              questionId
+            });
+          }
+          break;
+        }
+
+        case 'QUESTION_FINISHED':
+          setBattleStatus('QUESTION_FINISHED');
+          // 문제 종료 UI는 기존 step 분기에서 처리
+          // 여기서는 상태만 업데이트
+          break;
+
+        case 'MATCH_FINISHED':
+          setBattleStatus('MATCH_FINISHED');
+          // 매치 종료 시 결과 화면으로 전환
+          setStep('result');
+          break;
+
+        case 'ANSWER_SUBMITTED':
+          // ANSWER_SUBMITTED는 상태 변경 없이 로깅만
+          console.log('[BattleFlow] 답안 제출 이벤트:', event);
+          break;
+
+        case 'SCOREBOARD_UPDATED':
+          // 스코어보드 업데이트 이벤트 처리
+          console.log('[BattleFlow] 스코어보드 업데이트:', event);
+          if (event.scoreboard && event.scoreboard.items) {
+            const currentUserId = myUserId || state?.myUserId;
+            if (currentUserId) {
+              const myItem = event.scoreboard.items.find((item: any) => item.userId === currentUserId);
+              const opponentItem = event.scoreboard.items.find((item: any) => item.userId !== currentUserId);
+              
+              if (myItem) {
+                setMyScore(myItem.score);
+              }
+              if (opponentItem) {
+                setOpponentScore(opponentItem.score);
+              }
+            }
+          }
+          break;
+
+        default:
+          console.log('[BattleFlow] 알 수 없는 이벤트 타입:', eventType);
+          break;
+      }
+    });
+
+    // 연결 및 방 구독
+    // connect 내부에서 roomId를 설정하고, onConnect에서 joinRoom을 자동 호출하므로
+    // 여기서는 connect만 호출
+    wsClient.connect(roomId);
+    wsClientRef.current = wsClient;
+
+    // cleanup
+    return () => {
+      if (wsClientRef.current) {
+        wsClientRef.current.disconnect();
+        wsClientRef.current = null;
+      }
+    };
+  }, [roomId, isBotMatch]);
+
   // 문제는 BattleGame 컴포넌트에서 currentQuestion을 확인하고 하나씩 가져옴
+
+  // WebSocket 클라이언트 인스턴스 관리
+  const wsClientRef = useRef<BattleWebSocketClient | null>(null);
+
+  // Battle 상태 관리 (WebSocket 이벤트 기반)
+  const [battleStatus, setBattleStatus] = useState<BattleStatus>("WAITING");
+
+  // 문제 타이머 관리 (QUESTION_STARTED 이벤트에서 받은 endTimeMs)
+  const [questionEndTimeMs, setQuestionEndTimeMs] = useState<number | null>(null);
+  const [currentQuestionId, setCurrentQuestionId] = useState<number | null>(null);
 
   // game → levelUp → result
   const [step, setStep] = useState<"game" | "levelUp" | "result">("game")
@@ -133,8 +353,12 @@ export function BattleFlow() {
   } | null>(null);
 
   // scoreboard 폴링하여 xpResults 확인
+  // 봇전인 경우에만 폴링 사용, PvP는 WebSocket 이벤트 사용
   useEffect(() => {
     if (step !== "game" || !roomId || !myUserId) return;
+
+    // 봇전이 아닌 경우 폴링 비활성화 (PvP는 WebSocket 이벤트 사용)
+    if (!isBotMatch) return;
 
     let intervalId: NodeJS.Timeout | null = null
 
@@ -208,7 +432,7 @@ export function BattleFlow() {
         clearInterval(intervalId)
       }
     };
-  }, [step, roomId, myUserId, state?.myUserId]);
+  }, [step, roomId, myUserId, state?.myUserId, isBotMatch]);
 
   if (step === "game") {
     const GameComponent =
@@ -224,6 +448,10 @@ export function BattleFlow() {
         opponentUserId={opponentUserId || undefined}
         myRank={myRank}
         opponentRank={opponentRank}
+        questionEndTimeMs={questionEndTimeMs}
+        currentQuestionId={currentQuestionId}
+        wsClient={isBotMatch ? null : wsClientRef.current} // 봇전인 경우 WebSocket 클라이언트 전달하지 않음
+        isBotMatch={isBotMatch} // 봇전 여부 전달
         onComplete={(me, opp) => {
           setMyScore(me)
           setOpponentScore(opp)

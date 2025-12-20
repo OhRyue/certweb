@@ -32,7 +32,12 @@ export function BattleGame({ questions, opponentName, myUserId, opponentUserId, 
   const question = questions[currentQuestion]
 
   // Timer
+  // [WebSocket 전환] 타이머 무력화: WebSocket 이벤트에서만 시간 관리
   useEffect(() => {
+    // 타이머 비활성화 - WebSocket 이벤트에서만 상태 변경
+    const TIMER_DISABLED = true;
+    if (TIMER_DISABLED) return;
+
     if (timeLeft === 0 && !isAnswered) {
       handleAnswer(null)
       return
@@ -81,20 +86,24 @@ export function BattleGame({ questions, opponentName, myUserId, opponentUserId, 
     setShowResult(true)
 
     // 다음 문제 또는 게임 종료
-    setTimeout(() => {
-      if (currentQuestion < totalQuestions - 1) {
-        setCurrentQuestion(prev => prev + 1)
-        setSelectedAnswer(null)
-        setIsAnswered(false)
-        setShowResult(false)
-        setTimeLeft(30)
-      } else {
-        const finalMyScore = meCorrect
-          ? myScore + 10 + Math.floor(timeLeft / 3)
-          : myScore
-        onComplete(finalMyScore, opponentScore)
-      }
-    }, 1500)
+    // [WebSocket 전환] 자동 문제 이동 무력화: WebSocket 이벤트에서만 상태 변경
+    const AUTO_NEXT_QUESTION_DISABLED = true;
+    if (!AUTO_NEXT_QUESTION_DISABLED) {
+      setTimeout(() => {
+        if (currentQuestion < totalQuestions - 1) {
+          setCurrentQuestion(prev => prev + 1)
+          setSelectedAnswer(null)
+          setIsAnswered(false)
+          setShowResult(false)
+          setTimeLeft(30)
+        } else {
+          const finalMyScore = meCorrect
+            ? myScore + 10 + Math.floor(timeLeft / 3)
+            : myScore
+          onComplete(finalMyScore, opponentScore)
+        }
+      }, 1500)
+    }
   }
 
   return (
