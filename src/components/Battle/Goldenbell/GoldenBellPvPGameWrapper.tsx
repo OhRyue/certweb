@@ -1,9 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { GoldenBellGame } from "./GoldenBellGame"
 import { GoldenBellResult } from "./GoldenBellResult"
 import { GoldenBellWaitingRoom } from "./GoldenBellWaitingRoom"
 import { getRoomDetail, getScoreboard, type RoomDetailResponse, type Scoreboard } from "../../api/versusApi"
+import { BattleWebSocketClient, type JoinRoomSnapshot, type BattleEvent } from "../../../ws/BattleWebSocketClient"
+import { getAuthItem } from "../../../utils/authStorage"
 
 export function GoldenBellPvPGameWrapper() {
   const { roomId } = useParams<{ roomId: string }>()
@@ -14,43 +16,83 @@ export function GoldenBellPvPGameWrapper() {
   const [error, setError] = useState<string | null>(null)
   const [gameCompleted, setGameCompleted] = useState(false)
   const [finalScoreboard, setFinalScoreboard] = useState<Scoreboard | null>(null)
+  const wsClientRef = useRef<BattleWebSocketClient | null>(null)
+  const [snapshot, setSnapshot] = useState<JoinRoomSnapshot | null>(null)
 
+  // 웹소켓 연결 및 방 입장
   useEffect(() => {
-    const initializeRoom = async () => {
-      if (!roomId || isNaN(Number(roomId))) {
-        setError("유효하지 않은 방 ID입니다.")
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        const detail = await getRoomDetail(Number(roomId))
-        console.log("방 정보 조회 성공:", detail)
-        
-        setRoomDetail(detail)
-        
-        // myUserId는 로컬스토리지나 다른 방법으로 가져올 수 있음
-        // 여기서는 participants의 마지막 사용자를 현재 사용자로 가정
-        // (실제로는 JWT 토큰에서 userId를 추출하거나 다른 방법 사용)
-        const participants = detail.participants
-        if (participants && participants.length > 0) {
-          // 가장 최근에 참가한 사용자를 현재 사용자로 가정
-          const lastParticipant = participants[participants.length - 1]
-          setMyUserId(lastParticipant.userId)
-        }
-        
-        setLoading(false)
-      } catch (err: any) {
-        console.error("방 정보 조회 실패:", err)
-        setError(err.response?.data?.message || "방 정보를 불러올 수 없습니다.")
-        setLoading(false)
-      }
+    if (!roomId || isNaN(Number(roomId))) {
+      setError("유효하지 않은 방 ID입니다.")
+      setLoading(false)
+      return
     }
 
-    initializeRoom()
+    const roomIdNum = Number(roomId)
+    
+    // 웹소켓 클라이언트 생성
+    const wsClient = new BattleWebSocketClient()
+    wsClientRef.current = wsClient
+
+    // JOIN_ROOM snapshot 핸들러 설정
+    wsClient.setSnapshotCallback((snapshot) => {
+      console.log('[GoldenBellPvPGameWrapper] JOIN_ROOM snapshot 수신:', snapshot)
+      setSnapshot(snapshot)
+      
+      // myUserId 설정
+      const storedUserId = getAuthItem("userId")
+      if (storedUserId) {
+        setMyUserId(storedUserId)
+      } else if (snapshot.participants.length > 0) {
+        // 저장된 userId가 없으면 첫 번째 참가자 사용 (fallback)
+        setMyUserId(snapshot.participants[0].userId)
+      }
+      
+      // roomDetail 업데이트 (호환성을 위해)
+      setRoomDetail({
+        room: {
+          roomId: snapshot.room.roomId,
+          mode: snapshot.room.mode,
+          status: snapshot.room.status,
+          examMode: snapshot.room.examMode,
+          createdAt: snapshot.room.createdAt,
+          scheduledAt: snapshot.room.scheduledAt,
+          isBotMatch: snapshot.room.isBotMatch
+        },
+        participants: snapshot.participants,
+        scoreboard: {
+          status: snapshot.scoreboard.status || "WAIT",
+          items: snapshot.scoreboard.items || []
+        }
+      })
+      
+      setLoading(false)
+    })
+
+    // 이벤트 핸들러 설정
+    wsClient.setEventCallback((eventType, event) => {
+      console.log('[GoldenBellPvPGameWrapper] 이벤트 수신:', eventType, event)
+      
+      // MATCH_STARTED 이벤트 수신 시 게임 시작
+      if (eventType === 'MATCH_STARTED') {
+        setRoomDetail(prev => prev ? {
+          ...prev,
+          room: { ...prev.room, status: "ONGOING" }
+        } : null)
+      }
+      
+      // SCOREBOARD_UPDATED 이벤트는 GoldenBellGame에서 처리
+    })
+
+    // 웹소켓 연결
+    wsClient.connect(roomIdNum)
+
+    // cleanup
+    return () => {
+      if (wsClientRef.current) {
+        wsClientRef.current.disconnect()
+        wsClientRef.current = null
+      }
+    }
   }, [roomId])
 
   if (loading) {
@@ -82,7 +124,7 @@ export function GoldenBellPvPGameWrapper() {
     )
   }
 
-  if (!roomDetail || !myUserId || !roomId) {
+  if (!roomDetail || !myUserId || !roomId || !snapshot) {
     return null
   }
 
@@ -114,19 +156,21 @@ export function GoldenBellPvPGameWrapper() {
   }
 
   // 방 상태에 따라 다른 화면 표시
-  if (roomDetail.room.status === "WAIT") {
+  if (roomDetail && roomDetail.room.status === "WAIT") {
     // 대기실 표시
     return (
       <GoldenBellWaitingRoom
         roomId={Number(roomId)}
         roomDetail={roomDetail}
-        myUserId={myUserId}
+        myUserId={myUserId || ""}
+        wsClient={wsClientRef.current}
+        snapshot={snapshot}
         onGameStart={() => {
           // 게임 시작 시 방 정보를 다시 로드하여 상태 업데이트
           // 또는 직접 상태를 IN_PROGRESS로 변경
           setRoomDetail(prev => prev ? {
             ...prev,
-            room: { ...prev.room, status: "IN_PROGRESS" }
+            room: { ...prev.room, status: "ONGOING" }
           } : null)
         }}
         onError={(errorMsg) => {
@@ -136,12 +180,14 @@ export function GoldenBellPvPGameWrapper() {
     )
   }
 
-  if (roomDetail.room.status === "IN_PROGRESS" || roomDetail.room.status === "ONGOING") {
-    // 게임 화면 표시
+  if (roomDetail && (roomDetail.room.status === "IN_PROGRESS" || roomDetail.room.status === "ONGOING")) {
+    // 게임 화면 표시 (PvP 전용 - 웹소켓 사용)
     return (
       <GoldenBellGame
         sessionId={roomId}
-        myUserId={myUserId}
+        myUserId={myUserId || undefined}
+        wsClient={wsClientRef.current}
+        isBotMatch={false}
         onComplete={handleGameComplete}
         onExit={() => navigate("/battle/goldenbell")}
       />

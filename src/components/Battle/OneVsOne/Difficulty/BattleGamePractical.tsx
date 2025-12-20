@@ -67,6 +67,8 @@ interface BattleGamePracticalProps {
   opponentUserId?: string;
   myRank?: number | null;
   opponentRank?: number | null;
+  questionEndTimeMs?: number | null; // QUESTION_STARTED에서 받은 endTimeMs
+  currentQuestionId?: number | null; // 현재 문제 ID
   onComplete: (myScore: number, opponentScore: number) => void;
   onExit: () => void;
 }
@@ -80,6 +82,8 @@ export function BattleGamePractical({
   opponentUserId,
   myRank,
   opponentRank,
+  questionEndTimeMs,
+  currentQuestionId,
   onComplete,
   onExit,
 }: BattleGamePracticalProps) {
@@ -88,7 +92,7 @@ export function BattleGamePractical({
   const [myScore, setMyScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
   const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(0); // 백엔드 endTime 기반으로 계산
+  const [timeLeft, setTimeLeft] = useState<number>(0); // UI 타이머 표시용 (표시만, 0이 되어도 동작 없음)
   const [isAnswered, setIsAnswered] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
@@ -106,8 +110,13 @@ export function BattleGamePractical({
   const [opponentSkinId, setOpponentSkinId] = useState<number>(1);
 
   // 1초 폴링으로 실시간 스코어보드 조회
+  // [WebSocket 전환] Polling 무력화: WebSocket 이벤트에서만 상태가 변경되도록 함
   useEffect(() => {
     if (!roomId || !myUserId) return;
+
+    // Polling 비활성화 - WebSocket 이벤트에서만 상태 변경
+    const POLLING_DISABLED = true;
+    if (POLLING_DISABLED) return;
 
     const pollScoreboard = async () => {
       try {
@@ -157,9 +166,13 @@ export function BattleGamePractical({
           
           setTimeLeft(remainingSec);
           
-          const questionIndex = orderNo - 1;
-          if (questionIndex >= 0 && questionIndex !== currentQuestionIndex) {
-            setCurrentQuestionIndex(questionIndex);
+          // [WebSocket 전환] Polling 기반 문제 인덱스 변경 무력화: WebSocket 이벤트에서만 상태 변경
+          const AUTO_INDEX_UPDATE_DISABLED = true;
+          if (!AUTO_INDEX_UPDATE_DISABLED) {
+            const questionIndex = orderNo - 1;
+            if (questionIndex >= 0 && questionIndex !== currentQuestionIndex) {
+              setCurrentQuestionIndex(questionIndex);
+            }
           }
         } else {
           // currentQuestion이 null이면 쉬는 시간 (인터미션)
@@ -190,31 +203,7 @@ export function BattleGamePractical({
     return () => clearInterval(interval);
   }, [roomId, myUserId, currentQuestionIndex, opponentLeft]);
 
-  // 하트비트 전송 (15초마다)
-  useEffect(() => {
-    if (!roomId || gameStatus === "DONE") return;
-
-    const sendHeartbeatRequest = async () => {
-      try {
-        await sendHeartbeat(roomId);
-      } catch (error) {
-        console.error("Heartbeat 전송 실패:", error);
-        // heartbeat 실패는 자동 추방으로 이어지므로 에러 표시하지 않음
-      }
-    };
-
-    // 즉시 한 번 전송
-    sendHeartbeatRequest();
-
-    // 15초마다 전송
-    const heartbeatInterval = setInterval(sendHeartbeatRequest, 15000);
-
-    return () => {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-      }
-    };
-  }, [roomId, gameStatus]);
+  // [WebSocket 전환] REST 기반 heartbeat 제거 - WebSocket heartbeat만 사용
 
   // currentQuestion이 변경되면 문제를 하나씩 가져오기 (토너먼트 방식)
   useEffect(() => {
@@ -345,13 +334,29 @@ export function BattleGamePractical({
     }
   }, [gameStatus, myScore, opponentScore, onComplete]);
 
-  // Timer - 백엔드 endTime 기반으로 계산하므로 프론트에서 직접 세지 않음
-  // 스코어보드 폴링에서 timeLeft를 업데이트하므로 별도 타이머 불필요
+  // UI 타이머 (표시만, 0이 되어도 아무 동작 안 함)
+  // [WebSocket 전환] QUESTION_STARTED 이벤트에서 받은 questionEndTimeMs 기반으로 타이머 표시
   useEffect(() => {
-    if (timeLeft === 0 && !isAnswered && question) {
-      handleAnswer();
+    if (!questionEndTimeMs) {
+      setTimeLeft(0);
+      return;
     }
-  }, [timeLeft, isAnswered, question, handleAnswer]);
+
+    const updateTimeLeft = () => {
+      const now = Date.now();
+      const remainingMs = questionEndTimeMs - now;
+      const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+      setTimeLeft(remainingSec);
+    };
+
+    // 즉시 한 번 업데이트
+    updateTimeLeft();
+
+    // 200ms 간격으로 업데이트 (표시용)
+    const interval = setInterval(updateTimeLeft, 200);
+
+    return () => clearInterval(interval);
+  }, [questionEndTimeMs]);
 
   // 문제가 변경되면 상태 초기화 (실제로 문제 ID가 변경된 경우에만)
   useEffect(() => {

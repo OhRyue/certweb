@@ -10,6 +10,7 @@ import type { Question } from "../../../types";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
+import { BattleWebSocketClient, type JoinRoomSnapshot, type BattleEvent } from "../../../ws/BattleWebSocketClient";
 
 type ExamType = "written" | "practical";
 
@@ -17,10 +18,11 @@ export function TournamentGameFlow() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { roomId, examType } = (location.state as {
+  const { roomId, examType, isBotMatch } = (location.state as {
     roomId?: number;
     examType?: ExamType;
     startedAt?: string;
+    isBotMatch?: boolean;
   }) || {};
 
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -30,9 +32,11 @@ export function TournamentGameFlow() {
   const [error, setError] = useState<string | null>(null);
   const [currentQuestionId, setCurrentQuestionId] = useState<number | null>(null);
   const [currentQuestionEndTime, setCurrentQuestionEndTime] = useState<string | null>(null);
+  const [currentQuestionEndTimeMs, setCurrentQuestionEndTimeMs] = useState<number | null>(null); // WebSocket용 (밀리초)
   const currentQuestionIdRef = useRef<number | null>(null);
   const [gameStatus, setGameStatus] = useState<string>(""); // 게임 상태 (WAIT, IN_PROGRESS, DONE 등)
   const [finalScoreboard, setFinalScoreboard] = useState<any>(null); // 최종 스코어보드
+  const wsClientRef = useRef<BattleWebSocketClient | null>(null);
   
   // LevelUpScreen 관련 상태
   const [showLevelUp, setShowLevelUp] = useState(false);
@@ -211,87 +215,195 @@ export function TournamentGameFlow() {
     initializeGame();
   }, [currentRoomId]);
 
-  // scoreboard 폴링으로 currentQuestion 추적
+  // WebSocket 이벤트 구독 (PvP) 또는 scoreboard 폴링 (봇전)
   useEffect(() => {
     if (!currentRoomId || loading) return;
     
-    // 이미 게임이 종료된 경우 폴링하지 않음
+    // 이미 게임이 종료된 경우 처리하지 않음
     if (gameStatus === "DONE") return;
 
-    const pollScoreboard = async () => {
-      try {
-        const scoreboard = await getScoreboard(currentRoomId);
-        
-        // 게임 상태 업데이트
-        setGameStatus(scoreboard.status);
-        
-        // 게임이 종료되었는지 확인
-        if (scoreboard.status === "DONE") {
-          setFinalScoreboard(scoreboard);
+    // 봇전인 경우 REST API 폴링 사용
+    if (isBotMatch) {
+      const pollScoreboard = async () => {
+        try {
+          const scoreboard = await getScoreboard(currentRoomId);
           
-          // xpResults 처리
-          if (scoreboard.xpResults && scoreboard.xpResults.length > 0 && myUserId) {
-            const myXpResult = scoreboard.xpResults.find(result => result.userId === myUserId);
-            if (myXpResult) {
-              const earnedExp = myXpResult.xpDelta;
-              const totalXP = myXpResult.totalXp;
-              const isLevelUp = myXpResult.leveledUp;
-              const currentLevel = getLevelFromTotalXp(totalXP);
+          // 게임 상태 업데이트
+          setGameStatus(scoreboard.status);
+          
+          // 게임이 종료되었는지 확인
+          if (scoreboard.status === "DONE") {
+            setFinalScoreboard(scoreboard);
+            
+            // xpResults 처리
+            if (scoreboard.xpResults && scoreboard.xpResults.length > 0 && myUserId) {
+              const myXpResult = scoreboard.xpResults.find(result => result.userId === myUserId);
+              if (myXpResult) {
+                const earnedExp = myXpResult.xpDelta;
+                const totalXP = myXpResult.totalXp;
+                const isLevelUp = myXpResult.leveledUp;
+                const currentLevel = getLevelFromTotalXp(totalXP);
 
-              setLevelUpData({
-                earnedExp,
-                totalXP,
-                currentLevel,
-                isLevelUp,
-                earnedPoints: isLevelUp ? 10 : 0
-              });
-              setShowLevelUp(true);
+                setLevelUpData({
+                  earnedExp,
+                  totalXP,
+                  currentLevel,
+                  isLevelUp,
+                  earnedPoints: isLevelUp ? 10 : 0
+                });
+                setShowLevelUp(true);
+              }
             }
+            
+            return;
           }
-          
-          // 폴링은 useEffect cleanup에서 중지됨
-          return;
+
+          const currentQuestion = scoreboard.currentQuestion;
+
+          // currentQuestion이 null인 경우 (문제를 불러오는 중이거나 쉬는 시간)
+          if (!currentQuestion) {
+            setQuestions([]); // 문제 목록 비우기
+            setCurrentQuestionId(null);
+            setCurrentQuestionEndTime(null);
+            currentQuestionIdRef.current = null;
+            return;
+          }
+
+          // currentQuestion이 변경되었는지 확인
+          if (currentQuestion.questionId !== currentQuestionIdRef.current) {
+            console.log("새 문제 감지:", currentQuestion.questionId);
+            currentQuestionIdRef.current = currentQuestion.questionId;
+            setCurrentQuestionId(currentQuestion.questionId);
+            
+            // 새 문제 가져오기
+            await fetchCurrentQuestion(
+              currentQuestion.questionId,
+              currentQuestion.roundNo,
+              currentQuestion.phase,
+              currentQuestion.timeLimitSec,
+              currentQuestion.endTime
+            );
+          } else if (currentQuestion.endTime !== currentQuestionEndTime) {
+            // endTime이 업데이트된 경우 (같은 문제지만 시간 갱신)
+            setCurrentQuestionEndTime(currentQuestion.endTime);
+          }
+        } catch (err) {
+          console.error("스코어보드 조회 실패:", err);
         }
+      };
 
-        const currentQuestion = scoreboard.currentQuestion;
+      // 2초마다 폴링
+      const interval = setInterval(pollScoreboard, 2000);
+      return () => clearInterval(interval);
+    }
 
-        // currentQuestion이 null인 경우 (문제를 불러오는 중이거나 쉬는 시간)
-        if (!currentQuestion) {
-          setQuestions([]); // 문제 목록 비우기
-          setCurrentQuestionId(null);
-          setCurrentQuestionEndTime(null);
-          currentQuestionIdRef.current = null;
-          return;
-        }
+    // PvP인 경우 WebSocket 이벤트 구독
+    const wsClient = new BattleWebSocketClient();
+    wsClientRef.current = wsClient;
 
-        // currentQuestion이 변경되었는지 확인
-        if (currentQuestion.questionId !== currentQuestionIdRef.current) {
-          console.log("새 문제 감지:", currentQuestion.questionId);
-          currentQuestionIdRef.current = currentQuestion.questionId;
-          setCurrentQuestionId(currentQuestion.questionId);
+    // JOIN_ROOM snapshot 핸들러
+    wsClient.setSnapshotCallback((snapshot: JoinRoomSnapshot) => {
+      console.log('[TournamentGameFlow] JOIN_ROOM snapshot 수신:', snapshot);
+      
+      // 게임 상태 업데이트
+      setGameStatus(snapshot.room.status);
+      
+      // 현재 문제 정보 업데이트
+      if (snapshot.currentQuestion) {
+        const question = snapshot.currentQuestion;
+        const endTimeDate = new Date(question.endTime);
+        const endTimeMs = endTimeDate.getTime();
+        
+        if (question.questionId !== currentQuestionIdRef.current) {
+          currentQuestionIdRef.current = question.questionId;
+          setCurrentQuestionId(question.questionId);
+          setCurrentQuestionEndTime(question.endTime);
+          setCurrentQuestionEndTimeMs(endTimeMs);
           
           // 새 문제 가져오기
-          await fetchCurrentQuestion(
-            currentQuestion.questionId,
-            currentQuestion.roundNo,
-            currentQuestion.phase,
-            currentQuestion.timeLimitSec,
-            currentQuestion.endTime
+          fetchCurrentQuestion(
+            question.questionId,
+            question.roundNo,
+            question.phase,
+            question.timeLimitSec,
+            question.endTime
           );
-        } else if (currentQuestion.endTime !== currentQuestionEndTime) {
-          // endTime이 업데이트된 경우 (같은 문제지만 시간 갱신)
-          setCurrentQuestionEndTime(currentQuestion.endTime);
+        } else {
+          // 같은 문제지만 시간 갱신
+          setCurrentQuestionEndTime(question.endTime);
+          setCurrentQuestionEndTimeMs(endTimeMs);
         }
-      } catch (err) {
-        console.error("스코어보드 조회 실패:", err);
+      } else {
+        // currentQuestion이 null인 경우 (쉬는 시간)
+        setQuestions([]);
+        setCurrentQuestionId(null);
+        setCurrentQuestionEndTime(null);
+        setCurrentQuestionEndTimeMs(null);
+        currentQuestionIdRef.current = null;
+      }
+    });
+
+    // 방 이벤트 핸들러
+    wsClient.setEventCallback((eventType: string, event: BattleEvent) => {
+      console.log('[TournamentGameFlow] 이벤트 수신:', eventType, event);
+      
+      switch (eventType) {
+        case 'QUESTION_STARTED':
+          const questionPayload = event.payload as any;
+          if (questionPayload.questionId) {
+            const endTimeDate = new Date(questionPayload.startedAt);
+            endTimeDate.setSeconds(endTimeDate.getSeconds() + (questionPayload.timeLimitSec || 30));
+            const endTimeMs = endTimeDate.getTime();
+            
+            if (questionPayload.questionId !== currentQuestionIdRef.current) {
+              currentQuestionIdRef.current = questionPayload.questionId;
+              setCurrentQuestionId(questionPayload.questionId);
+              setCurrentQuestionEndTime(endTimeDate.toISOString());
+              setCurrentQuestionEndTimeMs(endTimeMs);
+              
+              // 새 문제 가져오기
+              fetchCurrentQuestion(
+                questionPayload.questionId,
+                questionPayload.roundNo || 1,
+                questionPayload.phase || "MAIN",
+                questionPayload.timeLimitSec || 30,
+                endTimeDate.toISOString()
+              );
+            }
+          }
+          break;
+          
+        case 'SCOREBOARD_UPDATED':
+          // 스코어보드 업데이트는 snapshot에서 처리
+          break;
+          
+        case 'MATCH_FINISHED':
+          const finishedPayload = event.payload as any;
+          setGameStatus("DONE");
+          
+          // 최종 스코어보드는 snapshot에서 받거나 별도 조회 필요
+          // 여기서는 간단히 상태만 업데이트
+          break;
+      }
+    });
+
+    // WebSocket 연결 및 방 입장
+    wsClient.connect(currentRoomId);
+    
+    // 연결 후 방 입장 (connect 내부에서 자동으로 joinRoom 호출되지만 명시적으로도 호출)
+    setTimeout(() => {
+      if (wsClient.getConnectionStatus() && currentRoomId) {
+        wsClient.joinRoom(currentRoomId);
+      }
+    }, 500);
+
+    return () => {
+      if (wsClientRef.current) {
+        wsClientRef.current.disconnect();
+        wsClientRef.current = null;
       }
     };
-
-    // 2초마다 폴링
-    const interval = setInterval(pollScoreboard, 2000);
-
-    return () => clearInterval(interval);
-  }, [currentRoomId, loading, gameStatus]);
+  }, [currentRoomId, loading, gameStatus, isBotMatch, myUserId]);
 
   if (loading) {
     return (
@@ -442,6 +554,10 @@ export function TournamentGameFlow() {
       myUserId={myUserId || undefined}
       myRank={myRank}
       endTime={currentQuestionEndTime || undefined}
+      questionEndTimeMs={currentQuestionEndTimeMs || undefined}
+      currentQuestionId={currentQuestionId || undefined}
+      wsClient={isBotMatch ? null : wsClientRef.current || null}
+      isBotMatch={isBotMatch || false}
       onComplete={(myScore, opponentScore) => {
         // TODO: 토너먼트 결과 처리
         console.log("토너먼트 게임 완료", { myScore, opponentScore });
